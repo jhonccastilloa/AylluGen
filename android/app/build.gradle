@@ -78,11 +78,24 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.ayllugen"
+    flavorDimensions "default"
+    productFlavors {
+        development {
+            dimension "default"
+            applicationIdSuffix ".dev"
+            versionNameSuffix "1.0.0"
+            resValue "string", "app_name", "AylluGen Dev"
+        }
+        production {
+            dimension "default"
+            resValue "string", "app_name", "AylluGen"
+        }
+    }
     defaultConfig {
         applicationId "com.ayllugen"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 5
         versionName "1.0.0"
     }
     signingConfigs {
