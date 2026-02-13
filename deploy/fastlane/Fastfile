@@ -1,0 +1,211 @@
+# ===============================================
+# 🚀 FASTLANE CONFIG - Multiplataforma Android/iOS
+# ===============================================
+
+require 'net/http'
+require 'uri'
+require 'json'
+
+default_platform(:android)
+
+# =========================
+# 🌎 Rutas globales
+# =========================
+$root_path = "../.."
+$android_path = "#{$root_path}/android"
+$gradlew_path = "#{$android_path}/gradlew"
+$build_gradle_path = "#{$android_path}/app/build.gradle"
+$constants_path = "#{$root_path}/app/core/Constants.ts"
+$android_artifact_path = "#{$android_path}/app/build/outputs/apk/release/app-release.apk"
+$ios_path = "#{$root_path}/ios"
+$xcodeproj_path = "#{$ios_path}/DigitalBank.xcodeproj"
+$xcworkspace_path = "#{$ios_path}/DigitalBank.xcworkspace"
+$schema_path = "#{$ios_path}/DigitalBank"
+$pbxproj_path = "#{$xcodeproj_path}/project.pbxproj"
+
+
+# =========================
+# 🔧 Helpers reutilizables
+# =========================
+
+
+def expand_project_path(relative_path)
+  File.expand_path(relative_path, Dir.pwd)
+end
+
+def bump_marketing_version(new_version, flavor)
+  flavor = flavor || 'Release'
+  pbxproj_path = expand_project_path($pbxproj_path)
+
+  # Escapa el flavor por si tiene espacios
+  flavor_escaped = flavor.gsub(' ', '\ ')
+
+  # Comando sed: busca el bloque del flavor y reemplaza solo dentro de él
+  sh <<~CMD
+    sed -i '' -e "/#{flavor_escaped}/,/PRODUCT_BUNDLE_IDENTIFIER/ s/MARKETING_VERSION = [0-9.]*/MARKETING_VERSION = #{new_version}/" #{pbxproj_path}
+  CMD
+end
+
+def get_current_ambient
+  "PROD"
+  # content = File.read(expand_project_path($constants_path))
+  # match = content.match(/^\s*export const API_BASE_URL\s*=\s*['"]([^'"]+)['"]\s*;/)
+  # return "NO DEFINIDO" unless match
+  #
+  # url = match[1]
+  # mapping = {
+  #   "http://10.200.0.4:4000/BPeopleAPI/" => "DESARROLLO-VPN",
+  #   "http://48.217.192.213/BPeopleAPI/" => "CALIDAD",
+  #   "http://20.83.162.185/BPeopleAPI/" => "DESARROLLO",
+  #   "https://icanbank.bancoaztecapanama.com/BPeopleAPI/" => "PRODUCCIÓN"
+  # }
+  #
+  # mapping[url] || "PROD"
+end
+
+def generate_build_message(build_version, build_number, platform, info)
+  platform_name = platform.capitalize
+  branch = git_branch
+  distribution_type = platform.downcase == "ios" ? "TestFlight Distribution" : "Firebase Distribution"
+
+  "Deploy (#{get_current_ambient}) | Build ##{build_number} | #{info ? "#{info} | " : ""}Branch #{branch} | #{platform_name} | #{distribution_type}"
+end
+
+def validate_repo_sync
+  sh "git fetch origin"
+  remote_commit = sh("git rev-parse origin/#{git_branch}").strip
+  local_commit = sh("git merge-base HEAD origin/#{git_branch}").strip
+
+  if local_commit != remote_commit
+    UI.user_error!("🚫 El repositorio local no está sincronizado con el remoto. Ejecuta 'git pull' antes de continuar.")
+  end
+end
+
+def notify_teams(platform, release_info, info, build_number)
+  url = URI.parse(ENV['TEAMS_WEBHOOK_URL'])
+  remote_url = `git remote get-url origin`.strip.sub(/\.git$/, '')
+  commit_hash = `git rev-parse HEAD`.strip
+  commit_url = "#{remote_url}/-/commit/#{commit_hash}"
+
+  payload = {
+    environment: get_current_ambient,
+    version: release_info[:displayVersion],
+    buildNumber: "##{build_number}",
+    info: info.nil? ? "N/A" : info,
+    branch: git_branch,
+    platform: platform.capitalize,
+    distribution: platform == "ios" ? "TestFlight Distribution" : "Firebase Distribution",
+    downloadUrl: release_info[:testingUri],
+    buildUrl: release_info[:firebaseConsoleUri] || release_info[:appStoreConnectUrl],
+    repoUrl: commit_url
+  }
+
+  http = Net::HTTP.new(url.host, url.port)
+  
+  request = Net::HTTP::Post.new(url.request_uri, { 'Content-Type' => 'application/json' })
+  request.body = payload.to_json
+  http.request(request)
+end
+
+def commit_and_push(files, message)
+  git_commit(path: files, message: message, allow_nothing_to_commit: true)
+  push_to_git_remote
+end
+
+# =========================
+# 🤖 ANDROID
+# =========================
+platform :android do
+  desc "Deploy Android build to Firebase"
+  lane :beta do |options|
+    validate_repo_sync
+
+    version = options[:version]
+    build_number = options[:build_number]
+    info = options[:info]
+
+    if version.nil? || build_number.nil?
+      latest = firebase_app_distribution_get_latest_release(
+        app: ENV['FIREBASE_APP_ID'],
+        firebase_cli_token: ENV['FIREBASE_TOKEN']
+      )
+      version ||= latest[:displayVersion].gsub("dev", "")
+      build_number ||= latest[:buildVersion].to_i + 1
+    end
+
+    android_set_version_name(version_name: version, gradle_file: expand_project_path($build_gradle_path))
+    android_set_version_code(version_code: build_number, gradle_file: expand_project_path($build_gradle_path))
+
+    gradle(
+      task: "assemble",
+      build_type: "Release",
+      gradle_path: expand_project_path($gradlew_path),
+      project_dir: expand_project_path($android_path)
+    )
+
+    build_message = generate_build_message(version, build_number, "android", info)
+
+    release = firebase_app_distribution(
+      app: ENV['FIREBASE_APP_ID'],
+      firebase_cli_token: ENV['FIREBASE_TOKEN'],
+      testers: "gpro1pro@gmail.com",
+      release_notes: build_message,
+      android_artifact_type: "APK",
+      android_artifact_path: expand_project_path($android_artifact_path)
+    )
+
+    commit_and_push([expand_project_path($build_gradle_path), expand_project_path($constants_path)], build_message)
+    notify_teams("android", release, info, build_number)
+  end
+end
+
+# =========================
+# 🍏 iOS
+# =========================
+platform :ios do
+  desc "Deploy iOS build to TestFlight"
+  lane :beta do |options|
+    validate_repo_sync
+
+    version = options[:version]
+    build_number = options[:build_number]
+    info = options[:info]
+
+    if version.nil? || build_number.nil?
+      # Obtener última versión y build number desde TestFlight si no se proporcionaron
+      last_build = latest_testflight_build_number
+      build_number ||= last_build.to_i + 1
+      version ||= lane_context[SharedValues::LATEST_TESTFLIGHT_VERSION]
+    end
+
+  increment_version_number_in_xcodeproj(
+    version_number: version,
+    build_configuration_name: "Desarrollo", 
+    xcodeproj: expand_project_path($xcodeproj_path)
+  )
+    
+  increment_build_number(
+    build_number: build_number,
+          skip_info_plist: true,
+    xcodeproj: expand_project_path($xcodeproj_path)
+  )
+    build_app(
+      scheme: "Desarrollo",
+      workspace: expand_project_path($xcworkspace_path)
+    )
+
+    build_message = generate_build_message(version, build_number, "ios", info)
+     upload_to_testflight(
+       changelog: build_message
+     )
+
+    release = {
+      displayVersion: version,
+      testingUri:'',
+      appStoreConnectUrl:'',
+    }
+
+    commit_and_push([expand_project_path($pbxproj_path),expand_project_path($constants_path)], build_message)
+    notify_teams("ios", release, info, build_number)
+  end
+end

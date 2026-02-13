@@ -1,0 +1,95 @@
+import { appSchema, tableSchema } from '@nozbe/watermelondb';
+import { DB_TABLES } from '@/infrastructure/database/constants';
+
+export const databaseSchema = appSchema({
+  version: 2,
+  tables: [
+    tableSchema({
+      name: DB_TABLES.animals,
+      columns: [
+        { name: 'crotal', type: 'string', isIndexed: true },
+        { name: 'sex', type: 'string', isIndexed: true },
+        { name: 'species', type: 'string' },
+        { name: 'birth_date', type: 'number', isOptional: true },
+        { name: 'is_founder', type: 'boolean' },
+        { name: 'father_id', type: 'string', isOptional: true },
+        { name: 'mother_id', type: 'string', isOptional: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'sync_status', type: 'string', isIndexed: true },
+        { name: 'sync_version', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: DB_TABLES.breedings,
+      columns: [
+        { name: 'male_id', type: 'string', isIndexed: true },
+        { name: 'female_id', type: 'string', isIndexed: true },
+        { name: 'projected_coi', type: 'number' },
+        { name: 'risk_level', type: 'string' },
+        { name: 'offspring_id', type: 'string', isOptional: true },
+        { name: 'breeding_date', type: 'number', isOptional: true },
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'sync_status', type: 'string', isIndexed: true },
+        { name: 'sync_version', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: DB_TABLES.healthRecords,
+      columns: [
+        { name: 'animal_id', type: 'string', isIndexed: true },
+        { name: 'type', type: 'string', isIndexed: true },
+        { name: 'date', type: 'number' },
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'next_due_date', type: 'number', isOptional: true },
+        { name: 'completed', type: 'boolean', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'sync_status', type: 'string', isIndexed: true },
+        { name: 'sync_version', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: DB_TABLES.productionRecords,
+      columns: [
+        { name: 'animal_id', type: 'string', isIndexed: true },
+        { name: 'type', type: 'string', isIndexed: true },
+        { name: 'date', type: 'number' },
+        { name: 'value', type: 'number' },
+        { name: 'unit', type: 'string' },
+        { name: 'quality_score', type: 'number', isOptional: true },
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'sync_status', type: 'string', isIndexed: true },
+        { name: 'sync_version', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: DB_TABLES.syncQueue,
+      columns: [
+        { name: 'table_name', type: 'string', isIndexed: true },
+        { name: 'record_id', type: 'string', isIndexed: true },
+        { name: 'action', type: 'string', isIndexed: true },
+        { name: 'payload', type: 'string', isOptional: true },
+        { name: 'client_version', type: 'number' },
+        { name: 'created_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: DB_TABLES.appMeta,
+      columns: [
+        { name: 'meta_key', type: 'string', isIndexed: true },
+        { name: 'meta_value', type: 'string' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+  ],
+});
