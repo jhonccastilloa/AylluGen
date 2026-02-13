@@ -148,14 +148,14 @@ platform :android do
     release = firebase_app_distribution(
       app: ENV['FIREBASE_APP_ID'],
       firebase_cli_token: ENV['FIREBASE_TOKEN'],
-      testers: "gpro1pro@gmail.com",
+      groups: "testers",
       release_notes: build_message,
       android_artifact_type: "APK",
       android_artifact_path: expand_project_path($android_artifact_path)
     )
 
-    commit_and_push([expand_project_path($build_gradle_path), expand_project_path($constants_path)], build_message)
-    notify_teams("android", release, info, build_number)
+    commit_and_push([expand_project_path($build_gradle_path)], build_message)
+    # notify_teams("android", release, info, build_number)
   end
 end
 

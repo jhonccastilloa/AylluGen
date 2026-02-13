@@ -95,14 +95,14 @@ const SignInScreen = ({ navigation }: Props) => {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>{t('auth.noAccount')}</Text>
-            <Pressable
-              onPress={() => navigation.navigate('SignUp')}
-              accessibilityRole="button"
-              accessibilityLabel={t('auth.goToSignUp')}
-            >
-              <Text style={styles.footerLink}>{t('auth.goToSignUp')}</Text>
-            </Pressable>
+            {/* <Text style={styles.footerText}>{t('auth.noAccount')}</Text> */}
+            {/* <Pressable */}
+            {/*   onPress={() => navigation.navigate('SignUp')} */}
+            {/*   accessibilityRole="button" */}
+            {/*   accessibilityLabel={t('auth.goToSignUp')} */}
+            {/* > */}
+            {/*   <Text style={styles.footerLink}>{t('auth.goToSignUp')}</Text> */}
+            {/* </Pressable> */}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   initialWindowMetrics,
   SafeAreaProvider,
@@ -16,14 +16,15 @@ import BackendHealthProvider from './presentation/providers/BackendHealthProvide
 
 function App(): React.JSX.Element {
   const isAndroid15 = Platform.OS === 'android' && Platform.Version >= 35;
+
   return (
     <SafeAreaProvider
       style={
         isAndroid15
           ? {
-            marginBottom: initialWindowMetrics?.insets.bottom,
-            marginTop: initialWindowMetrics?.insets.top,
-          }
+              marginBottom: initialWindowMetrics?.insets.bottom,
+              marginTop: initialWindowMetrics?.insets.top,
+            }
           : {}
       }
     >

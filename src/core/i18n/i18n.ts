@@ -67,7 +67,7 @@ export const initI18n = () => {
     .use(capitalizeProcessor)
     .init({
       lng: defaultLang,
-      fallbackLng: 'en',
+      fallbackLng: 'es',
       debug: true,
       resources,
       interpolation: { escapeValue: false },

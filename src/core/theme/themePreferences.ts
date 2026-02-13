@@ -20,7 +20,7 @@ export const getThemePreference = (): ThemePreference => {
   if (isThemePreference(savedPreference)) {
     return savedPreference;
   }
-  return 'system';
+  return 'light';
 };
 
 export const applyThemePreference = (preference: ThemePreference) => {

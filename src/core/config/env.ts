@@ -8,8 +8,8 @@ const getEnv = (): Environment => {
 const config = {
   env: getEnv(),
   apiBaseUrl: __DEV__
-    ? 'http://192.168.6.102:3000/api'
-    : 'https://dhyrium.online/allugen/api',
+    ? 'https://dhyrium.online/ayllugen/api'
+    : 'https://dhyrium.online/ayllugen/api',
   apiTimeout: 30000,
   enableLogging: __DEV__,
   mmkv: {
