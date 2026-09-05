@@ -35,17 +35,6 @@ export class BreedingsUseCases {
   }
 
   async createBreeding(userId: string, input: BreedingCreateInput): Promise<Breeding> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteBreeding = await this.api.create(input);
-        await this.localRepository.upsertFromServer([remoteBreeding]);
-        return remoteBreeding;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const localBreeding = await this.localRepository.createLocal(userId, input);
 
     await this.syncOrchestrator.enqueueChange(
@@ -53,6 +42,8 @@ export class BreedingsUseCases {
       'CREATE',
       localBreeding.id,
       {
+        clientCreatedAt: localBreeding.createdAt,
+        clientUpdatedAt: localBreeding.updatedAt,
         maleId: localBreeding.maleId,
         femaleId: localBreeding.femaleId,
         projectedCOI: localBreeding.projectedCOI,
@@ -70,17 +61,6 @@ export class BreedingsUseCases {
     breedingId: string,
     input: BreedingUpdateInput,
   ): Promise<Breeding | null> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteBreeding = await this.api.update(breedingId, input);
-        await this.localRepository.upsertFromServer([remoteBreeding]);
-        return remoteBreeding;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const updated = await this.localRepository.updateLocal(breedingId, input);
     if (!updated) return null;
 
@@ -88,7 +68,7 @@ export class BreedingsUseCases {
       DB_TABLES.breedings,
       'UPDATE',
       breedingId,
-      input as Record<string, unknown>,
+      { ...input, clientUpdatedAt: updated.updatedAt },
       updated.syncVersion,
     );
 
@@ -96,17 +76,6 @@ export class BreedingsUseCases {
   }
 
   async deleteBreeding(breedingId: string): Promise<boolean> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        await this.api.delete(breedingId);
-        await this.localRepository.deleteLocal(breedingId);
-        return true;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const deletedVersion = await this.localRepository.deleteLocal(breedingId);
     if (!deletedVersion) return false;
 

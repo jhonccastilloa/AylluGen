@@ -42,17 +42,6 @@ export class HealthUseCases {
   }
 
   async create(userId: string, input: HealthRecordCreateInput): Promise<HealthRecord> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteRecord = await this.api.create(input);
-        await this.localRepository.upsertFromServer([remoteRecord]);
-        return remoteRecord;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const localRecord = await this.localRepository.createLocal(userId, input);
 
     await this.syncOrchestrator.enqueueChange(
@@ -60,6 +49,8 @@ export class HealthUseCases {
       'CREATE',
       localRecord.id,
       {
+        clientCreatedAt: localRecord.createdAt,
+        clientUpdatedAt: localRecord.updatedAt,
         animalId: localRecord.animalId,
         type: localRecord.type,
         date: localRecord.date,
@@ -77,17 +68,6 @@ export class HealthUseCases {
     healthRecordId: string,
     input: HealthRecordUpdateInput,
   ): Promise<HealthRecord | null> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteRecord = await this.api.update(healthRecordId, input);
-        await this.localRepository.upsertFromServer([remoteRecord]);
-        return remoteRecord;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const updatedRecord = await this.localRepository.updateLocal(healthRecordId, input);
     if (!updatedRecord) return null;
 
@@ -95,7 +75,7 @@ export class HealthUseCases {
       DB_TABLES.healthRecords,
       'UPDATE',
       healthRecordId,
-      input as Record<string, unknown>,
+      { ...input, clientUpdatedAt: updatedRecord.updatedAt },
       updatedRecord.syncVersion,
     );
 
@@ -103,17 +83,6 @@ export class HealthUseCases {
   }
 
   async delete(healthRecordId: string): Promise<boolean> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        await this.api.delete(healthRecordId);
-        await this.localRepository.deleteLocal(healthRecordId);
-        return true;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const deletedVersion = await this.localRepository.deleteLocal(healthRecordId);
     if (!deletedVersion) return false;
 

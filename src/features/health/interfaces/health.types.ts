@@ -16,6 +16,8 @@ export interface HealthRecord {
   userId: string;
   syncStatus: SyncStatus;
   syncVersion: number;
+  clientCreatedAt?: string;
+  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

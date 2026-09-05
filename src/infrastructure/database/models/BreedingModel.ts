@@ -1,6 +1,6 @@
-import { Model } from '@nozbe/watermelondb';
-import { field, text } from '@nozbe/watermelondb/decorators';
+import { date, field, readonly, text } from '@nozbe/watermelondb/decorators';
 import { DB_TABLES } from '@/infrastructure/database/constants';
+import { Model } from '@nozbe/watermelondb';
 
 export class BreedingModel extends Model {
   static table = DB_TABLES.breedings;
@@ -15,6 +15,6 @@ export class BreedingModel extends Model {
   @text('user_id') userId!: string;
   @text('sync_status') recordSyncStatus!: string;
   @field('sync_version') syncVersion!: number;
-  @field('created_at') createdAt!: number;
-  @field('updated_at') updatedAt!: number;
+  @readonly @date('created_at') readonly createdAt!: Date;
+  @readonly @date('updated_at') readonly updatedAt!: Date;
 }

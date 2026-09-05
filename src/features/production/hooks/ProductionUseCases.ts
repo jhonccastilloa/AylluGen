@@ -35,23 +35,14 @@ export class ProductionUseCases {
     userId: string,
     input: ProductionRecordCreateInput,
   ): Promise<ProductionRecord> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteRecord = await this.api.create(input);
-        await this.localRepository.upsertFromServer([remoteRecord]);
-        return remoteRecord;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const localRecord = await this.localRepository.createLocal(userId, input);
     await this.syncOrchestrator.enqueueChange(
       DB_TABLES.productionRecords,
       'CREATE',
       localRecord.id,
       {
+        clientCreatedAt: localRecord.createdAt,
+        clientUpdatedAt: localRecord.updatedAt,
         animalId: localRecord.animalId,
         type: localRecord.type,
         date: localRecord.date,
@@ -69,17 +60,6 @@ export class ProductionUseCases {
     productionRecordId: string,
     input: ProductionRecordUpdateInput,
   ): Promise<ProductionRecord | null> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteRecord = await this.api.update(productionRecordId, input);
-        await this.localRepository.upsertFromServer([remoteRecord]);
-        return remoteRecord;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const updated = await this.localRepository.updateLocal(productionRecordId, input);
     if (!updated) return null;
 
@@ -87,7 +67,7 @@ export class ProductionUseCases {
       DB_TABLES.productionRecords,
       'UPDATE',
       productionRecordId,
-      input as Record<string, unknown>,
+      { ...input, clientUpdatedAt: updated.updatedAt },
       updated.syncVersion,
     );
 
@@ -95,17 +75,6 @@ export class ProductionUseCases {
   }
 
   async delete(productionRecordId: string): Promise<boolean> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        await this.api.delete(productionRecordId);
-        await this.localRepository.deleteLocal(productionRecordId);
-        return true;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const deletedVersion = await this.localRepository.deleteLocal(productionRecordId);
     if (!deletedVersion) return false;
 

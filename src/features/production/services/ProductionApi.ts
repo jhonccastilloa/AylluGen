@@ -1,3 +1,4 @@
+import { mapClientTimestamps } from '@/features/shared/utils/mapClientTimestamps';
 import { ApiService } from '@/infrastructure/api/ApiService';
 import type {
   ProductionRecord,
@@ -30,37 +31,37 @@ const buildQuery = (params?: Record<string, unknown>) => {
 
 export class ProductionApi {
   create(input: ProductionRecordCreateInput): Promise<ProductionRecord> {
-    return ApiService.post<ProductionRecord>('/production', input);
+    return ApiService.post<ProductionRecord>('/production', input).then(mapClientTimestamps);
   }
 
   getAll(filters?: ProductionFilters): Promise<ProductionListResponse> {
     return ApiService.get<ProductionListResponse>(
       `/production${buildQuery(filters as Record<string, unknown> | undefined)}`,
-    );
+    ).then(mapClientTimestamps);
   }
 
   getById(id: string): Promise<ProductionRecord> {
-    return ApiService.get<ProductionRecord>(`/production/${id}`);
+    return ApiService.get<ProductionRecord>(`/production/${id}`).then(mapClientTimestamps);
   }
 
   getSummary(animalId: string, type: ProductionType): Promise<ProductionSummary> {
     return ApiService.get<ProductionSummary>(
       `/production/animal/${animalId}/summary/${type}`,
-    );
+    ).then(mapClientTimestamps);
   }
 
   getRecent(animalId: string, limit?: number): Promise<ProductionListResponse> {
     return ApiService.get<ProductionListResponse>(
       `/production/animal/${animalId}/recent${buildQuery({ limit })}`,
-    );
+    ).then(mapClientTimestamps);
   }
 
   update(id: string, input: ProductionRecordUpdateInput): Promise<ProductionRecord> {
-    return ApiService.put<ProductionRecord>(`/production/${id}`, input);
+    return ApiService.put<ProductionRecord>(`/production/${id}`, input).then(mapClientTimestamps);
   }
 
   delete(id: string): Promise<void> {
-    return ApiService.delete<void>(`/production/${id}`);
+    return ApiService.delete<void>(`/production/${id}`).then(mapClientTimestamps);
   }
 }
 

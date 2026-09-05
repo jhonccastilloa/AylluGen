@@ -1,3 +1,4 @@
+import { restoreSyncedTimestamps } from '@/infrastructure/database/restoreSyncedTimestamps';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '@/infrastructure/database';
 import { DB_TABLES } from '@/infrastructure/database/constants';
@@ -16,6 +17,9 @@ import {
 } from '@/features/shared/utils/date';
 import { generateUuid } from '@/features/shared/utils/id';
 
+const toTimestampIsoOrEmpty = (value?: Date | null): string =>
+  value?.toISOString() ?? new Date(0).toISOString();
+
 const toIsoOrEmpty = (value?: number | null): string =>
   timestampToIso(value) ?? new Date(0).toISOString();
 
@@ -31,8 +35,8 @@ const toDomain = (model: ProductionRecordModel): ProductionRecord => ({
   userId: model.userId,
   syncStatus: model.recordSyncStatus as SyncStatus,
   syncVersion: model.syncVersion,
-  createdAt: toIsoOrEmpty(model.createdAt),
-  updatedAt: toIsoOrEmpty(model.updatedAt),
+  createdAt: toTimestampIsoOrEmpty(model.createdAt),
+  updatedAt: toTimestampIsoOrEmpty(model.updatedAt),
 });
 
 export class ProductionLocalRepository {
@@ -76,8 +80,6 @@ export class ProductionLocalRepository {
         record.userId = userId;
         record.recordSyncStatus = 'PENDING';
         record.syncVersion = 1;
-        record.createdAt = timestamp;
-        record.updatedAt = timestamp;
       });
     });
 
@@ -108,7 +110,6 @@ export class ProductionLocalRepository {
           if (input.notes !== undefined) record.notes = input.notes;
           record.recordSyncStatus = 'PENDING';
           record.syncVersion += 1;
-          record.updatedAt = nowTimestamp();
         });
       });
       return this.getById(id);
@@ -127,7 +128,6 @@ export class ProductionLocalRepository {
           record.recordSyncStatus = 'DELETED';
           record.syncVersion += 1;
           deletedVersion = record.syncVersion;
-          record.updatedAt = nowTimestamp();
         });
       });
       return deletedVersion;
@@ -167,8 +167,15 @@ export class ProductionLocalRepository {
   async upsertFromServer(records: ProductionRecord[]): Promise<void> {
     await database.write(async () => {
       for (const record of records) {
+        const createdAt = isoToTimestamp(record.clientCreatedAt ?? record.createdAt) ?? nowTimestamp();
+        const updatedAt = isoToTimestamp(record.clientUpdatedAt ?? record.updatedAt) ?? nowTimestamp();
         try {
           const existing = await this.collection.find(record.id);
+          const pendingCount = await database.get(DB_TABLES.syncQueue).query(
+            Q.where('table_name', this.collection.table),
+            Q.where('record_id', record.id),
+          ).fetchCount();
+          if (pendingCount > 0) continue;
           await existing.update(item => {
             item.animalId = record.animalId;
             item.type = record.type;
@@ -180,8 +187,7 @@ export class ProductionLocalRepository {
             item.userId = record.userId;
             item.recordSyncStatus = record.syncStatus;
             item.syncVersion = record.syncVersion;
-            item.createdAt = isoToTimestamp(record.createdAt) ?? nowTimestamp();
-            item.updatedAt = isoToTimestamp(record.updatedAt) ?? nowTimestamp();
+            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
           });
         } catch {
           await this.collection.create(item => {
@@ -196,8 +202,7 @@ export class ProductionLocalRepository {
             item.userId = record.userId;
             item.recordSyncStatus = record.syncStatus;
             item.syncVersion = record.syncVersion;
-            item.createdAt = isoToTimestamp(record.createdAt) ?? nowTimestamp();
-            item.updatedAt = isoToTimestamp(record.updatedAt) ?? nowTimestamp();
+            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
           });
         }
       }

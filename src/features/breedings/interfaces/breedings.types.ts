@@ -17,6 +17,8 @@ export interface Breeding {
   userId: string;
   syncStatus: SyncStatus;
   syncVersion: number;
+  clientCreatedAt?: string;
+  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

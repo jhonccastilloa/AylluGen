@@ -1,3 +1,4 @@
+import { mapClientTimestamps } from '@/features/shared/utils/mapClientTimestamps';
 import { ApiService } from '@/infrastructure/api/ApiService';
 import type {
   HealthRecord,
@@ -44,29 +45,29 @@ const buildQuery = (params?: Record<string, unknown>) => {
 
 export class HealthApi {
   create(input: HealthRecordCreateInput): Promise<HealthRecord> {
-    return ApiService.post<HealthRecord>('/sanity', input);
+    return ApiService.post<HealthRecord>('/sanity', input).then(mapClientTimestamps);
   }
 
   getAll(filters?: HealthFilters): Promise<HealthListResponse> {
-    return ApiService.get<HealthListResponse>(`/sanity${buildQuery(filters as Record<string, unknown> | undefined)}`);
+    return ApiService.get<HealthListResponse>(`/sanity${buildQuery(filters as Record<string, unknown> | undefined)}`).then(mapClientTimestamps);
   }
 
   getUpcoming(daysAhead?: number): Promise<HealthUpcomingResponse> {
     return ApiService.get<HealthUpcomingResponse>(
       `/sanity/upcoming${buildQuery({ daysAhead })}`,
-    );
+    ).then(mapClientTimestamps);
   }
 
   getById(id: string): Promise<HealthRecord> {
-    return ApiService.get<HealthRecord>(`/sanity/${id}`);
+    return ApiService.get<HealthRecord>(`/sanity/${id}`).then(mapClientTimestamps);
   }
 
   update(id: string, input: HealthRecordUpdateInput): Promise<HealthRecord> {
-    return ApiService.put<HealthRecord>(`/sanity/${id}`, input);
+    return ApiService.put<HealthRecord>(`/sanity/${id}`, input).then(mapClientTimestamps);
   }
 
   delete(id: string): Promise<void> {
-    return ApiService.delete<void>(`/sanity/${id}`);
+    return ApiService.delete<void>(`/sanity/${id}`).then(mapClientTimestamps);
   }
 }
 

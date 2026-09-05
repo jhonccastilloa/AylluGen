@@ -1,3 +1,4 @@
+import { mapClientTimestamps } from '@/features/shared/utils/mapClientTimestamps';
 import { ApiService } from '@/infrastructure/api/ApiService';
 import type {
   Animal,
@@ -46,39 +47,39 @@ const buildAnimalQuery = (query?: AnimalQueryParams) => {
 
 export class AnimalsApi {
   create(input: AnimalCreateInput): Promise<Animal> {
-    return ApiService.post<Animal>('/animals', input);
+    return ApiService.post<Animal>('/animals', input).then(mapClientTimestamps);
   }
 
   getAll(query?: AnimalQueryParams): Promise<AnimalsListResponse> {
-    return ApiService.get<AnimalsListResponse>(`/animals${buildAnimalQuery(query)}`);
+    return ApiService.get<AnimalsListResponse>(`/animals${buildAnimalQuery(query)}`).then(mapClientTimestamps);
   }
 
   getFounders(): Promise<Animal[]> {
-    return ApiService.get<Animal[]>('/animals/founders');
+    return ApiService.get<Animal[]>('/animals/founders').then(mapClientTimestamps);
   }
 
   getMales(): Promise<Animal[]> {
-    return ApiService.get<Animal[]>('/animals/males');
+    return ApiService.get<Animal[]>('/animals/males').then(mapClientTimestamps);
   }
 
   getFemales(): Promise<Animal[]> {
-    return ApiService.get<Animal[]>('/animals/females');
+    return ApiService.get<Animal[]>('/animals/females').then(mapClientTimestamps);
   }
 
   getById(animalId: string): Promise<Animal> {
-    return ApiService.get<Animal>(`/animals/${animalId}`);
+    return ApiService.get<Animal>(`/animals/${animalId}`).then(mapClientTimestamps);
   }
 
   getPedigree(animalId: string): Promise<Animal> {
-    return ApiService.get<Animal>(`/animals/${animalId}/pedigree`);
+    return ApiService.get<Animal>(`/animals/${animalId}/pedigree`).then(mapClientTimestamps);
   }
 
   update(animalId: string, input: AnimalUpdateInput): Promise<Animal> {
-    return ApiService.put<Animal>(`/animals/${animalId}`, input);
+    return ApiService.put<Animal>(`/animals/${animalId}`, input).then(mapClientTimestamps);
   }
 
   delete(animalId: string): Promise<void> {
-    return ApiService.delete<void>(`/animals/${animalId}`);
+    return ApiService.delete<void>(`/animals/${animalId}`).then(mapClientTimestamps);
   }
 }
 

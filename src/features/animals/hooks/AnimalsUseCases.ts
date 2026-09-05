@@ -11,7 +11,6 @@ import type {
   AnimalUpdateInput,
 } from '@/features/animals/interfaces/animals.types';
 import type { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
-import { useNetworkStore } from '@/store/useNetworkStore';
 
 interface ListInventoryOptions {
   refreshFromServer?: boolean;
@@ -59,17 +58,6 @@ export class AnimalsUseCases {
   }
 
   async registerAnimal(userId: string, input: AnimalCreateInput): Promise<Animal> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteAnimal = await this.api.create(input);
-        await this.localRepository.upsertFromServer([remoteAnimal]);
-        return remoteAnimal;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const localAnimal = await this.localRepository.createLocal(userId, input);
 
     await this.syncOrchestrator.enqueueChange(
@@ -77,6 +65,8 @@ export class AnimalsUseCases {
       'CREATE',
       localAnimal.id,
       {
+        clientCreatedAt: localAnimal.createdAt,
+        clientUpdatedAt: localAnimal.updatedAt,
         crotal: localAnimal.crotal,
         sex: localAnimal.sex,
         speciesId: localAnimal.speciesId ?? undefined,
@@ -96,17 +86,6 @@ export class AnimalsUseCases {
     animalId: string,
     input: AnimalUpdateInput,
   ): Promise<Animal | null> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const remoteAnimal = await this.api.update(animalId, input);
-        await this.localRepository.upsertFromServer([remoteAnimal]);
-        return remoteAnimal;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const updatedAnimal = await this.localRepository.updateLocal(animalId, input);
     if (!updatedAnimal) return null;
 
@@ -114,7 +93,7 @@ export class AnimalsUseCases {
       DB_TABLES.animals,
       'UPDATE',
       animalId,
-      input as Record<string, unknown>,
+      { ...input, clientUpdatedAt: updatedAnimal.updatedAt },
       updatedAnimal.syncVersion,
     );
 
@@ -122,17 +101,6 @@ export class AnimalsUseCases {
   }
 
   async deleteAnimal(animalId: string): Promise<boolean> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        await this.api.delete(animalId);
-        await this.localRepository.softDeleteLocal(animalId);
-        return true;
-      } catch {
-        // Fall back to local-first queue strategy when direct write fails.
-      }
-    }
-
     const deletedVersion = await this.localRepository.softDeleteLocal(animalId);
     if (!deletedVersion) return false;
 

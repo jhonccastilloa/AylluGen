@@ -20,6 +20,8 @@ export interface Animal {
   userId: string;
   syncStatus: SyncStatus;
   syncVersion: number;
+  clientCreatedAt?: string;
+  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
