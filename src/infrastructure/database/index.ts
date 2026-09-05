@@ -1,6 +1,7 @@
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { Database } from '@nozbe/watermelondb';
 import { databaseSchema } from '@/infrastructure/database/schema';
+import { databaseMigrations } from '@/infrastructure/database/migrations';
 import {
   AnimalModel,
   AppMetaModel,
@@ -12,6 +13,7 @@ import {
 
 const adapter = new SQLiteAdapter({
   schema: databaseSchema,
+  migrations: databaseMigrations,
   dbName: 'ayllugen_offline',
   jsi: true,
   onSetUpError: error => {

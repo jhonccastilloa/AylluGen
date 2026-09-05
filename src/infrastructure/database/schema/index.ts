@@ -7,7 +7,7 @@ import { productionRecordSchema } from './production-record.schema';
 import { syncQueueSchema } from './sync-queue.schema';
 
 export const databaseSchema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     animalSchema,
     breedingSchema,
