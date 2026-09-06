@@ -1,349 +1,65 @@
-# Proyecto Base React Native - AylluGen
+# Preparación del entorno móvil
 
-## ✅ Estructura Completa Implementada
+Revisado: 2026-09-05. Los comandos se ejecutan desde la raíz de AylluGen-App salvo indicación.
 
-### Configuración Base
+## Dependencias y configuración
 
-- ✅ TypeScript 5.8.3 con configuración estricta
-- ✅ Babel con alias `@/*` para imports
-- ✅ ESLint y Prettier configurados
-- ✅ Paths configurados en tsconfig.json
+- Node.js >=20 según [package.json](package.json); instalar con `npm ci`.
+- Android: JDK 17, Android SDK y herramientas definidos en [build.gradle](android/build.gradle) (compile SDK/build tools 36).
+- iOS: macOS, Xcode y CocoaPods mediante el [Gemfile](Gemfile). No se puede compilar iOS desde Windows.
+- [env.ts](src/core/config/env.ts) configura API/timeout. No existe un selector de staging operativo: `__DEV__` cambia el nombre del entorno, pero ambas ramas usan la misma URL.
+- [babel.config.js](babel.config.js) y [tsconfig.json](tsconfig.json) resuelven `@/*` a `src/*`. No introducir React Query como segunda fuente de las entidades sincronizadas.
 
-### Tecnologías Instaladas
+## Android
 
-#### Core
-
-- **react**: 19.2.0
-- **react-native**: 0.83.1
-- **typescript**: 5.8.3
-
-#### Estado Global
-
-- **zustand**: 5.x
-- **react-native-mmkv**: Persistencia eficiente
-
-#### Estilos
-
-- **react-native-unistyles**: Sistema de estilos avanzado
-  - Themes light/dark
-  - Dark mode automático
-  - Breakpoints responsivos (sm: 375px, md: 768px, lg: 1024px)
-
-#### HTTP
-
-- **axios**: Cliente HTTP
-  - Interceptors automáticos
-  - Token injection
-  - Error handling
-
-#### UI
-
-- **react-native-safe-area-context**
-- **react-native-toast-notifications**
-- **react-native-reanimated**
-
-## 📁 Estructura de Carpetas
-
-```
-src/
-├── core/
-│   ├── config/
-│   │   └── env.ts                    # Variables de entorno
-│   ├── constants/
-│   │   └── theme.ts                  # Design tokens (colors, spacing, etc)
-│   ├── types/
-│   │   ├── api.ts                    # Tipos para API
-│   │   └── unistyles.d.ts            # Declarations de tipos
-│   └── utils/
-│       └── apiErrorHandler.ts        # Manejo de errores
-│
-├── domain/
-│   ├── entities/                     # Entidades del dominio
-│   └── repositories/
-│       └── AuthRepository.ts         # Repositorio de autenticación
-│
-├── infrastructure/
-│   ├── api/
-│   │   ├── apiClient.ts             # Axios con interceptors
-│   │   └── ApiService.ts           # Métodos CRUD
-│   ├── logger/
-│   │   └── index.ts                # Sistema de logging
-│   ├── storage/
-│   │   └── StorageAdapter.ts       # Wrapper MMKV
-│   └── theme/
-│       ├── index.ts                 # Configuración Unistyles
-│       └── themes.ts                # Themes light/dark
-│
-├── presentation/
-│   ├── components/
-│   │   ├── ExampleComponent.tsx     # Demo de estilos
-│   │   ├── ExampleResponsiveComponent.tsx
-│   │   ├── ResponsiveExample.tsx
-│   │   ├── ThemeToggle.tsx         # Theme switcher
-│   │   └── Loader.tsx              # Loading indicator
-│   ├── screens/                     # Pantallas de la app
-│   ├── hooks/                       # Custom hooks
-│   └── navigation/                  # Configuración navegación
-│
-└── store/
-    ├── useLoaderStore.ts            # Estado del loader
-    ├── useThemeStore.ts             # Preferencias de tema
-    ├── useAuthStore.ts              # Estado de autenticación
-    └── useAppStore.ts               # Estado general de la app
+```sh
+npm ci
+npm start
 ```
 
-## 🎨 Design System Implementado
+En otra terminal:
 
-### Colores
-
-```typescript
-colors: {
-  primary, primaryLight, primaryDark,
-  secondary, secondaryLight, secondaryDark,
-  success, successLight, successDark,
-  warning, warningLight, warningDark,
-  error, errorLight, errorDark,
-  info, infoLight, infoDark,
-  background, surface, text, textSecondary, ...
-}
+```sh
+npx react-native run-android --mode=developmentDebug --appId=com.ayllugen.dev
 ```
 
-### Spacing
+Compilar sin instalar, en PowerShell:
 
-```typescript
-spacing: {
-  xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48, xxxl: 64
-}
+```powershell
+cd android
+.\gradlew.bat :app:assembleDevelopmentDebug --console=plain
 ```
 
-### Tipografía
+APK: `android/app/build/outputs/apk/development/debug/app-development-debug.apk`.
 
-```typescript
-typography: {
-  fontSize: { xs: 12, sm: 14, md: 16, lg: 18, xl: 20, xxl: 24, xxxl: 32 },
-  fontWeight: { regular: '400', medium: '500', semibold: '600', bold: '700' }
-}
+Hay flavors `development` y `production`. `npm run android` solicita `developmentRelease`; requiere firma release. La última compilación release falló por ausencia de `android/app/my-ayllugen-key.keystore`. Recuperar la clave autorizada; no sustituirla por una nueva para actualizar instalaciones existentes.
+
+## iOS
+
+```sh
+bundle install
+cd ios
+bundle exec pod install
+cd ..
+npm run ios
 ```
 
-### Breakpoints
+[Podfile](ios/Podfile) referencia simdjson, dependencia transitiva ya instalada. Watermelon solicita JSI en iOS; Android usa el bridge SQLite asíncrono autolinkeado. Compilación y ejecución iOS todavía no verificadas.
 
-```typescript
-breakpoints: { sm: 375, md: 768, lg: 1024, xl: 1280 }
+## Calidad
+
+```sh
+npm test -- --runInBand
+npx tsc --noEmit
+npm run lint
 ```
 
-## 🔧 Cómo Usar
+Resultados y limitaciones vigentes en [LOCAL_FIRST_MOBILE.md](docs/LOCAL_FIRST_MOBILE.md). Los tests de sync usan el motor real con Loki en memoria y HTTP simulado; no prueban SQLite nativo end-to-end.
 
-### Crear un componente con estilos
+## Primera ejecución y actualización
 
-```typescript
-import { StyleSheet, useUnistyles } from '@/infrastructure/theme';
-import { View, Text } from 'react-native';
+El login/registro inicial necesita red. Después se abre una base aislada por cuenta, se importa el archivo histórico de forma idempotente y se activa sync. No copiar checkpoints de otra cuenta ni usar timestamps antiguos como checkpoint v2.
 
-export const MyComponent = () => {
-  const { theme } = useUnistyles();
+Ante fallo de migración, conservar datos; nunca ejecutar un reset automático. Probar actualización in-place desde schema 2/3 y modo avión antes de publicar. El backend debe tener aplicadas ambas migraciones de sync.
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Hello</Text>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create((theme: any) => ({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
-  },
-  text: {
-    color: theme.colors.text,
-    fontSize: theme.typography.fontSize.md,
-  },
-}));
-```
-
-### Hacer peticiones API
-
-```typescript
-import { ApiService } from '@/infrastructure/api/ApiService';
-
-// GET
-const data = await ApiService.get<UserType>('/users/1');
-
-// POST
-const result = await ApiService.post<ResponseType>('/login', credentials);
-
-// PUT
-const updated = await ApiService.put<UserType>('/users/1', updates);
-
-// DELETE
-await ApiService.delete('/users/1');
-```
-
-### Usar el store de Zustand
-
-```typescript
-import { useAuthStore } from '@/store/useAuthStore';
-
-const MyScreen = () => {
-  const { user, login, logout, isLoading } = useAuthStore();
-
-  const handleLogin = async () => {
-    try {
-      await login('email@example.com', 'password');
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  return (
-    <View>
-      {isLoading && <Text>Loading...</Text>}
-      {user && <Text>Welcome {user.name}</Text>}
-    </View>
-  );
-};
-```
-
-### Persistir datos con MMKV
-
-```typescript
-import StorageAdapter from '@/core/storage/StorageAdapter';
-
-// Guardar
-StorageAdapter.setItem('user', JSON.stringify({ name: 'John' }));
-
-// Obtener
-const userRaw = StorageAdapter.getItem('user');
-const user = userRaw ? JSON.parse(userRaw) : null;
-
-// Eliminar
-StorageAdapter.removeItem('user');
-```
-
-## ⚙️ Configuración
-
-### Variables de Entorno
-
-Edita `src/core/config/env.ts`:
-
-```typescript
-const config = {
-  env: getEnv(),
-  apiBaseUrl: 'https://api.example.com/api',
-  apiTimeout: 30000,
-  enableLogging: __DEV__,
-};
-```
-
-### Configuración de Babel
-
-Los alias `@/*` están configurados en `babel.config.js`
-
-### Configuración de TypeScript
-
-Los paths están configurados en `tsconfig.json`
-
-## 📝 Notas Importantes
-
-### MMKV (Storage)
-
-- Requiere linking nativo:
-  - **iOS**: `cd ios && pod install`
-  - **Android**: Configuración automática en build.gradle
-
-### Unistyles
-
-- Los temas se configuran automáticamente al importar
-- Usa `StyleSheet` de `react-native-unistyles` en lugar de `StyleSheet` de React Native
-- El dark mode usa el tema del sistema automáticamente
-
-### Axios Interceptors
-
-- Token se inyecta automáticamente desde el store de auth
-- Loader se muestra automáticamente en todas las requests
-- Los errores se manejan centralmente
-
-## 🚀 Próximos Pasos Recomendados
-
-1. **Configurar navegación**
-
-   ```bash
-   npm install @react-navigation/native @react-navigation/native-stack
-   ```
-
-2. **Implementar React Query**
-
-   ```bash
-   npm install @tanstack/react-query
-   ```
-
-3. **Agregar validación con Zod**
-
-   ```bash
-   npm install zod
-   ```
-
-4. **Configurar tests**
-
-   ```bash
-   npm install --save-dev @testing-library/react-native jest
-   ```
-
-5. **Configurar monitoreo (Sentry)**
-   ```bash
-   npm install @sentry/react-native
-   ```
-
-## 📚 Documentación Adicional
-
-- **Arquitectura completa**: `ARCHITECTURE.md`
-- **Estructura del proyecto**: `PROJECT_STRUCTURE.md`
-
-## 🐛 Problemas Conocidos
-
-### TypeScript Errors con MMKV
-
-El paquete `react-native-mmkv` puede mostrar errores de TypeScript si no está correctamente instalado. Asegúrate de:
-
-1. Ejecutar `cd ios && pod install`
-2. Reinstalar si es necesario: `npm uninstall react-native-mmkv && npm install react-native-mmkv`
-
-### Unistyles Type Errors
-
-Si hay errores de tipos con Unistyles, verifica que:
-
-1. La configuración se importa antes de usar componentes
-2. Los temas están correctamente tipados
-3. El archivo `unistyles.d.ts` existe
-
-## ✨ Características Clave
-
-### ✅ Implementado
-
-- ✅ Sistema de temas completo (light/dark)
-- ✅ Dark mode automático
-- ✅ API client con interceptors
-- ✅ Estado global con Zustand
-- ✅ Almacenamiento eficiente con MMKV
-- ✅ Sistema de logging
-- ✅ Manejo centralizado de errores
-- ✅ Design system completo
-- ✅ Componentes de ejemplo
-- ✅ Tipado TypeScript estricto
-
-### 📋 Por Implementar
-
-- ⏳ Navegación con React Navigation
-- ⏳ Cache de API con React Query
-- ⏳ Validación de datos con Zod
-- ⏳ Testing framework
-- ⏳ CI/CD pipeline
-- ⏳ Monitoreo con Sentry
-- ⏳ Documentación de componentes (Storybook)
-
-## 🎯 Conclusiones
-
-Esta estructura base proporciona un punto de partida sólido para un sistema de media escala en React Native, siguiendo los principios de Clean Architecture y buenas prácticas de desarrollo.
-
-Para un análisis detallado de la arquitectura, problemas identificados y mejoras recomendadas, consulta `ARCHITECTURE.md`.
+[Fastlane](deploy/fastlane/fastlane_setup.md) contiene automatizaciones heredadas con efectos externos; no es el camino validado para esta comprobación.

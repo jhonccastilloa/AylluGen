@@ -1,144 +1,31 @@
+# Fastlane: configuración existente y bloqueos
 
-# 📄 Fastlane Setup para Proyecto React Native Android
+Revisado: 2026-09-05. **No considerar este pipeline validado para publicar AylluGen.** Esta revisión solo documenta el código; no ejecuta lanes ni cambia credenciales.
 
-## ✅ Requisitos previos
+## Ubicación y dependencias
 
-Antes de poder ejecutar `fastlane` en este proyecto, debes tener lo siguiente instalado:
+El Gemfile de Fastlane está en [../Gemfile](../Gemfile), no en Android. El Gemfile de la raíz móvil corresponde a CocoaPods. Desde `AylluGen-App/deploy`, `bundle install` prepara las dependencias de automatización.
 
-## 1️⃣ Ruby
+[Fastfile](Fastfile) define únicamente `android beta` e `ios beta`; no existen lanes `android deploy` ni `android test`. [README.md](README.md) es el índice autogenerado de lanes; regenerarlo no acredita que funcionen.
 
-**Fastlane** funciona sobre Ruby. Dependiendo de tu sistema operativo, instálalo de la siguiente forma:
+## Efectos de las lanes
 
-### 🟦 Windows  
-Puedes descargar e instalar Ruby desde 👉 [https://rubyinstaller.org/](https://rubyinstaller.org/)  
-> ⚠ **Durante la instalación, asegúrate de marcar la opción "Add Ruby to PATH".**
+Android consulta Firebase si faltan versión/build, cambia versiones Gradle, compila release, distribuye a testers y hace **commit y push**. Usa `FIREBASE_APP_ID` y `FIREBASE_TOKEN`.
 
-Verifica que Ruby esté correctamente instalado:  
-```bash
-ruby -v
-```
+iOS consulta TestFlight, modifica versiones, compila/sube a TestFlight, hace commit/push y notifica Teams usando `TEAMS_WEBHOOK_URL`. Requiere macOS, firma y configuración de App Store Connect.
 
----
+No ejecutar estas lanes como simple comprobación de build. Mantener secretos fuera de Git y requerir autorización de distribución.
 
-### 🍎 macOS
-En Mac, puedes instalar Ruby fácilmente usando **Homebrew**:  
-```bash
-brew install ruby
-```
+## Referencias heredadas detectadas
 
-Verifica la instalación:  
-```bash
-ruby -v
-```
+- Proyectos/workspace `DigitalBank` y scheme/configuración `Desarrollo` no corresponden a los nombres de AylluGen.
+- `app/core/Constants.ts` es una ruta heredada. La API móvil está realmente en `src/core/config/env.ts`; Fastlane no implementa actualmente una selección funcional de esa URL.
+- Las rutas relativas se resuelven contra `Dir.pwd`: verificar explícitamente la raíz antes de ejecutar.
+- La salida Android esperada es production/release, pero la llamada Gradle usa assemble Release genérico: comprobar flavor y artefacto.
+- La firma release falló en la última comprobación por falta del keystore autorizado.
 
-Si deseas que la instalación de `brew` tenga efecto en todas tus terminales, recuerda añadir la ruta de Ruby a tu `.zshrc` o `.bashrc`, Homebrew te indicará cómo hacerlo al finalizar la instalación.
+## Camino comprobado para desarrollo
 
----
+Usar el build debug descrito en [README_SETUP.md](../../README_SETUP.md), sin publicar ni hacer commits automáticos.
 
-### 📦 Bundler
-
-Ruby normalmente ya incluye `bundler`. Verifica si está disponible:
-
-```bash
-bundle -v
-```
-
-Si no está instalado, puedes instalarlo manualmente:
-
-```bash
-gem install bundler
-```
-
----
-
-## 2️⃣ Instalar dependencias del proyecto (bundle install)
-
-Este proyecto tiene definido `fastlane` como dependencia en su archivo `Gemfile`.  
-Para instalar todas las dependencias necesarias, desde la raiz dirígete a la carpeta `android` y ejecuta:
-
-```bash
-bundle install
-```
-
-Esto instalará `fastlane` y cualquier otra dependencia de Ruby.
-
----
-
-## 3️⃣ Android SDK & Java JDK
-
-Asegúrate de tener instalados:
-
-* Android Studio
-* SDK correctamente configurado
-* Java JDK
-
----
-
-# 📂 Variables de entorno (.env)
-
-En la raíz de la carpeta `android/fastlane` crea un archivo `.env` con tus credenciales y configuraciones:
-
-```dotenv
-FIREBASE_TOKEN=tu-token-de-firebase
-FIREBASE_APP_ID=tu-app-id-de-firebase
-```
-
-### 🔑 Cómo obtener `FIREBASE_TOKEN`
-
-Para poder obtener tu `FIREBASE_TOKEN`, necesitas tener instalado previamente [Firebase CLI](https://firebase.google.com/docs/cli).  
-Instálalo globalmente con:
-
-```bash
-npm install -g firebase-tools
-```
-
-Una vez instalada la CLI de Firebase, ejecuta el siguiente comando para autenticarte y obtener tu token:
-
-```bash
-firebase login:ci
-```
-
-Este comando abrirá una ventana del navegador para que inicies sesión en tu cuenta de Firebase.  
-Al finalizar, te mostrará un token que debes copiar y pegar en tu archivo `.env` como `FIREBASE_TOKEN`.
-
----
-
-# 🚀 Comandos útiles
-
-### Generar una nueva beta y distribuirla a Firebase
-
-```bash
-fastlane android beta
-```
-o con versión y build number explícito:
-
-```bash
-fastlane beta version:"1.0.0" build_number:100
-```
-
-### Hacer deploy a Google Play
-
-```bash
-fastlane android deploy
-```
-
-### Ejecutar tests
-
-```bash
-fastlane android test
-```
-
----
-
-# 🛠️ Detalles adicionales
-
-* El archivo `Constants.ts` contiene la URL del ambiente y es **modificado automáticamente** por `fastlane` según tu configuración.
-* Se realiza commit automático después de cada distribución.
-
----
-
-# 📚 Recursos
-
-* [Fastlane Android](https://docs.fastlane.tools/getting-started/android/setup/)
-* [Firebase App Distribution](https://firebase.google.com/docs/app-distribution)
-* [RubyInstaller Windows](https://rubyinstaller.org/)
+Antes de habilitar Fastlane: corregir rutas/schemes/flavors en una tarea de implementación separada, verificar firma y destino, desplegar Sync v2, configurar staging y probar actualización conservando datos offline. No generar una clave sustitutiva para actualizar una app ya distribuida.

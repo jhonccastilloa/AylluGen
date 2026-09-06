@@ -1,66 +1,35 @@
-# Offline-First Architecture (Pragmatic Clean)
+# Local-First con WatermelonDB
 
-## Objective
-Build a modular frontend for livestock + consanguinity workflows with:
-- Local-first reads/writes
-- Deferred sync to backend
-- Feature-based modules with clear responsibilities
+Revisado: 2026-09-05. Este documento reemplaza la estrategia anterior de cola manual.
 
-## Structure
+## Flujo único
 
-```
-src/
-  features/
-    animals/
-    breedings/
-    health/
-    production/
-    users/
-    sync/
-    shared/
-  infrastructure/
-    database/      # WatermelonDB schema + models + instance
-```
+`UI → WatermelonDB → synchronize() → Sync API v2 → PostgreSQL`.
 
-## Layering per Feature
+Crear/editar/borrar siempre empieza localmente para especies, animales, cruces, salud y producción. Offline significa cambios pendientes, no un camino de implementación diferente. La UI reacciona a la base.
 
-- `data/remote`: API access to backend routes.
-- `data/local`: WatermelonDB local repository.
-- `application`: use-cases orchestrating local operations + sync queue.
-- `domain`: shared entity/value types.
+## Motor actual
 
-This keeps architecture clean enough for growth, without heavy DI frameworks.
+- `POST /api/sync/v2/pull`: dataset propio inicial o delta incremental.
+- `POST /api/sync/v2/push`: batch completo; 204 sin cuerpo.
+- Checkpoint opaco por cuenta: no convertir a fecha ni derivar de `Date.now()`.
+- Seguimiento nativo `_status/_changed`, tombstones y reconciliación por columna.
+- 409: repetir pull/reconciliación y reintentar; no llamar al endpoint legacy de resolver conflictos.
+- Startup, foreground, reconexión, cambios con debounce y refresh manual. TTL por eventos, no intervalo.
+- Reintentos acotados, aislamiento por cuenta y conservación de pendientes.
 
-## Sync Strategy
+La app normaliza altas remotas como updates y usa `sendCreatedAsUpdated` para preservar tombstones locales y tolerar reintentos. La proyección de push copia el snapshot, no lo muta.
 
-1. `CREATE/UPDATE/DELETE` writes are stored locally first.
-2. Each write enqueues a sync change in `sync_queue`.
-3. `SyncOrchestrator` pushes queue to `/sync/push`.
-4. It then pulls server updates from `/sync/pull`.
-5. Local repositories upsert server state.
+## Persistencia histórica
 
-Conflict handling uses server precedence for now (`/sync/resolve-conflict` with `server` resolution).
+El esquema es 4. `sync_queue` sigue existiendo **solo como datos de migración**; su repositorio de ejecución y compactador fueron eliminados. `app_meta` conserva el marcador de importación. No se reutiliza `last_sync_at` antiguo.
 
-## Tables Used in WatermelonDB
+Se importa por propietario desde la base histórica a una base por cuenta. Nunca borrar el archivo para solucionar un fallo ni instalar una versión con esquema inferior.
 
-- `animals`
-- `breedings`
-- `health_records`
-- `production_records`
-- `sync_queue`
-- `app_meta` (device id + last sync timestamp)
+## REST y límites
 
-## UI Coverage (based on provided design)
+Auth, perfil y cálculo COI siguen siendo remotos. No se eliminaron endpoints REST del servidor: los clientes antiguos pueden necesitarlos.
 
-- Herd inventory dashboard
-- Register new animal
-- Breeding match setup
-- Match risk report
+No hay paginación parcial de sync, descarga masiva global ni purga automática de tombstones. Los límites y escenarios offline se documentan en [la guía completa](docs/LOCAL_FIRST_MOBILE.md).
 
-All connected to local-first feature use-cases.
-
-## Notes
-
-- Authentication remains API-first (existing auth flow reused).
-- Sync runs on app active and periodic interval.
-- Current direction is ready for adding new livestock features with the same module template.
+Ver también [arquitectura](ARCHITECTURE.md), [migraciones](src/infrastructure/database/migrations/README.md) y [contrato backend](../AylluGen-bk/.claude/docs/ai/watermelon-sync/api-handoff.md).
