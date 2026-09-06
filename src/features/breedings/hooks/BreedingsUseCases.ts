@@ -1,5 +1,3 @@
-import { DB_TABLES } from '@/infrastructure/database/constants';
-import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
 import { BreedingsApi } from '@/features/breedings/services/BreedingsApi';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
 import type {
@@ -9,50 +7,40 @@ import type {
   BreedingUpdateInput,
   CoiCalculationResponse,
 } from '@/features/breedings/interfaces/breedings.types';
-import type { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
-import { useNetworkStore } from '@/store/useNetworkStore';
-
-interface ListOptions {
-  refreshFromServer?: boolean;
-}
 
 export class BreedingsUseCases {
   constructor(
     private readonly api: BreedingsApi,
     private readonly localRepository: BreedingsLocalRepository,
-    private readonly syncOrchestrator: SyncOrchestrator,
   ) {}
 
-  async list(userId: string, options?: ListOptions): Promise<Breeding[]> {
-    if (options?.refreshFromServer) {
-      await this.refreshFromServer();
-    }
+  async list(userId: string): Promise<Breeding[]> {
     return this.localRepository.listByUserId(userId);
   }
 
-  async calculateMatch(input: BreedingMatchInput): Promise<CoiCalculationResponse> {
+  async calculateMatch(
+    input: BreedingMatchInput,
+  ): Promise<CoiCalculationResponse> {
+    const [male, female] = await Promise.all([
+      this.localRepository.getAnimalSyncStatus(input.maleId),
+      this.localRepository.getAnimalSyncStatus(input.femaleId),
+    ]);
+    if (
+      male !== 'synced' ||
+      female !== 'synced' ||
+      (await this.localRepository.hasPendingGenealogy())
+    )
+      throw new Error(
+        'Sincroniza primero los animales antes de solicitar el cálculo remoto.',
+      );
     return this.api.calculateCoi(input);
   }
 
-  async createBreeding(userId: string, input: BreedingCreateInput): Promise<Breeding> {
+  async createBreeding(
+    userId: string,
+    input: BreedingCreateInput,
+  ): Promise<Breeding> {
     const localBreeding = await this.localRepository.createLocal(userId, input);
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.breedings,
-      'CREATE',
-      localBreeding.id,
-      {
-        clientCreatedAt: localBreeding.createdAt,
-        clientUpdatedAt: localBreeding.updatedAt,
-        maleId: localBreeding.maleId,
-        femaleId: localBreeding.femaleId,
-        projectedCOI: localBreeding.projectedCOI,
-        riskLevel: localBreeding.riskLevel,
-        breedingDate: localBreeding.breedingDate ?? undefined,
-        notes: localBreeding.notes ?? undefined,
-      },
-      localBreeding.syncVersion,
-    );
 
     return localBreeding;
   }
@@ -64,14 +52,6 @@ export class BreedingsUseCases {
     const updated = await this.localRepository.updateLocal(breedingId, input);
     if (!updated) return null;
 
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.breedings,
-      'UPDATE',
-      breedingId,
-      { ...input, clientUpdatedAt: updated.updatedAt },
-      updated.syncVersion,
-    );
-
     return updated;
   }
 
@@ -79,61 +59,15 @@ export class BreedingsUseCases {
     const deletedVersion = await this.localRepository.deleteLocal(breedingId);
     if (!deletedVersion) return false;
 
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.breedings,
-      'DELETE',
-      breedingId,
-      null,
-      deletedVersion,
-    );
     return true;
   }
 
-  async getById(breedingId: string): Promise<Breeding | null> {
-    const localBreeding = await this.localRepository.getById(breedingId);
-    if (localBreeding) return localBreeding;
-
-    try {
-      const remoteBreeding = await this.api.getById(breedingId);
-      await this.localRepository.upsertFromServer([remoteBreeding]);
-      return remoteBreeding;
-    } catch {
-      return null;
-    }
-  }
-
-  async getByIdFromApi(breedingId: string): Promise<Breeding | null> {
-    try {
-      const remoteBreeding = await this.api.getById(breedingId);
-      await this.localRepository.upsertFromServer([remoteBreeding]);
-      return remoteBreeding;
-    } catch {
-      return null;
-    }
+  async getById(id: string): Promise<Breeding | null> {
+    return this.localRepository.getById(id);
   }
 
   async getHistory(animalId: string, userId?: string): Promise<Breeding[]> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-    if (!isInitialized || isOnline) {
-      try {
-        const response = await this.api.getHistory(animalId);
-        return response.breedings;
-      } catch {
-        // Fall through to local fallback.
-      }
-    }
-
     if (!userId) return [];
     return this.localRepository.listByAnimalId(userId, animalId);
   }
-
-  private async refreshFromServer(): Promise<void> {
-    try {
-      const response = await this.api.getAll();
-      await this.localRepository.upsertFromServer(response.breedings);
-    } catch (error) {
-      console.warn('No se pudo refrescar cruces', extractApiErrorMessage(error));
-    }
-  }
 }
-

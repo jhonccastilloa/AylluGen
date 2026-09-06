@@ -1,233 +1,259 @@
-import { DB_TABLES, type DbTableName } from '@/infrastructure/database/constants';
-import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
-import type { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
-import type { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
-import type { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
-import type { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
-import { SyncApi } from '@/features/sync/services/SyncApi';
-import { SyncQueueRepository } from '@/features/sync/services/SyncQueueRepository';
-import type { SyncAction } from '@/features/sync/interfaces/sync.types';
-import {
-  consolidateSyncQueueEntries,
-  toSyncEntryKey,
-} from '@/features/sync/services/syncQueueCompactor';
-import { useSyncStore } from '@/store/useSyncStore';
+import { Q, type Database } from '@nozbe/watermelondb';
+import { synchronize } from '@nozbe/watermelondb/sync';
+import type { Subscription } from 'rxjs';
+import authSession from '@/infrastructure/auth/AuthSession';
 import { useNetworkStore } from '@/store/useNetworkStore';
-import { NetworkUnavailableError } from '@/core/errors/NetworkUnavailableError';
-import { AxiosError } from 'axios';
+import { useSyncStore } from '@/store/useSyncStore';
+import { reconcileLegacyFirstPull } from '@/infrastructure/database/importLegacy';
+import {
+  SYNC_TABLES,
+  changeCounts,
+  SyncValidationError,
+} from '../services/watermelonProtocol';
+import type { SyncApi } from '../services/SyncApi';
 
-interface SyncOrchestratorDependencies {
-  animalsLocalRepository: AnimalsLocalRepository;
-  breedingsLocalRepository: BreedingsLocalRepository;
-  healthLocalRepository: HealthLocalRepository;
-  productionLocalRepository: ProductionLocalRepository;
-  syncQueueRepository: SyncQueueRepository;
-  syncApi: SyncApi;
-}
+export const errorStatus = (error: unknown): number | undefined => {
+  const e = error as {
+    status?: number;
+    response?: { status?: number };
+    name?: string;
+  };
+  return (
+    e?.response?.status ??
+    e?.status ??
+    (e?.name === 'ZodError' ? 400 : undefined)
+  );
+};
 
 export class SyncOrchestrator {
-  private isRunning = false;
-  private consecutiveFailures = 0;
-  private nextRetryAt = 0;
-  private readonly baseRetryDelayMs = 5_000;
-  private readonly maxRetryDelayMs = 5 * 60_000;
+  private flight?: Promise<void>;
+  private timer?: ReturnType<typeof setTimeout>;
+  private subscription?: Subscription;
+  private active = false;
+  private failures = 0;
+  private lastSuccess = 0;
 
-  constructor(private readonly deps: SyncOrchestratorDependencies) {}
+  constructor(
+    private readonly database: Database,
+    private readonly userId: string,
+    private readonly api: SyncApi,
+    private readonly ready: Promise<void>,
+  ) {}
 
-  private markSyncSuccess(): void {
-    this.consecutiveFailures = 0;
-    this.nextRetryAt = 0;
+  private ownsSession() {
+    return authSession.getUser()?.id === this.userId;
+  }
+  private online() {
+    const state = useNetworkStore.getState();
+    return !state.isInitialized || state.isOnline;
+  }
+  private assertSession() {
+    if (!this.ownsSession())
+      throw new Error('La cuenta cambió durante la sincronización.');
   }
 
-  private markSyncFailure(): void {
-    this.consecutiveFailures += 1;
-
-    const exponentialDelay = Math.min(
-      this.maxRetryDelayMs,
-      this.baseRetryDelayMs * 2 ** (this.consecutiveFailures - 1),
+  async hydrateSyncState(): Promise<number> {
+    await this.ready;
+    const counts = await Promise.all(
+      SYNC_TABLES.map(async table => {
+        const [dirty, deleted] = await Promise.all([
+          this.database
+            .get(table)
+            .query(Q.where('_status', Q.oneOf(['created', 'updated'])))
+            .fetchCount(),
+          this.database.adapter.getDeletedRecords(table),
+        ]);
+        return dirty + deleted.length;
+      }),
     );
-    const jitter = Math.floor(Math.random() * 1_000);
-    this.nextRetryAt = Date.now() + exponentialDelay + jitter;
-  }
-
-  async hydrateSyncState(): Promise<void> {
-    const [pendingCount, lastSyncAt] = await Promise.all([
-      this.deps.syncQueueRepository.pendingCount(),
-      this.deps.syncQueueRepository.getLastSyncAt(),
-    ]);
-    useSyncStore.getState().setPendingChanges(pendingCount);
-    useSyncStore.getState().setLastSyncAt(lastSyncAt);
-  }
-
-  async enqueueChange(
-    tableName: DbTableName,
-    action: SyncAction,
-    recordId: string,
-    payload: Record<string, unknown> | null,
-    clientVersion: number,
-  ): Promise<void> {
-    await this.deps.syncQueueRepository.enqueue(
-      tableName,
-      action,
-      recordId,
-      payload,
-      clientVersion,
+    const pending = counts.reduce((sum, n) => sum + n, 0);
+    const lastSuccess = await this.database.adapter.getLocal(
+      'sync_display_last_success',
     );
-    const pendingCount = await this.deps.syncQueueRepository.pendingCount();
-    useSyncStore.getState().setPendingChanges(pendingCount);
-  }
-
-  async syncNow(userId: string): Promise<void> {
-    if (!userId || this.isRunning) return;
-    if (this.nextRetryAt > Date.now()) return;
-
-    const networkState = useNetworkStore.getState();
-    if (networkState.isInitialized && !networkState.isOnline) {
-      useSyncStore.getState().setStatus('offline');
-      useSyncStore.getState().setError(undefined);
-      return;
+    if (this.ownsSession()) {
+      useSyncStore.getState().setPendingChanges(pending);
+      useSyncStore.getState().setLastSyncAt(lastSuccess);
     }
+    return pending;
+  }
 
-    this.isRunning = true;
-    useSyncStore.getState().setStatus('syncing');
-    useSyncStore.getState().setError(undefined);
-
-    try {
-      const deviceId = await this.deps.syncQueueRepository.getOrCreateDeviceId();
-      const pendingEntries = consolidateSyncQueueEntries(
-        await this.deps.syncQueueRepository.listPending(),
-      );
-      let pendingPushError: string | undefined;
-
-      if (pendingEntries.length > 0) {
-        const pushResult = await this.deps.syncApi.push({
-          userId,
-          deviceId,
-          changes: pendingEntries.map(entry => ({
-            action: entry.action,
-            tableName: entry.tableName,
-            recordId: entry.recordId,
-            data: entry.payload ?? {},
-            clientVersion: entry.clientVersion,
-          })),
-        });
-
-        const conflictKeys = new Set(
-          (pushResult.conflicts ?? []).map(conflict =>
-            toSyncEntryKey(conflict.tableName, conflict.recordId),
-          ),
-        );
-        const errorKeys = new Set(
-          (pushResult.errors ?? []).map(syncError =>
-            toSyncEntryKey(syncError.tableName, syncError.recordId),
-          ),
-        );
-        const pendingEntryKeys = new Set(
-          pendingEntries.map(entry => toSyncEntryKey(entry.tableName, entry.recordId)),
-        );
-        const knownErrorKeys = new Set(
-          [...errorKeys].filter(errorKey => pendingEntryKeys.has(errorKey)),
-        );
-        const knownConflictKeys = new Set(
-          [...conflictKeys].filter(conflictKey => pendingEntryKeys.has(conflictKey)),
-        );
-
-        if (knownConflictKeys.size > 0) {
-          await Promise.all(
-            pendingEntries
-              .filter(entry =>
-                knownConflictKeys.has(
-                  toSyncEntryKey(entry.tableName, entry.recordId),
-                ),
-              )
-              .map(entry =>
-                this.deps.syncApi.resolveConflict({
-                  resolution: 'server',
-                  tableName: entry.tableName,
-                  recordId: entry.recordId,
-                }),
-              ),
-          );
-        }
-
-        const entryIdsToClear = pendingEntries
-          .filter(entry => {
-            const entryKey = toSyncEntryKey(entry.tableName, entry.recordId);
-            if (knownErrorKeys.has(entryKey)) return false;
-            return true;
+  start() {
+    this.stop();
+    this.failures = 0; // a new foreground/connectivity event starts a fresh retry budget
+    this.active = true;
+    this.subscription = this.database
+      .withChangesForTables([...SYNC_TABLES])
+      .subscribe(() => {
+        if (this.flight) return;
+        this.hydrateSyncState()
+          .then(count => {
+            if (count) this.schedule();
           })
-          .flatMap(entry => entry.sourceEntryIds);
-
-        if (entryIdsToClear.length > 0) {
-          await this.deps.syncQueueRepository.clearByIds(entryIdsToClear);
-        }
-
-        if (!pushResult.success || errorKeys.size > 0) {
-          pendingPushError =
-            pushResult.errors?.[0]?.message ??
-            'No se pudo sincronizar la cola de cambios pendientes';
-        }
-      }
-
-      const lastSyncAt = await this.deps.syncQueueRepository.getLastSyncAt();
-      const pullResult = await this.deps.syncApi.pull({
-        userId,
-        deviceId,
-        lastSyncAt,
-        tables: [
-          DB_TABLES.animals,
-          DB_TABLES.breedings,
-          DB_TABLES.healthRecords,
-          DB_TABLES.productionRecords,
-        ],
+          .catch(() => {});
       });
+    this.requestFreshness();
+  }
 
-      await Promise.all([
-        this.deps.animalsLocalRepository.upsertFromServer(pullResult.animals ?? []),
-        this.deps.breedingsLocalRepository.upsertFromServer(
-          pullResult.breedings ?? [],
-        ),
-        this.deps.healthLocalRepository.upsertFromServer(
-          pullResult.healthRecords ?? [],
-        ),
-        this.deps.productionLocalRepository.upsertFromServer(
-          pullResult.productionRecords ?? [],
-        ),
-      ]);
+  stop() {
+    this.active = false;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = undefined;
+    this.subscription?.unsubscribe();
+    this.subscription = undefined;
+  }
 
-      await this.deps.syncQueueRepository.setLastSyncAt(pullResult.syncTimestamp);
-      await this.hydrateSyncState();
+  requestFreshness() {
+    this.hydrateSyncState()
+      .then(count => {
+        if (count || Date.now() - this.lastSuccess >= 60000) this.schedule(0);
+      })
+      .catch(() => {});
+  }
 
-      if (pendingPushError) {
-        this.markSyncFailure();
-        useSyncStore.getState().setStatus('error');
-        useSyncStore.getState().setError(pendingPushError);
-        return;
-      }
+  schedule(delay = 800) {
+    if (!this.active || !this.ownsSession() || !this.online()) return;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      void this.syncNow(this.userId).catch(() => {});
+    }, delay);
+  }
 
-      this.markSyncSuccess();
-      useSyncStore.getState().setStatus('idle');
-    } catch (error) {
-      const isTransportError =
-        error instanceof AxiosError && Boolean(error.request) && !error.response;
-      if (error instanceof NetworkUnavailableError || isTransportError) {
-        this.markSyncSuccess();
-        useSyncStore.getState().setStatus('offline');
-        useSyncStore.getState().setError(undefined);
-        return;
-      }
+  syncNow(userId: string): Promise<void> {
+    if (userId !== this.userId || !this.ownsSession())
+      return Promise.reject(new Error('Cuenta de sincronización inválida.'));
+    if (this.flight) return this.flight;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = undefined;
+    if (!this.online()) {
+      useSyncStore.getState().setStatus('offline');
+      return this.hydrateSyncState().then(() => {});
+    }
+    this.flight = this.run().finally(() => {
+      this.flight = undefined;
+    });
+    return this.flight;
+  }
 
-      this.markSyncFailure();
-      useSyncStore.getState().setStatus('error');
-      useSyncStore.getState().setError(extractApiErrorMessage(error));
-    } finally {
+  private async run() {
+    const state = useSyncStore.getState();
+    const started = Date.now();
+    state.setStatus('syncing');
+    state.setError(undefined);
+    console.info('sync.start', { userId: this.userId });
+    try {
+      await this.ready;
+      this.assertSession();
+      let pushed = false;
+      const once = () =>
+        synchronize({
+          database: this.database,
+          migrationsEnabledAtVersion: 4,
+          sendCreatedAsUpdated: true,
+          pullChanges: async args => {
+            this.assertSession();
+            const result = await this.api.pull(args);
+            this.assertSession();
+            if (!args.lastPulledAt)
+              await reconcileLegacyFirstPull(
+                this.database,
+                result.changes,
+                this.userId,
+              );
+            console.info('sync.pull', {
+              userId: this.userId,
+              lastPulledAt: args.lastPulledAt ?? null,
+              counts: changeCounts(result.changes),
+            });
+            // Treat incoming records as upserts. Unlike a remote `created`, Watermelon's
+            // `updated` path preserves a local tombstone until its deletion is pushed.
+            for (const table of SYNC_TABLES) {
+              result.changes[table].updated = [
+                ...result.changes[table].created,
+                ...result.changes[table].updated,
+              ];
+              result.changes[table].created = [];
+            }
+            return result;
+          },
+          pushChanges: async args => {
+            this.assertSession();
+            console.info('sync.push', {
+              userId: this.userId,
+              lastPulledAt: args.lastPulledAt,
+              counts: changeCounts(args.changes),
+            });
+            await this.api.push(args);
+            // If logout occurred, do not acknowledge local changes. A later retry is idempotent.
+            this.assertSession();
+            pushed = true;
+          },
+          conflictResolver: (_table, _local, remote, resolved) => ({
+            ...resolved,
+            created_at: remote.created_at,
+            updated_at: remote.updated_at,
+            user_id: this.userId,
+            sync_status: 'SYNCED',
+            sync_version: 0,
+            deleted_at: null,
+          }),
+        });
       try {
-        await this.hydrateSyncState();
-      } catch {
-        // Keep sync orchestration resilient even if local state hydration fails.
+        await once();
+      } catch (error) {
+        if (errorStatus(error) !== 409) throw error;
+        console.info('sync.conflict', { userId: this.userId });
+        await once(); // fresh pull + Watermelon per-column reconciliation, one bounded retry
       }
-      this.isRunning = false;
+      // Receive canonical server values/cascades once after a successful push.
+      if (pushed) await once();
+      this.assertSession();
+      this.failures = 0;
+      this.lastSuccess = Date.now();
+      await this.database.adapter.setLocal(
+        'sync_display_last_success',
+        new Date(this.lastSuccess).toISOString(),
+      );
+      state.setLastSyncAt(new Date(this.lastSuccess).toISOString()); // UI time, never a checkpoint
+      state.setStatus('idle');
+      const pending = await this.hydrateSyncState();
+      if (pending) this.schedule();
+      console.info('sync.finish', {
+        userId: this.userId,
+        durationMs: Date.now() - started,
+        pending,
+      });
+    } catch (error) {
+      if (!this.ownsSession()) throw error;
+      const status = errorStatus(error);
+      const transient =
+        status === undefined ||
+        status === 408 ||
+        status === 429 ||
+        status >= 500;
+      state.setStatus(this.online() ? 'error' : 'offline');
+      state.setError(
+        error instanceof SyncValidationError
+          ? error.message
+          : status === 409
+            ? 'Conflicto pendiente. Vuelve a sincronizar; tus cambios siguen guardados.'
+            : status === 400 || status === 403 || status === 413
+              ? 'El servidor no acepta algunos cambios o el tamaño del lote. Se conservan localmente; revisa los datos.'
+              : 'No se pudo sincronizar. Tus cambios siguen guardados en este dispositivo.',
+      );
+      console.warn('sync.error', {
+        userId: this.userId,
+        status,
+        durationMs: Date.now() - started,
+      });
+      await this.hydrateSyncState().catch(() => {});
+      this.failures += 1;
+      if (transient && this.failures <= 5)
+        this.schedule(
+          Math.min(300000, 5000 * 2 ** (this.failures - 1)) +
+            Math.floor(Math.random() * 1000),
+        );
+      throw error;
     }
   }
 }
-

@@ -231,12 +231,6 @@ jest.mock('@/features/container', () => ({
   featureContainer: mockFeatureContainer,
 }));
 
-jest.mock('@/features/getFeatureContainer', () => ({
-  getFeatureContainer: () => mockFeatureContainer,
-}));
-
-jest.mock('../src/presentation/providers/BackendHealthProvider', () => () => null);
-
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import App from '../src/App';

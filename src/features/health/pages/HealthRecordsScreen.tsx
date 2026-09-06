@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,7 +52,8 @@ interface UpcomingTask {
 const HealthRecordsScreen = () => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore(state => state.user);
   const isOnline = useNetworkStore(state => state.isOnline);
   const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
@@ -77,7 +79,9 @@ const HealthRecordsScreen = () => {
 
   const filteredRecords = useMemo(
     () =>
-      records.filter(record => (filter === 'ALL' ? true : record.type === filter)),
+      records.filter(record =>
+        filter === 'ALL' ? true : record.type === filter,
+      ),
     [filter, records],
   );
 
@@ -97,25 +101,8 @@ const HealthRecordsScreen = () => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const [remoteRecords, remoteAnimals] = await Promise.all([
-      featureContainer.health.list(user.id, true),
-      featureContainer.animals.listInventory(user.id, undefined, {
-        refreshFromServer: true,
-      }),
-    ]);
-    setRecords(remoteRecords);
-    setAnimals(remoteAnimals);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
-
   const loadUpcoming = useCallback(async () => {
     if (!user?.id) return;
-    if (isNetworkInitialized && !isOnline) {
-      setUpcomingTasks([]);
-      return;
-    }
 
     setIsLoadingUpcoming(true);
     try {
@@ -126,7 +113,11 @@ const HealthRecordsScreen = () => {
     } finally {
       setIsLoadingUpcoming(false);
     }
-  }, [isNetworkInitialized, isOnline, user?.id]);
+  }, [user?.id]);
+
+  useLocalRefresh(async () => {
+    await Promise.all([loadLocalData(), loadUpcoming()]);
+  });
 
   const loadData = useCallback(async () => {
     if (!user?.id) {
@@ -138,25 +129,14 @@ const HealthRecordsScreen = () => {
     setIsInitialLoading(true);
     try {
       await loadLocalData();
-      if (!isNetworkInitialized || isOnline) {
-        await Promise.all([refreshFromServer(), loadUpcoming()]);
-      } else {
-        setUpcomingTasks([]);
-      }
+      await loadUpcoming();
     } catch (loadError) {
       setError(extractApiErrorMessage(loadError));
       setIsUsingCachedData(true);
     } finally {
       setIsInitialLoading(false);
     }
-  }, [
-    isNetworkInitialized,
-    isOnline,
-    loadLocalData,
-    loadUpcoming,
-    refreshFromServer,
-    user?.id,
-  ]);
+  }, [loadLocalData, loadUpcoming, user?.id]);
 
   useEffect(() => {
     loadData();
@@ -178,7 +158,7 @@ const HealthRecordsScreen = () => {
     try {
       if (!isNetworkInitialized || isOnline) {
         await featureContainer.sync.syncNow(user.id);
-        await Promise.all([refreshFromServer(), loadUpcoming()]);
+        await Promise.all([loadLocalData(), loadUpcoming()]);
       } else {
         await loadLocalData();
       }
@@ -191,8 +171,7 @@ const HealthRecordsScreen = () => {
   };
 
   const inspectRecord = async (recordId: string) => {
-    if (isNetworkInitialized && !isOnline) return;
-    const remoteRecord = await featureContainer.health.getByIdFromApi(recordId);
+    const remoteRecord = await featureContainer.health.getById(recordId);
     if (!remoteRecord) return;
 
     Toast.show({
@@ -203,16 +182,21 @@ const HealthRecordsScreen = () => {
   };
 
   const toggleRecordCompleted = async (record: HealthRecord) => {
-    if (!user?.id) return;
-    const updated = await featureContainer.health.update(record.id, {
-      completed: !record.completed,
-    });
-    if (!updated) return;
+    try {
+      if (!user?.id) return;
+      const updated = await featureContainer.health.update(record.id, {
+        completed: !record.completed,
+      });
+      if (!updated) return;
 
-    await loadLocalData();
-    featureContainer.sync.syncNow(user.id).catch(() => {
-      // Sync feedback is handled globally.
-    });
+      await loadLocalData();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('health.errorTitle'),
+        text2: extractApiErrorMessage(error),
+      });
+    }
   };
 
   const deleteRecord = (recordId: string) => {
@@ -223,13 +207,18 @@ const HealthRecordsScreen = () => {
         text: t('health.deleteAction'),
         style: 'destructive',
         onPress: async () => {
-          if (!user?.id) return;
-          const deleted = await featureContainer.health.delete(recordId);
-          if (!deleted) return;
-          await loadLocalData();
-          featureContainer.sync.syncNow(user.id).catch(() => {
-            // Sync feedback is handled globally.
-          });
+          try {
+            if (!user?.id) return;
+            const deleted = await featureContainer.health.delete(recordId);
+            if (!deleted) return;
+            await loadLocalData();
+          } catch (error) {
+            Toast.show({
+              type: 'error',
+              text1: t('health.errorTitle'),
+              text2: extractApiErrorMessage(error),
+            });
+          }
         },
       },
     ]);
@@ -239,7 +228,9 @@ const HealthRecordsScreen = () => {
     <Pressable style={styles.recordCard} onPress={() => inspectRecord(item.id)}>
       <View style={styles.recordHeader}>
         <View style={styles.recordTitleBlock}>
-          <Text style={styles.recordType}>{t(`health.types.${item.type}`)}</Text>
+          <Text style={styles.recordType}>
+            {t(`health.types.${item.type}`)}
+          </Text>
           <Text style={styles.recordMeta}>
             {animalById[item.animalId]?.crotal ?? item.animalId}
           </Text>
@@ -253,7 +244,9 @@ const HealthRecordsScreen = () => {
           <Text
             style={[
               styles.statusBadgeText,
-              item.completed ? styles.statusCompletedText : styles.statusPendingText,
+              item.completed
+                ? styles.statusCompletedText
+                : styles.statusPendingText,
             ]}
           >
             {item.completed ? t('health.completed') : t('health.pending')}
@@ -281,7 +274,9 @@ const HealthRecordsScreen = () => {
             toggleRecordCompleted(item);
           }}
         >
-          <Text style={styles.recordActionText}>{t('health.toggleAction')}</Text>
+          <Text style={styles.recordActionText}>
+            {t('health.toggleAction')}
+          </Text>
         </Pressable>
         <Pressable
           style={[styles.recordActionButton, styles.recordActionDanger]}
@@ -290,7 +285,9 @@ const HealthRecordsScreen = () => {
             deleteRecord(item.id);
           }}
         >
-          <Text style={[styles.recordActionText, styles.recordActionDangerText]}>
+          <Text
+            style={[styles.recordActionText, styles.recordActionDangerText]}
+          >
             {t('health.deleteAction')}
           </Text>
         </Pressable>
@@ -303,7 +300,9 @@ const HealthRecordsScreen = () => {
       return (
         <View style={styles.feedbackCard}>
           <ActivityIndicator color={theme.colors.primary} />
-          <Text style={styles.feedbackText}>{t('offline.banner.cacheDescription')}</Text>
+          <Text style={styles.feedbackText}>
+            {t('offline.banner.cacheDescription')}
+          </Text>
         </View>
       );
     }
@@ -312,7 +311,9 @@ const HealthRecordsScreen = () => {
       return (
         <View style={styles.feedbackCard}>
           <Text style={styles.feedbackTitle}>{t('health.emptyTitle')}</Text>
-          <Text style={styles.feedbackText}>{t('health.emptyDescription')}</Text>
+          <Text style={styles.feedbackText}>
+            {t('health.emptyDescription')}
+          </Text>
         </View>
       );
     }
@@ -344,7 +345,11 @@ const HealthRecordsScreen = () => {
           <View style={styles.headerContent}>
             <View style={styles.header}>
               <View style={styles.headerIcon}>
-                <AppIcon name="calendarBlank" size="sm" mColor={theme.colors.primary} />
+                <AppIcon
+                  name="calendarBlank"
+                  size="sm"
+                  mColor={theme.colors.primary}
+                />
               </View>
               <View style={styles.headerTextBlock}>
                 <Text style={styles.title}>{t('health.title')}</Text>
@@ -365,25 +370,36 @@ const HealthRecordsScreen = () => {
 
             <View style={styles.statsCard}>
               <View style={styles.statsTextBlock}>
-                <Text style={styles.statsLabel}>{t('health.recordsTitle')}</Text>
+                <Text style={styles.statsLabel}>
+                  {t('health.recordsTitle')}
+                </Text>
                 <Text style={styles.statsValue}>{records.length}</Text>
                 <Text style={styles.statsSubValue}>
-                  {t('health.pending')}: {pendingCount} • {t('health.completed')}:{' '}
-                  {records.length - pendingCount}
+                  {t('health.pending')}: {pendingCount} •{' '}
+                  {t('health.completed')}: {records.length - pendingCount}
                 </Text>
               </View>
               <Pressable
                 style={styles.primaryAction}
                 onPress={() => navigation.navigate('HealthRecordForm')}
               >
-                <AppIcon name="plus" size="sm" mColor={theme.colors.onPrimary} />
-                <Text style={styles.primaryActionText}>{t('health.newRecord')}</Text>
+                <AppIcon
+                  name="plus"
+                  size="sm"
+                  mColor={theme.colors.onPrimary}
+                />
+                <Text style={styles.primaryActionText}>
+                  {t('health.newRecord')}
+                </Text>
               </Pressable>
             </View>
 
             <View style={styles.filterRow}>
               <Pressable
-                style={[styles.filterChip, filter === 'ALL' && styles.filterChipSelected]}
+                style={[
+                  styles.filterChip,
+                  filter === 'ALL' && styles.filterChipSelected,
+                ]}
                 onPress={() => setFilter('ALL')}
               >
                 <Text
@@ -417,14 +433,20 @@ const HealthRecordsScreen = () => {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>{t('health.upcomingTitle')}</Text>
+              <Text style={styles.sectionTitle}>
+                {t('health.upcomingTitle')}
+              </Text>
               {isLoadingUpcoming ? (
                 <View style={styles.upcomingFeedback}>
                   <ActivityIndicator color={theme.colors.primary} />
-                  <Text style={styles.feedbackText}>{t('health.upcomingLoading')}</Text>
+                  <Text style={styles.feedbackText}>
+                    {t('health.upcomingLoading')}
+                  </Text>
                 </View>
               ) : upcomingTasks.length === 0 ? (
-                <Text style={styles.feedbackText}>{t('health.upcomingEmpty')}</Text>
+                <Text style={styles.feedbackText}>
+                  {t('health.upcomingEmpty')}
+                </Text>
               ) : (
                 <View style={styles.upcomingList}>
                   {upcomingTasks.slice(0, 4).map(task => (

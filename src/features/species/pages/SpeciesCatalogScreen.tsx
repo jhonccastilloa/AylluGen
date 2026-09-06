@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,14 +27,17 @@ import { useNetworkStore } from '@/store/useNetworkStore';
 const SpeciesCatalogScreen = () => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isOnline = useNetworkStore(state => state.isOnline);
   const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
 
   const [speciesList, setSpeciesList] = useState<Species[]>([]);
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false);
   const [isSavingSpecies, setIsSavingSpecies] = useState(false);
-  const [speciesError, setSpeciesError] = useState<string | undefined>(undefined);
+  const [speciesError, setSpeciesError] = useState<string | undefined>(
+    undefined,
+  );
   const [editingSpeciesId, setEditingSpeciesId] = useState<string | null>(null);
   const [speciesCodeInput, setSpeciesCodeInput] = useState('');
   const [speciesNameInput, setSpeciesNameInput] = useState('');
@@ -46,7 +50,7 @@ const SpeciesCatalogScreen = () => {
     try {
       const catalog = await featureContainer.species.list();
       setSpeciesList(catalog);
-      setIsUsingCachedData(catalog.some(item => item.id.startsWith('fallback-')));
+      setIsUsingCachedData(true);
     } catch (error) {
       setSpeciesError(extractApiErrorMessage(error));
       setIsUsingCachedData(true);
@@ -60,6 +64,8 @@ const SpeciesCatalogScreen = () => {
       loadSpecies();
     }, [loadSpecies]),
   );
+
+  useLocalRefresh(loadSpecies);
 
   const resetSpeciesForm = useCallback(() => {
     setEditingSpeciesId(null);
@@ -86,15 +92,6 @@ const SpeciesCatalogScreen = () => {
         type: 'info',
         text1: t('settingsScreen.speciesRequiredTitle'),
         text2: t('settingsScreen.speciesRequiredMessage'),
-      });
-      return;
-    }
-
-    if (isNetworkInitialized && !isOnline) {
-      Toast.show({
-        type: 'warning',
-        text1: t('offline.banner.offlineTitle'),
-        text2: t('settingsScreen.offlineRestrictedMessage'),
       });
       return;
     }
@@ -143,15 +140,6 @@ const SpeciesCatalogScreen = () => {
           text: t('settingsScreen.speciesDeleteAction'),
           style: 'destructive',
           onPress: async () => {
-            if (isNetworkInitialized && !isOnline) {
-              Toast.show({
-                type: 'warning',
-                text1: t('offline.banner.offlineTitle'),
-                text2: t('settingsScreen.offlineRestrictedMessage'),
-              });
-              return;
-            }
-
             try {
               await featureContainer.species.delete(speciesItem.id);
               if (editingSpeciesId === speciesItem.id) {
@@ -189,7 +177,9 @@ const SpeciesCatalogScreen = () => {
           </Pressable>
           <View style={styles.headerTextBlock}>
             <Text style={styles.title}>{t('settingsScreen.speciesTitle')}</Text>
-            <Text style={styles.subtitle}>{t('settingsScreen.speciesDescription')}</Text>
+            <Text style={styles.subtitle}>
+              {t('settingsScreen.speciesDescription')}
+            </Text>
           </View>
         </View>
 
@@ -198,7 +188,7 @@ const SpeciesCatalogScreen = () => {
         <View style={styles.sectionCard}>
           {isNetworkInitialized && !isOnline ? (
             <Text style={styles.sectionDescription}>
-              {t('settingsScreen.speciesOfflineHint')}
+              {t('offline.banner.offlineDescription')}
             </Text>
           ) : null}
 
@@ -210,7 +200,9 @@ const SpeciesCatalogScreen = () => {
               </Text>
             </View>
           ) : speciesList.length === 0 ? (
-            <Text style={styles.profileLoadingText}>{t('settingsScreen.speciesEmpty')}</Text>
+            <Text style={styles.profileLoadingText}>
+              {t('settingsScreen.speciesEmpty')}
+            </Text>
           ) : (
             <View style={styles.speciesList}>
               {speciesList.map(item => (
@@ -219,7 +211,9 @@ const SpeciesCatalogScreen = () => {
                     <Text style={styles.speciesName}>{item.name}</Text>
                     <Text style={styles.speciesCode}>{item.code}</Text>
                     {item.description ? (
-                      <Text style={styles.speciesDescriptionText}>{item.description}</Text>
+                      <Text style={styles.speciesDescriptionText}>
+                        {item.description}
+                      </Text>
                     ) : null}
                   </View>
                   <View style={styles.speciesActions}>
@@ -232,10 +226,18 @@ const SpeciesCatalogScreen = () => {
                       </Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.speciesActionButton, styles.speciesActionButtonDanger]}
+                      style={[
+                        styles.speciesActionButton,
+                        styles.speciesActionButtonDanger,
+                      ]}
                       onPress={() => onDeleteSpecies(item)}
                     >
-                      <Text style={[styles.speciesActionText, styles.speciesActionTextDanger]}>
+                      <Text
+                        style={[
+                          styles.speciesActionText,
+                          styles.speciesActionTextDanger,
+                        ]}
+                      >
                         {t('settingsScreen.speciesDeleteAction')}
                       </Text>
                     </Pressable>
@@ -245,7 +247,9 @@ const SpeciesCatalogScreen = () => {
             </View>
           )}
 
-          {speciesError ? <Text style={styles.profileError}>{speciesError}</Text> : null}
+          {speciesError ? (
+            <Text style={styles.profileError}>{speciesError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.sectionCard}>
@@ -289,7 +293,10 @@ const SpeciesCatalogScreen = () => {
           />
 
           {editingSpeciesId ? (
-            <Pressable style={styles.speciesCancelButton} onPress={resetSpeciesForm}>
+            <Pressable
+              style={styles.speciesCancelButton}
+              onPress={resetSpeciesForm}
+            >
               <Text style={styles.speciesCancelText}>
                 {t('settingsScreen.speciesCancelAction')}
               </Text>

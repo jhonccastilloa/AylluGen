@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -45,7 +46,8 @@ type ProductionFilter = 'ALL' | ProductionType;
 const ProductionRecordsScreen = () => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore(state => state.user);
   const isOnline = useNetworkStore(state => state.isOnline);
   const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
@@ -90,7 +92,10 @@ const ProductionRecordsScreen = () => {
   );
 
   const filteredRecords = useMemo(
-    () => records.filter(record => (filter === 'ALL' ? true : record.type === filter)),
+    () =>
+      records.filter(record =>
+        filter === 'ALL' ? true : record.type === filter,
+      ),
     [filter, records],
   );
 
@@ -105,19 +110,6 @@ const ProductionRecordsScreen = () => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const [remoteRecords, remoteAnimals] = await Promise.all([
-      featureContainer.production.list(user.id, true),
-      featureContainer.animals.listInventory(user.id, undefined, {
-        refreshFromServer: true,
-      }),
-    ]);
-    setRecords(remoteRecords);
-    setAnimals(remoteAnimals);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
-
   const loadData = useCallback(async () => {
     if (!user?.id) {
       setIsInitialLoading(false);
@@ -128,16 +120,13 @@ const ProductionRecordsScreen = () => {
     setIsInitialLoading(true);
     try {
       await loadLocalData();
-      if (!isNetworkInitialized || isOnline) {
-        await refreshFromServer();
-      }
     } catch (loadError) {
       setError(extractApiErrorMessage(loadError));
       setIsUsingCachedData(true);
     } finally {
       setIsInitialLoading(false);
     }
-  }, [isNetworkInitialized, isOnline, loadLocalData, refreshFromServer, user?.id]);
+  }, [loadLocalData, user?.id]);
 
   useEffect(() => {
     loadData();
@@ -163,16 +152,14 @@ const ProductionRecordsScreen = () => {
       setRecentRemote([]);
       return;
     }
-    if (isNetworkInitialized && !isOnline) {
-      setSummary(null);
-      setRecentRemote([]);
-      return;
-    }
 
     setIsLoadingInsights(true);
     try {
       const [remoteSummary, remoteRecent] = await Promise.all([
-        featureContainer.production.getSummary(selectedAnimalId, selectedInsightType),
+        featureContainer.production.getSummary(
+          selectedAnimalId,
+          selectedInsightType,
+        ),
         featureContainer.production.getRecent(selectedAnimalId, 5),
       ]);
       setSummary(remoteSummary);
@@ -183,11 +170,15 @@ const ProductionRecordsScreen = () => {
     } finally {
       setIsLoadingInsights(false);
     }
-  }, [isNetworkInitialized, isOnline, selectedAnimalId, selectedInsightType]);
+  }, [selectedAnimalId, selectedInsightType]);
 
   useEffect(() => {
     loadInsights();
   }, [loadInsights]);
+
+  useLocalRefresh(async () => {
+    await Promise.all([loadLocalData(), loadInsights()]);
+  });
 
   const onRefresh = async () => {
     if (!user?.id) return;
@@ -197,7 +188,7 @@ const ProductionRecordsScreen = () => {
     try {
       if (!isNetworkInitialized || isOnline) {
         await featureContainer.sync.syncNow(user.id);
-        await Promise.all([refreshFromServer(), loadInsights()]);
+        await Promise.all([loadLocalData(), loadInsights()]);
       } else {
         await loadLocalData();
       }
@@ -210,8 +201,7 @@ const ProductionRecordsScreen = () => {
   };
 
   const inspectRecord = async (recordId: string) => {
-    if (isNetworkInitialized && !isOnline) return;
-    const remoteRecord = await featureContainer.production.getByIdFromApi(recordId);
+    const remoteRecord = await featureContainer.production.getById(recordId);
     if (!remoteRecord) return;
 
     Toast.show({
@@ -222,18 +212,23 @@ const ProductionRecordsScreen = () => {
   };
 
   const updateRecord = async (record: ProductionRecord) => {
-    if (!user?.id) return;
-    const updated = await featureContainer.production.update(record.id, {
-      notes: record.notes
-        ? `${record.notes} • ${t('production.updatedTag')}`
-        : t('production.updatedTag'),
-    });
-    if (!updated) return;
+    try {
+      if (!user?.id) return;
+      const updated = await featureContainer.production.update(record.id, {
+        notes: record.notes
+          ? `${record.notes} • ${t('production.updatedTag')}`
+          : t('production.updatedTag'),
+      });
+      if (!updated) return;
 
-    await loadLocalData();
-    featureContainer.sync.syncNow(user.id).catch(() => {
-      // Sync feedback is handled globally.
-    });
+      await loadLocalData();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('production.errorTitle'),
+        text2: extractApiErrorMessage(error),
+      });
+    }
   };
 
   const deleteRecord = (recordId: string) => {
@@ -244,13 +239,18 @@ const ProductionRecordsScreen = () => {
         text: t('production.deleteAction'),
         style: 'destructive',
         onPress: async () => {
-          if (!user?.id) return;
-          const deleted = await featureContainer.production.delete(recordId);
-          if (!deleted) return;
-          await loadLocalData();
-          featureContainer.sync.syncNow(user.id).catch(() => {
-            // Sync feedback is handled globally.
-          });
+          try {
+            if (!user?.id) return;
+            const deleted = await featureContainer.production.delete(recordId);
+            if (!deleted) return;
+            await loadLocalData();
+          } catch (error) {
+            Toast.show({
+              type: 'error',
+              text1: t('production.errorTitle'),
+              text2: extractApiErrorMessage(error),
+            });
+          }
         },
       },
     ]);
@@ -260,7 +260,9 @@ const ProductionRecordsScreen = () => {
     <Pressable style={styles.recordCard} onPress={() => inspectRecord(item.id)}>
       <View style={styles.recordHeader}>
         <View style={styles.recordTitleBlock}>
-          <Text style={styles.recordType}>{t(`production.types.${item.type}`)}</Text>
+          <Text style={styles.recordType}>
+            {t(`production.types.${item.type}`)}
+          </Text>
           <Text style={styles.recordMeta}>
             {animalById[item.animalId]?.crotal ?? item.animalId}
           </Text>
@@ -277,7 +279,7 @@ const ProductionRecordsScreen = () => {
       </Text>
       <Text style={styles.recordDateText}>
         {t('production.qualityLabel')}:{' '}
-        {item.qualityScore !== null ? `${item.qualityScore}%` : '-'}
+        {item.qualityScore !== null ? `${item.qualityScore}/10` : '-'}
       </Text>
 
       {item.notes ? <Text style={styles.recordNotes}>{item.notes}</Text> : null}
@@ -290,7 +292,9 @@ const ProductionRecordsScreen = () => {
             updateRecord(item);
           }}
         >
-          <Text style={styles.recordActionText}>{t('production.updateAction')}</Text>
+          <Text style={styles.recordActionText}>
+            {t('production.updateAction')}
+          </Text>
         </Pressable>
         <Pressable
           style={[styles.recordActionButton, styles.recordActionDanger]}
@@ -299,7 +303,9 @@ const ProductionRecordsScreen = () => {
             deleteRecord(item.id);
           }}
         >
-          <Text style={[styles.recordActionText, styles.recordActionDangerText]}>
+          <Text
+            style={[styles.recordActionText, styles.recordActionDangerText]}
+          >
             {t('production.deleteAction')}
           </Text>
         </Pressable>
@@ -312,7 +318,9 @@ const ProductionRecordsScreen = () => {
       return (
         <View style={styles.feedbackCard}>
           <ActivityIndicator color={theme.colors.primary} />
-          <Text style={styles.feedbackText}>{t('offline.banner.cacheDescription')}</Text>
+          <Text style={styles.feedbackText}>
+            {t('offline.banner.cacheDescription')}
+          </Text>
         </View>
       );
     }
@@ -321,7 +329,9 @@ const ProductionRecordsScreen = () => {
       return (
         <View style={styles.feedbackCard}>
           <Text style={styles.feedbackTitle}>{t('production.emptyTitle')}</Text>
-          <Text style={styles.feedbackText}>{t('production.emptyDescription')}</Text>
+          <Text style={styles.feedbackText}>
+            {t('production.emptyDescription')}
+          </Text>
         </View>
       );
     }
@@ -353,7 +363,11 @@ const ProductionRecordsScreen = () => {
           <View style={styles.headerContent}>
             <View style={styles.header}>
               <View style={styles.headerIcon}>
-                <AppIcon name="currencyDolar" size="sm" mColor={theme.colors.primary} />
+                <AppIcon
+                  name="currencyDolar"
+                  size="sm"
+                  mColor={theme.colors.primary}
+                />
               </View>
               <View style={styles.headerTextBlock}>
                 <Text style={styles.title}>{t('production.title')}</Text>
@@ -374,24 +388,36 @@ const ProductionRecordsScreen = () => {
 
             <View style={styles.statsCard}>
               <View style={styles.statsTextBlock}>
-                <Text style={styles.statsLabel}>{t('production.recordsTitle')}</Text>
+                <Text style={styles.statsLabel}>
+                  {t('production.recordsTitle')}
+                </Text>
                 <Text style={styles.statsValue}>{records.length}</Text>
                 <Text style={styles.statsSubValue}>
-                  {t('production.typeLabel')}: {t(`production.types.${selectedInsightType}`)}
+                  {t('production.typeLabel')}:{' '}
+                  {t(`production.types.${selectedInsightType}`)}
                 </Text>
               </View>
               <Pressable
                 style={styles.primaryAction}
                 onPress={() => navigation.navigate('ProductionRecordForm')}
               >
-                <AppIcon name="plus" size="sm" mColor={theme.colors.onPrimary} />
-                <Text style={styles.primaryActionText}>{t('production.newRecord')}</Text>
+                <AppIcon
+                  name="plus"
+                  size="sm"
+                  mColor={theme.colors.onPrimary}
+                />
+                <Text style={styles.primaryActionText}>
+                  {t('production.newRecord')}
+                </Text>
               </Pressable>
             </View>
 
             <View style={styles.filterRow}>
               <Pressable
-                style={[styles.filterChip, filter === 'ALL' && styles.filterChipSelected]}
+                style={[
+                  styles.filterChip,
+                  filter === 'ALL' && styles.filterChipSelected,
+                ]}
                 onPress={() => setFilter('ALL')}
               >
                 <Text
@@ -425,7 +451,9 @@ const ProductionRecordsScreen = () => {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>{t('production.insightsTitle')}</Text>
+              <Text style={styles.sectionTitle}>
+                {t('production.insightsTitle')}
+              </Text>
 
               <BaseParentSelectorInput
                 label={t('production.animalLabel')}
@@ -448,7 +476,8 @@ const ProductionRecordsScreen = () => {
                     <Text
                       style={[
                         styles.typeChipText,
-                        selectedInsightType === type && styles.typeChipTextSelected,
+                        selectedInsightType === type &&
+                          styles.typeChipTextSelected,
                       ]}
                     >
                       {t(`production.types.${type}`)}
@@ -460,10 +489,14 @@ const ProductionRecordsScreen = () => {
               {isLoadingInsights ? (
                 <View style={styles.insightsFeedback}>
                   <ActivityIndicator color={theme.colors.primary} />
-                  <Text style={styles.feedbackText}>{t('production.insightsLoading')}</Text>
+                  <Text style={styles.feedbackText}>
+                    {t('production.insightsLoading')}
+                  </Text>
                 </View>
               ) : !summary ? (
-                <Text style={styles.feedbackText}>{t('production.insightsEmpty')}</Text>
+                <Text style={styles.feedbackText}>
+                  {t('production.insightsEmpty')}
+                </Text>
               ) : (
                 <View style={styles.insightsContent}>
                   <Text style={styles.insightsMainText}>
@@ -478,7 +511,8 @@ const ProductionRecordsScreen = () => {
                   <View style={styles.recentList}>
                     {recentRemote.slice(0, 3).map(record => (
                       <Text key={record.id} style={styles.recentItemText}>
-                        {toReadableDate(record.date)} • {record.value} {record.unit}
+                        {toReadableDate(record.date)} • {record.value}{' '}
+                        {record.unit}
                       </Text>
                     ))}
                   </View>

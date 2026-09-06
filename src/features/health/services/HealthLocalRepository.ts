@@ -1,6 +1,9 @@
-import { restoreSyncedTimestamps } from '@/infrastructure/database/restoreSyncedTimestamps';
+import {
+  inputRaw,
+  validateLocalRecord,
+} from '@/infrastructure/database/localRules';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '@/infrastructure/database';
+import type { Database } from '@nozbe/watermelondb';
 import { DB_TABLES } from '@/infrastructure/database/constants';
 import type { HealthRecordModel } from '@/infrastructure/database/models/HealthRecordModel';
 import type {
@@ -32,28 +35,49 @@ const toDomain = (model: HealthRecordModel): HealthRecord => ({
   nextDueDate: timestampToIso(model.nextDueDate),
   completed: model.completed,
   userId: model.userId,
-  syncStatus: model.recordSyncStatus as SyncStatus,
+  syncStatus: (model.syncStatus === 'synced'
+    ? 'SYNCED'
+    : 'PENDING') as SyncStatus,
   syncVersion: model.syncVersion,
   createdAt: toTimestampIsoOrEmpty(model.createdAt),
   updatedAt: toTimestampIsoOrEmpty(model.updatedAt),
 });
 
 export class HealthLocalRepository {
-  private collection = database.get<HealthRecordModel>(DB_TABLES.healthRecords);
+  constructor(
+    private readonly database: Database,
+    private readonly ownerId: string,
+  ) {}
+
+  private get collection() {
+    return this.database.get<HealthRecordModel>(DB_TABLES.healthRecords);
+  }
 
   async listByUserId(userId: string): Promise<HealthRecord[]> {
-    const records = await this.collection.query(Q.where('user_id', userId)).fetch();
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
+    const records = await this.collection
+      .query(Q.where('user_id', userId))
+      .fetch();
     return records
       .map(toDomain)
       .filter(record => record.syncStatus !== 'DELETED')
       .sort((left, right) => right.date.localeCompare(left.date));
   }
 
-  async createLocal(userId: string, input: HealthRecordCreateInput): Promise<HealthRecord> {
+  async createLocal(
+    userId: string,
+    input: HealthRecordCreateInput,
+  ): Promise<HealthRecord> {
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
     const id = generateUuid();
     const timestamp = nowTimestamp();
 
-    await database.write(async () => {
+    await this.database.write(async () => {
+      await validateLocalRecord(
+        this.database,
+        'health_records',
+        inputRaw(id, input),
+      );
       await this.collection.create(record => {
         (record._raw as { id: string }).id = id;
         record.animalId = input.animalId;
@@ -79,6 +103,7 @@ export class HealthLocalRepository {
   async getById(id: string): Promise<HealthRecord | null> {
     try {
       const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted') return null;
       const record = toDomain(model);
       return record.syncStatus === 'DELETED' ? null : record;
     } catch {
@@ -90,45 +115,39 @@ export class HealthLocalRepository {
     id: string,
     input: HealthRecordUpdateInput,
   ): Promise<HealthRecord | null> {
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          if (input.type !== undefined) record.type = input.type;
-          if (input.date !== undefined) {
-            record.date = isoToTimestamp(input.date) ?? record.date;
-          }
-          if (input.notes !== undefined) record.notes = input.notes;
-          if (input.nextDueDate !== undefined) {
-            record.nextDueDate = isoToTimestamp(input.nextDueDate);
-          }
-          if (input.completed !== undefined) record.completed = input.completed;
-          record.recordSyncStatus = 'PENDING';
-          record.syncVersion += 1;
-        });
+    await this.database.write(async () => {
+      const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted')
+        throw new Error('El registro fue eliminado.');
+      await validateLocalRecord(
+        this.database,
+        'health_records',
+        inputRaw(id, input, model._raw),
+      );
+      await model.update(record => {
+        if (input.type !== undefined) record.type = input.type;
+        if (input.date !== undefined) {
+          record.date = isoToTimestamp(input.date) ?? record.date;
+        }
+        if (input.notes !== undefined) record.notes = input.notes;
+        if (input.nextDueDate !== undefined) {
+          record.nextDueDate = isoToTimestamp(input.nextDueDate);
+        }
+        if (input.completed !== undefined) record.completed = input.completed;
+        record.recordSyncStatus = 'PENDING';
+        record.syncVersion += 1;
       });
-      return this.getById(id);
-    } catch {
-      return null;
-    }
+    });
+    return this.getById(id);
   }
 
   async deleteLocal(id: string): Promise<number | null> {
-    let deletedVersion: number | null = null;
-
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          record.recordSyncStatus = 'DELETED';
-          record.syncVersion += 1;
-          deletedVersion = record.syncVersion;
-        });
-      });
-      return deletedVersion;
-    } catch {
-      return null;
-    }
+    return this.database.write(async () => {
+      const records = await this.collection.query(Q.where('id', id)).fetch();
+      if (!records.length) return null;
+      await records[0].markAsDeleted();
+      return 1;
+    });
   }
 
   async listUpcomingByUserId(
@@ -155,48 +174,4 @@ export class HealthLocalRepository {
         return leftDueTimestamp - rightDueTimestamp;
       });
   }
-
-  async upsertFromServer(records: HealthRecord[]): Promise<void> {
-    await database.write(async () => {
-      for (const record of records) {
-        const createdAt = isoToTimestamp(record.clientCreatedAt ?? record.createdAt) ?? nowTimestamp();
-        const updatedAt = isoToTimestamp(record.clientUpdatedAt ?? record.updatedAt) ?? nowTimestamp();
-        try {
-          const existing = await this.collection.find(record.id);
-          const pendingCount = await database.get(DB_TABLES.syncQueue).query(
-            Q.where('table_name', this.collection.table),
-            Q.where('record_id', record.id),
-          ).fetchCount();
-          if (pendingCount > 0) continue;
-          await existing.update(item => {
-            item.animalId = record.animalId;
-            item.type = record.type;
-            item.date = isoToTimestamp(record.date) ?? nowTimestamp();
-            item.notes = record.notes;
-            item.nextDueDate = isoToTimestamp(record.nextDueDate);
-            item.completed = record.completed;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        } catch {
-          await this.collection.create(item => {
-            (item._raw as { id: string }).id = record.id;
-            item.animalId = record.animalId;
-            item.type = record.type;
-            item.date = isoToTimestamp(record.date) ?? nowTimestamp();
-            item.notes = record.notes;
-            item.nextDueDate = isoToTimestamp(record.nextDueDate);
-            item.completed = record.completed;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        }
-      }
-    });
-  }
 }
-

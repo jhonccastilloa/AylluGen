@@ -1,6 +1,3 @@
-import { DB_TABLES } from '@/infrastructure/database/constants';
-import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
-import { HealthApi } from '@/features/health/services/HealthApi';
 import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
 import type {
   HealthRecord,
@@ -8,14 +5,6 @@ import type {
   HealthRecordUpdateInput,
   HealthType,
 } from '@/features/health/interfaces/health.types';
-import type { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
-import { useNetworkStore } from '@/store/useNetworkStore';
-
-interface HealthListFilters {
-  animalId?: string;
-  type?: HealthType;
-  completed?: boolean;
-}
 
 interface HealthUpcomingTask {
   id: string;
@@ -28,38 +17,17 @@ interface HealthUpcomingTask {
 }
 
 export class HealthUseCases {
-  constructor(
-    private readonly api: HealthApi,
-    private readonly localRepository: HealthLocalRepository,
-    private readonly syncOrchestrator: SyncOrchestrator,
-  ) {}
+  constructor(private readonly localRepository: HealthLocalRepository) {}
 
-  async list(userId: string, refreshFromServer = false): Promise<HealthRecord[]> {
-    if (refreshFromServer) {
-      await this.refreshFromServer();
-    }
+  async list(userId: string): Promise<HealthRecord[]> {
     return this.localRepository.listByUserId(userId);
   }
 
-  async create(userId: string, input: HealthRecordCreateInput): Promise<HealthRecord> {
+  async create(
+    userId: string,
+    input: HealthRecordCreateInput,
+  ): Promise<HealthRecord> {
     const localRecord = await this.localRepository.createLocal(userId, input);
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.healthRecords,
-      'CREATE',
-      localRecord.id,
-      {
-        clientCreatedAt: localRecord.createdAt,
-        clientUpdatedAt: localRecord.updatedAt,
-        animalId: localRecord.animalId,
-        type: localRecord.type,
-        date: localRecord.date,
-        notes: localRecord.notes ?? undefined,
-        nextDueDate: localRecord.nextDueDate ?? undefined,
-        completed: localRecord.completed,
-      },
-      localRecord.syncVersion,
-    );
 
     return localRecord;
   }
@@ -68,74 +36,31 @@ export class HealthUseCases {
     healthRecordId: string,
     input: HealthRecordUpdateInput,
   ): Promise<HealthRecord | null> {
-    const updatedRecord = await this.localRepository.updateLocal(healthRecordId, input);
-    if (!updatedRecord) return null;
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.healthRecords,
-      'UPDATE',
+    const updatedRecord = await this.localRepository.updateLocal(
       healthRecordId,
-      { ...input, clientUpdatedAt: updatedRecord.updatedAt },
-      updatedRecord.syncVersion,
+      input,
     );
+    if (!updatedRecord) return null;
 
     return updatedRecord;
   }
 
   async delete(healthRecordId: string): Promise<boolean> {
-    const deletedVersion = await this.localRepository.deleteLocal(healthRecordId);
+    const deletedVersion =
+      await this.localRepository.deleteLocal(healthRecordId);
     if (!deletedVersion) return false;
 
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.healthRecords,
-      'DELETE',
-      healthRecordId,
-      null,
-      deletedVersion,
-    );
     return true;
   }
 
-  async getById(healthRecordId: string): Promise<HealthRecord | null> {
-    const localRecord = await this.localRepository.getById(healthRecordId);
-    if (localRecord) return localRecord;
-
-    try {
-      const remoteRecord = await this.api.getById(healthRecordId);
-      await this.localRepository.upsertFromServer([remoteRecord]);
-      return remoteRecord;
-    } catch {
-      return null;
-    }
+  async getById(id: string): Promise<HealthRecord | null> {
+    return this.localRepository.getById(id);
   }
 
-  async getByIdFromApi(healthRecordId: string): Promise<HealthRecord | null> {
-    try {
-      const remoteRecord = await this.api.getById(healthRecordId);
-      await this.localRepository.upsertFromServer([remoteRecord]);
-      return remoteRecord;
-    } catch {
-      return null;
-    }
-  }
-
-  async getFromApi(filters?: HealthListFilters): Promise<HealthRecord[]> {
-    const response = await this.api.getAll(filters);
-    return response.records;
-  }
-
-  async getUpcoming(userId: string, daysAhead = 30): Promise<HealthUpcomingTask[]> {
-    const { isInitialized, isOnline } = useNetworkStore.getState();
-
-    if (!isInitialized || isOnline) {
-      try {
-        const response = await this.api.getUpcoming(daysAhead);
-        return response.tasks;
-      } catch {
-        // Fall through to local fallback.
-      }
-    }
-
+  async getUpcoming(
+    userId: string,
+    daysAhead = 30,
+  ): Promise<HealthUpcomingTask[]> {
     const localRecords = await this.localRepository.listUpcomingByUserId(
       userId,
       daysAhead,
@@ -161,17 +86,4 @@ export class HealthUseCases {
       };
     });
   }
-
-  private async refreshFromServer(): Promise<void> {
-    try {
-      const response = await this.api.getAll();
-      await this.localRepository.upsertFromServer(response.records);
-    } catch (error) {
-      console.warn(
-        'No se pudo refrescar registros de salud',
-        extractApiErrorMessage(error),
-      );
-    }
-  }
 }
-

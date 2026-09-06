@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import LocalDatabaseGate from './presentation/providers/LocalDatabaseGate';
 import {
   initialWindowMetrics,
   SafeAreaProvider,
@@ -12,7 +13,6 @@ import MainNavigator from './presentation/navigation/MainNavigator';
 import OfflineSyncProvider from './presentation/providers/OfflineSyncProvider';
 import ThemeProvider from './presentation/providers/ThemeProvider';
 import NetworkStatusProvider from './presentation/providers/NetworkStatusProvider';
-import BackendHealthProvider from './presentation/providers/BackendHealthProvider';
 
 function App(): React.JSX.Element {
   const isAndroid15 = Platform.OS === 'android' && Platform.Version >= 35;
@@ -31,10 +31,11 @@ function App(): React.JSX.Element {
       <I18nProvider>
         <ThemeProvider>
           <NetworkStatusProvider>
-            <BackendHealthProvider />
-            <OfflineSyncProvider />
             <Loader />
-            <MainNavigator />
+            <LocalDatabaseGate>
+              <OfflineSyncProvider />
+              <MainNavigator />
+            </LocalDatabaseGate>
             <Toast position="bottom" config={toastConfig} />
           </NetworkStatusProvider>
         </ThemeProvider>

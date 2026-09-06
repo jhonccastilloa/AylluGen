@@ -1,51 +1,35 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
-import { getFeatureContainer } from '@/features/getFeatureContainer';
+import { getAccountContainer } from '@/features/container';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { useSyncStore } from '@/store/useSyncStore';
 
-const SYNC_INTERVAL_MS = 45_000;
-
 const OfflineSyncProvider = () => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const user = useAuthStore(state => state.user);
+  const userId = useAuthStore(state =>
+    state.isAuthenticated ? state.user?.id : undefined,
+  );
   const isOnline = useNetworkStore(state => state.isOnline);
   const isInitialized = useNetworkStore(state => state.isInitialized);
-
   useEffect(() => {
-    const featureContainer = getFeatureContainer();
-    if (!featureContainer?.sync) return;
-    featureContainer.sync.hydrateSyncState();
-  }, []);
-
-  useEffect(() => {
-    const featureContainer = getFeatureContainer();
-    if (!featureContainer?.sync || !isAuthenticated || !user?.id) return;
-    if (isInitialized && !isOnline) {
-      useSyncStore.getState().setStatus('offline');
-      return;
-    }
-
-    featureContainer.sync.syncNow(user.id);
-
-    const interval = setInterval(() => {
-      featureContainer.sync.syncNow(user.id);
-    }, SYNC_INTERVAL_MS);
-
-    const appStateSubscription = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        featureContainer.sync.syncNow(user.id);
+    if (!userId) return;
+    const { sync } = getAccountContainer();
+    const update = (appState: string) => {
+      if (appState === 'background' || appState === 'inactive') {
+        sync.stop();
+      } else {
+        sync.start(); // keep observing/counting local writes while offline
+        if (isInitialized && !isOnline)
+          useSyncStore.getState().setStatus('offline');
       }
-    });
-
-    return () => {
-      clearInterval(interval);
-      appStateSubscription.remove();
     };
-  }, [isAuthenticated, isInitialized, isOnline, user?.id]);
-
+    update(AppState.currentState);
+    const subscription = AppState.addEventListener('change', update);
+    return () => {
+      subscription.remove();
+      sync.stop();
+    };
+  }, [userId, isOnline, isInitialized]);
   return null;
 };
-
 export default OfflineSyncProvider;

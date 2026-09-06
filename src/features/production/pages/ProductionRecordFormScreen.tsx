@@ -14,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import featureContainer from '@/features/container';
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import type { Animal } from '@/features/animals/interfaces/animals.types';
 import type { ProductionType } from '@/features/production/interfaces/production.types';
 import { inputDateToIso, todayInputDate } from '@/features/shared/utils/date';
@@ -28,7 +29,6 @@ import AppIcon from '@/presentation/components/appIcon/AppIcon';
 import type { RootStackParamList } from '@/presentation/navigation/types';
 import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useNetworkStore } from '@/store/useNetworkStore';
 
 const PRODUCTION_TYPE_OPTIONS: ProductionType[] = [
   'WEIGHT',
@@ -49,10 +49,9 @@ const DEFAULT_UNIT_BY_TYPE: Record<ProductionType, string> = {
 const ProductionRecordFormScreen = () => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore(state => state.user);
-  const isOnline = useNetworkStore(state => state.isOnline);
-  const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
 
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,37 +89,20 @@ const ProductionRecordFormScreen = () => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshAnimalsFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const remoteAnimals = await featureContainer.animals.listInventory(
-      user.id,
-      undefined,
-      { refreshFromServer: true },
-    );
-    setAnimals(remoteAnimals);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
+  useLocalRefresh(loadLocalAnimals);
 
   const loadAnimals = useCallback(async () => {
     setError(undefined);
     setIsLoading(true);
     try {
       await loadLocalAnimals();
-      if (!isNetworkInitialized || isOnline) {
-        await refreshAnimalsFromServer();
-      }
     } catch (loadError) {
       setError(extractApiErrorMessage(loadError));
       setIsUsingCachedData(true);
     } finally {
       setIsLoading(false);
     }
-  }, [
-    isNetworkInitialized,
-    isOnline,
-    loadLocalAnimals,
-    refreshAnimalsFromServer,
-  ]);
+  }, [loadLocalAnimals]);
 
   useEffect(() => {
     loadAnimals();
@@ -144,24 +126,32 @@ const ProductionRecordFormScreen = () => {
 
     const dateIso = inputDateToIso(date);
     if (!dateIso) {
-      Alert.alert(t('production.invalidDateTitle'), t('production.invalidDateMessage'));
+      Alert.alert(
+        t('production.invalidDateTitle'),
+        t('production.invalidDateMessage'),
+      );
       return;
     }
 
     const parsedValue = Number(value);
     if (!value.trim() || Number.isNaN(parsedValue) || parsedValue <= 0) {
-      Alert.alert(t('production.invalidValueTitle'), t('production.invalidValueMessage'));
+      Alert.alert(
+        t('production.invalidValueTitle'),
+        t('production.invalidValueMessage'),
+      );
       return;
     }
 
     const hasQualityScore = qualityScore.trim().length > 0;
-    const parsedQualityScore = hasQualityScore ? Number(qualityScore) : undefined;
+    const parsedQualityScore = hasQualityScore
+      ? Number(qualityScore)
+      : undefined;
     if (
       hasQualityScore &&
       (parsedQualityScore === undefined ||
-        Number.isNaN(parsedQualityScore) ||
-        parsedQualityScore < 0 ||
-        parsedQualityScore > 100)
+        !Number.isInteger(parsedQualityScore) ||
+        parsedQualityScore < 1 ||
+        parsedQualityScore > 10)
     ) {
       Alert.alert(
         t('production.invalidQualityTitle'),
@@ -182,17 +172,10 @@ const ProductionRecordFormScreen = () => {
         notes: notes.trim() ? notes.trim() : undefined,
       });
 
-      featureContainer.sync.syncNow(user.id).catch(() => {
-        // Sync feedback is handled globally.
-      });
-
       Toast.show({
         type: 'success',
         text1: t('production.successTitle'),
-        text2:
-          isOnline || !isNetworkInitialized
-            ? t('production.successOnline')
-            : t('production.successOffline'),
+        text2: t('production.successOffline'),
       });
 
       navigation.goBack();
@@ -216,7 +199,11 @@ const ProductionRecordFormScreen = () => {
       >
         <View style={styles.header}>
           <View style={styles.headerIcon}>
-            <AppIcon name="currencyDolar" size="sm" mColor={theme.colors.primary} />
+            <AppIcon
+              name="currencyDolar"
+              size="sm"
+              mColor={theme.colors.primary}
+            />
           </View>
           <View style={styles.headerTextBlock}>
             <Text style={styles.title}>{t('production.newRecord')}</Text>
@@ -238,7 +225,9 @@ const ProductionRecordFormScreen = () => {
         {isLoading ? (
           <View style={styles.feedbackCard}>
             <ActivityIndicator color={theme.colors.primary} />
-            <Text style={styles.feedbackText}>{t('offline.banner.cacheDescription')}</Text>
+            <Text style={styles.feedbackText}>
+              {t('offline.banner.cacheDescription')}
+            </Text>
           </View>
         ) : (
           <View style={styles.formCard}>
@@ -251,12 +240,16 @@ const ProductionRecordFormScreen = () => {
 
             {animals.length === 0 ? (
               <View style={styles.emptyAnimalsCard}>
-                <Text style={styles.feedbackText}>{t('herd.noAnimalsText')}</Text>
+                <Text style={styles.feedbackText}>
+                  {t('herd.noAnimalsText')}
+                </Text>
                 <Pressable
                   style={styles.secondaryAction}
                   onPress={() => navigation.navigate('RegisterAnimal')}
                 >
-                  <Text style={styles.secondaryActionText}>{t('herd.register')}</Text>
+                  <Text style={styles.secondaryActionText}>
+                    {t('herd.register')}
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
@@ -266,7 +259,10 @@ const ProductionRecordFormScreen = () => {
               {PRODUCTION_TYPE_OPTIONS.map(option => (
                 <Pressable
                   key={option}
-                  style={[styles.typeChip, type === option && styles.typeChipSelected]}
+                  style={[
+                    styles.typeChip,
+                    type === option && styles.typeChipSelected,
+                  ]}
                   onPress={() => onSelectType(option)}
                 >
                   <Text

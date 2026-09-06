@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -81,8 +82,6 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
       },
     });
 
-  const selectedSex = watch('sex');
-  const selectedSpeciesId = watch('speciesSelectionId');
   const selectedFatherId = watch('fatherId');
   const selectedMotherId = watch('motherId');
   const isFounder = watch('isFounder');
@@ -110,10 +109,6 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
   const [newSpeciesDescription, setNewSpeciesDescription] = useState('');
   const [isSavingQuickSpecies, setIsSavingQuickSpecies] = useState(false);
 
-  const selectedSpecies = useMemo(
-    () => speciesOptions.find(option => option.id === selectedSpeciesId),
-    [selectedSpeciesId, speciesOptions],
-  );
   const selectedFather = useMemo(
     () => males.find(animal => animal.id === selectedFatherId),
     [males, selectedFatherId],
@@ -141,19 +136,6 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshParentsFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const [remoteMales, remoteFemales, remoteFounders] = await Promise.all([
-      featureContainer.animals.getMales(user.id),
-      featureContainer.animals.getFemales(user.id),
-      featureContainer.animals.getFounders(user.id),
-    ]);
-    setMales(remoteMales);
-    setFemales(remoteFemales);
-    setFoundersCount(remoteFounders.length);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
-
   const loadParents = useCallback(async () => {
     if (!user?.id) {
       setParentsLoading(false);
@@ -165,22 +147,13 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
 
     try {
       await loadParentsFromLocal();
-      if (!isNetworkInitialized || isOnline) {
-        await refreshParentsFromServer();
-      }
     } catch (error) {
       setParentsError(extractApiErrorMessage(error));
       setIsUsingCachedData(true);
     } finally {
       setParentsLoading(false);
     }
-  }, [
-    isNetworkInitialized,
-    isOnline,
-    loadParentsFromLocal,
-    refreshParentsFromServer,
-    user?.id,
-  ]);
+  }, [loadParentsFromLocal, user?.id]);
 
   useEffect(() => {
     loadParents();
@@ -216,6 +189,10 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
     }, [loadSpecies]),
   );
 
+  useLocalRefresh(async () => {
+    await Promise.all([loadParentsFromLocal(), loadSpecies()]);
+  });
+
   const closeQuickCreateModal = useCallback(() => {
     setIsQuickCreateModalVisible(false);
     setNewSpeciesCode('');
@@ -223,29 +200,17 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
     setNewSpeciesDescription('');
   }, []);
 
-  const openQuickCreateModal = useCallback(
-    (seedQuery?: string) => {
-      if (isNetworkInitialized && !isOnline) {
-        Toast.show({
-          type: 'warning',
-          text1: t('offline.banner.offlineTitle'),
-          text2: t('settingsScreen.offlineRestrictedMessage'),
-        });
-        return;
-      }
-
-      const normalizedSeed = (seedQuery ?? '').trim();
-      const suggestedCode = normalizedSeed
-        .toUpperCase()
-        .replace(/\s+/g, '_')
-        .replace(/[^A-Z0-9_]/g, '');
-      setNewSpeciesCode(suggestedCode);
-      setNewSpeciesName(normalizedSeed);
-      setNewSpeciesDescription('');
-      setIsQuickCreateModalVisible(true);
-    },
-    [isNetworkInitialized, isOnline, t],
-  );
+  const openQuickCreateModal = useCallback((seedQuery?: string) => {
+    const normalizedSeed = (seedQuery ?? '').trim();
+    const suggestedCode = normalizedSeed
+      .toUpperCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^A-Z0-9_]/g, '');
+    setNewSpeciesCode(suggestedCode);
+    setNewSpeciesName(normalizedSeed);
+    setNewSpeciesDescription('');
+    setIsQuickCreateModalVisible(true);
+  }, []);
 
   const onQuickCreateSpecies = async () => {
     if (!newSpeciesCode.trim() || !newSpeciesName.trim()) {
@@ -253,15 +218,6 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
         type: 'info',
         text1: t('settingsScreen.speciesRequiredTitle'),
         text2: t('settingsScreen.speciesRequiredMessage'),
-      });
-      return;
-    }
-
-    if (isNetworkInitialized && !isOnline) {
-      Toast.show({
-        type: 'warning',
-        text1: t('offline.banner.offlineTitle'),
-        text2: t('settingsScreen.offlineRestrictedMessage'),
       });
       return;
     }
@@ -367,7 +323,7 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
         id: 'createSpecies',
         label: t('registerAnimal.addSpeciesAction'),
         variant: 'primary',
-        disabled: isNetworkInitialized && !isOnline,
+        disabled: false,
         onPress: query => openQuickCreateModal(query),
       },
       {
@@ -376,7 +332,7 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
         onPress: () => navigation.navigate('SpeciesCatalog'),
       },
     ],
-    [isNetworkInitialized, isOnline, navigation, openQuickCreateModal, t],
+    [navigation, openQuickCreateModal, t],
   );
 
   const submit = async (values: RegisterAnimalFormValues) => {
@@ -403,24 +359,17 @@ const RegisterAnimalScreen = ({ navigation }: Props) => {
         sex: values.sex,
         species: species.code,
         speciesCode: species.code,
-        speciesId: species.id.startsWith('fallback-') ? undefined : species.id,
+        speciesId: species.id,
         birthDate: toIsoDate(values.birthDate),
         isFounder: values.isFounder,
         fatherId: values.isFounder ? undefined : values.fatherId || undefined,
         motherId: values.isFounder ? undefined : values.motherId || undefined,
       });
 
-      featureContainer.sync.syncNow(user.id).catch(() => {
-        // Background sync failures are exposed through sync status banner.
-      });
-
       Toast.show({
         type: 'success',
         text1: t('registerAnimal.successTitle'),
-        text2:
-          isOnline || !isNetworkInitialized
-            ? t('registerAnimal.successMessage', { tag: animal.crotal })
-            : t('registerAnimal.errorMessage'),
+        text2: t('registerAnimal.successMessage', { tag: animal.crotal }),
       });
 
       navigation.goBack();

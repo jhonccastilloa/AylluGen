@@ -10,7 +10,6 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import type { Theme } from '@/infrastructure/theme/themes';
 import SyncStatusBanner from '@/presentation/components/SyncStatusBanner';
-import { useNetworkStore } from '@/store/useNetworkStore';
 import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
 import AppIcon from '@/presentation/components/appIcon/AppIcon';
 
@@ -51,8 +50,6 @@ const MatchRiskReportScreen = ({ route, navigation }: Props) => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const user = useAuthStore(state => state.user);
-  const isOnline = useNetworkStore(state => state.isOnline);
-  const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
   const { male, female, match } = route.params;
   const [isSaving, setIsSaving] = useState(false);
 
@@ -85,17 +82,10 @@ const MatchRiskReportScreen = ({ route, navigation }: Props) => {
         notes: match.recommendation,
       });
 
-      featureContainer.sync.syncNow(user.id).catch(() => {
-        // Background sync failures are exposed through sync status banner.
-      });
-
       Toast.show({
         type: 'success',
         text1: t('matchRiskReport.successTitle'),
-        text2:
-          isOnline || !isNetworkInitialized
-            ? t('matchRiskReport.successMessage')
-            : t('matchRiskReport.errorMessage'),
+        text2: t('matchRiskReport.successMessage'),
       });
       navigation.navigate('HerdDashboard');
     } catch (error) {
@@ -127,9 +117,13 @@ const MatchRiskReportScreen = ({ route, navigation }: Props) => {
         <SyncStatusBanner />
 
         <View style={styles.gaugeCard}>
-          <View style={[styles.gaugeRing, { borderColor: riskStyles.ringColor }]}>
+          <View
+            style={[styles.gaugeRing, { borderColor: riskStyles.ringColor }]}
+          >
             <Text style={styles.gaugeValue}>{coiPercent}%</Text>
-            <Text style={styles.gaugeCaption}>{t('matchRiskReport.inbreeding')}</Text>
+            <Text style={styles.gaugeCaption}>
+              {t('matchRiskReport.inbreeding')}
+            </Text>
           </View>
           <Text style={[styles.riskStatus, { color: riskStyles.color }]}>
             {riskStyles.label}
@@ -137,7 +131,9 @@ const MatchRiskReportScreen = ({ route, navigation }: Props) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('matchRiskReport.selectedParents')}</Text>
+          <Text style={styles.sectionTitle}>
+            {t('matchRiskReport.selectedParents')}
+          </Text>
           <Text style={styles.sectionText}>
             {t('registerAnimal.sire')}: {male.crotal}
           </Text>
@@ -146,14 +142,24 @@ const MatchRiskReportScreen = ({ route, navigation }: Props) => {
           </Text>
         </View>
 
-        <View style={[styles.section, { backgroundColor: riskStyles.softBackground }]}>
-          <Text style={styles.sectionTitle}>{t('matchRiskReport.relationshipInsight')}</Text>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: riskStyles.softBackground },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>
+            {t('matchRiskReport.relationshipInsight')}
+          </Text>
           <Text style={styles.sectionText}>{match.relationship}</Text>
           <Text style={styles.sectionText}>{match.recommendation}</Text>
         </View>
 
         <Pressable
-          style={[styles.confirmButton, isSaving && styles.confirmButtonDisabled]}
+          style={[
+            styles.confirmButton,
+            isSaving && styles.confirmButtonDisabled,
+          ]}
           onPress={confirmBreeding}
           disabled={isSaving}
           accessibilityRole="button"

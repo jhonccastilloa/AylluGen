@@ -1,51 +1,10 @@
-import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
 import type {
-  Species,
   SpeciesCreateInput,
   SpeciesUpdateInput,
-} from '@/features/species/interfaces/species.types';
-import { SpeciesApi } from '@/features/species/services/SpeciesApi';
+} from '../interfaces/species.types';
+import type { SpeciesLocalRepository } from '../services/SpeciesLocalRepository';
 
-const DEFAULT_SPECIES: Species[] = [
-  {
-    id: 'fallback-alpaca',
-    code: 'ALPACA',
-    name: 'Alpaca',
-    description: null,
-    userId: '',
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: 'fallback-sheep',
-    code: 'SHEEP',
-    name: 'Sheep',
-    description: null,
-    userId: '',
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: 'fallback-llama',
-    code: 'LLAMA',
-    name: 'Llama',
-    description: null,
-    userId: '',
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: 'fallback-vicugna',
-    code: 'VICUGNA',
-    name: 'Vicugna',
-    description: null,
-    userId: '',
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-];
-
-const normalizeCode = (value: string): string =>
+const normalizeCode = (value: string) =>
   value
     .trim()
     .toUpperCase()
@@ -53,38 +12,27 @@ const normalizeCode = (value: string): string =>
     .replace(/[^A-Z0-9_]/g, '');
 
 export class SpeciesUseCases {
-  constructor(private readonly api: SpeciesApi) {}
-
-  async list(): Promise<Species[]> {
-    try {
-      const response = await this.api.getAll();
-      if (response.species.length === 0) return DEFAULT_SPECIES;
-      return response.species.sort((left, right) => left.name.localeCompare(right.name));
-    } catch (error) {
-      console.warn('No se pudo cargar species', extractApiErrorMessage(error));
-      return DEFAULT_SPECIES;
-    }
+  constructor(private readonly local: SpeciesLocalRepository) {}
+  list() {
+    return this.local.list();
   }
-
-  async create(input: SpeciesCreateInput): Promise<Species> {
-    return this.api.create({
+  create(input: SpeciesCreateInput) {
+    return this.local.create({
       ...input,
       code: normalizeCode(input.code),
       name: input.name.trim(),
       description: input.description?.trim(),
     });
   }
-
-  async update(speciesId: string, input: SpeciesUpdateInput): Promise<Species> {
-    return this.api.update(speciesId, {
-      code: input.code ? normalizeCode(input.code) : undefined,
+  update(id: string, input: SpeciesUpdateInput) {
+    return this.local.update(id, {
+      ...input,
+      code: input.code === undefined ? undefined : normalizeCode(input.code),
       name: input.name?.trim(),
       description: input.description?.trim(),
     });
   }
-
-  delete(speciesId: string): Promise<void> {
-    return this.api.delete(speciesId);
+  delete(id: string) {
+    return this.local.delete(id);
   }
 }
-

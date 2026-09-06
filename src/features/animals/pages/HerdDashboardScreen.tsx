@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -56,17 +57,6 @@ const HerdDashboardScreen = () => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const records = await featureContainer.animals.listInventory(
-      user.id,
-      undefined,
-      { refreshFromServer: true },
-    );
-    setAnimals(records);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
-
   useEffect(() => {
     let isMounted = true;
     if (!user?.id) {
@@ -101,15 +91,7 @@ const HerdDashboardScreen = () => {
     };
   }, [loadLocalAnimals, user?.id]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    if (isNetworkInitialized && !isOnline) return;
-
-    refreshFromServer().catch(error => {
-      setLoadError(extractApiErrorMessage(error));
-      setIsUsingCachedData(true);
-    });
-  }, [isNetworkInitialized, isOnline, refreshFromServer, user?.id]);
+  useLocalRefresh(loadLocalAnimals);
 
   const filteredAnimals = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -135,7 +117,7 @@ const HerdDashboardScreen = () => {
     try {
       if (isOnline || !isNetworkInitialized) {
         await featureContainer.sync.syncNow(user.id);
-        await refreshFromServer();
+        await loadLocalAnimals();
       } else {
         await loadLocalAnimals();
       }
@@ -147,18 +129,9 @@ const HerdDashboardScreen = () => {
   };
 
   const inspectAnimal = async (animalId: string) => {
-    if (isNetworkInitialized && !isOnline) {
-      Toast.show({
-        type: 'warning',
-        text1: t('offline.banner.offlineTitle'),
-        text2: t('herd.pedigreeOffline'),
-      });
-      return;
-    }
-
     try {
       const [animalDetail, pedigree] = await Promise.all([
-        featureContainer.animals.getByIdFromApi(animalId),
+        featureContainer.animals.getById(animalId),
         featureContainer.animals.getPedigree(animalId),
       ]);
 
@@ -186,21 +159,27 @@ const HerdDashboardScreen = () => {
   };
 
   const toggleFounder = async (animal: Animal) => {
-    if (!user?.id) return;
-    const updated = await featureContainer.animals.updateAnimal(animal.id, {
-      isFounder: !animal.isFounder,
-    });
-    if (!updated) return;
+    try {
+      if (!user?.id) return;
+      const updated = await featureContainer.animals.updateAnimal(animal.id, {
+        isFounder: !animal.isFounder,
+      });
+      if (!updated) return;
 
-    await loadLocalAnimals();
-    featureContainer.sync.syncNow(user.id).catch(() => {
-      // Sync feedback is handled globally.
-    });
-    Toast.show({
-      type: 'success',
-      text1: t('herd.updateTitle'),
-      text2: t('herd.updateFounderMessage'),
-    });
+      await loadLocalAnimals();
+
+      Toast.show({
+        type: 'success',
+        text1: t('herd.updateTitle'),
+        text2: t('herd.updateFounderMessage'),
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('herd.updateTitle'),
+        text2: extractApiErrorMessage(error),
+      });
+    }
   };
 
   const deleteAnimal = (animalId: string) => {
@@ -211,18 +190,25 @@ const HerdDashboardScreen = () => {
         text: t('herd.deleteAction'),
         style: 'destructive',
         onPress: async () => {
-          if (!user?.id) return;
-          const deleted = await featureContainer.animals.deleteAnimal(animalId);
-          if (!deleted) return;
-          await loadLocalAnimals();
-          featureContainer.sync.syncNow(user.id).catch(() => {
-            // Sync feedback is handled globally.
-          });
-          Toast.show({
-            type: 'success',
-            text1: t('herd.deleteTitle'),
-            text2: t('herd.deleteSuccess'),
-          });
+          try {
+            if (!user?.id) return;
+            const deleted =
+              await featureContainer.animals.deleteAnimal(animalId);
+            if (!deleted) return;
+            await loadLocalAnimals();
+
+            Toast.show({
+              type: 'success',
+              text1: t('herd.deleteTitle'),
+              text2: t('herd.deleteSuccess'),
+            });
+          } catch (error) {
+            Toast.show({
+              type: 'error',
+              text1: t('herd.updateTitle'),
+              text2: extractApiErrorMessage(error),
+            });
+          }
         },
       },
     ]);

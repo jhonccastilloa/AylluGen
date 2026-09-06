@@ -165,7 +165,7 @@
     "submitting": "Registering...",
     "foundersAvailable": "Founders available: {{count}}",
     "speciesLoading": "Loading species catalog...",
-    "speciesOfflineHint": "Offline: you can still register with cached species."
+    "speciesOfflineHint": "Offline: you can create species and register animals locally."
   },
   "breedingMatchScreen": {
     "missingDataTitle": "Missing data",
@@ -346,7 +346,7 @@
     "unitLabel": "Unit",
     "unitPlaceholder": "kg / L",
     "qualityLabel": "Quality score",
-    "qualityPlaceholder": "0 - 100",
+    "qualityPlaceholder": "1 - 10",
     "notesLabel": "Notes",
     "notesPlaceholder": "Additional details",
     "submit": "Save production record",
@@ -358,7 +358,7 @@
     "invalidValueTitle": "Invalid value",
     "invalidValueMessage": "Enter a numeric value greater than 0.",
     "invalidQualityTitle": "Invalid quality score",
-    "invalidQualityMessage": "Quality score must be between 0 and 100.",
+    "invalidQualityMessage": "Quality score must be an integer between 1 and 10.",
     "successTitle": "Production record saved",
     "successOnline": "Record synced with backend.",
     "successOffline": "Record saved locally and pending sync.",
@@ -421,7 +421,7 @@
     "speciesManageAction": "Go to species catalog",
     "speciesLoading": "Loading species...",
     "speciesEmpty": "You don't have registered species yet.",
-    "speciesOfflineHint": "You are offline. You can only view cached species.",
+    "speciesOfflineHint": "Offline: changes are saved locally and synchronized later.",
     "speciesRequiredTitle": "Required fields",
     "speciesRequiredMessage": "Species code and name are required.",
     "speciesSavedTitle": "Species saved",

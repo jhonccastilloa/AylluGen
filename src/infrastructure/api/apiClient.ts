@@ -32,8 +32,12 @@ const hideLoader = (noLoader: boolean = false) => {
   }
 };
 
-const readHeader = (headers: AxiosRequestHeaders | AxiosHeaders, key: string) => {
-  const value = headers instanceof AxiosHeaders ? headers.get(key) : headers[key];
+const readHeader = (
+  headers: AxiosRequestHeaders | AxiosHeaders,
+  key: string,
+) => {
+  const value =
+    headers instanceof AxiosHeaders ? headers.get(key) : headers[key];
   if (typeof value === 'boolean') return value;
   return value === 'true';
 };
@@ -51,6 +55,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
+    const originalUserId = authSession.getUser()?.id;
     const refreshToken = authSession.getRefreshToken();
     if (!refreshToken) {
       authSession.clearSession();
@@ -68,10 +73,23 @@ const refreshAccessToken = async (): Promise<string | null> => {
           },
         },
       );
+      if (
+        authSession.getUser()?.id !== originalUserId ||
+        authSession.getRefreshToken() !== refreshToken
+      )
+        return null;
       authSession.setSession(response.data);
       return response.data.accessToken;
-    } catch {
-      authSession.clearSession();
+    } catch (error) {
+      const rejected =
+        Axios.isAxiosError(error) &&
+        (error.response?.status === 401 || error.response?.status === 403);
+      if (!rejected) throw error; // keep the offline session on transport/server failures
+      if (
+        authSession.getUser()?.id === originalUserId &&
+        authSession.getRefreshToken() === refreshToken
+      )
+        authSession.clearSession();
       return null;
     } finally {
       refreshPromise = null;
@@ -87,6 +105,11 @@ api.interceptors.request.use(
     const noLoader = readHeader(headers, 'noLoader');
     const skipAuth = readHeader(headers, 'x-skip-auth');
 
+    const expectedAccount = headers.get('x-local-account');
+    if (expectedAccount && expectedAccount !== authSession.getUser()?.id) {
+      throw new Error('La cuenta cambió antes de enviar la petición.');
+    }
+
     if (!skipAuth) {
       const accessToken = authSession.getAccessToken();
       if (accessToken) {
@@ -98,7 +121,6 @@ api.interceptors.request.use(
       logger.debug('API Request', {
         url: `${config.apiBaseUrl}${requestConfig?.url}`,
         method: requestConfig.method?.toUpperCase(),
-        data: requestConfig?.data,
       });
     }
     showLoader(noLoader);
@@ -123,7 +145,6 @@ api.interceptors.response.use(
       logger.debug('API Response', {
         url: `${config.apiBaseUrl}${response.config?.url}`,
         status: response.status,
-        data: response.data,
       });
     }
     return response;
@@ -140,8 +161,6 @@ api.interceptors.response.use(
           ? `${config.apiBaseUrl}${error.config.url}`
           : 'unknown',
         status: error.response?.status,
-        message: error.response?.data?.message,
-        data: error.response?.data,
       });
     }
 

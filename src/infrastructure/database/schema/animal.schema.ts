@@ -7,6 +7,7 @@ export const animalSchema = tableSchema({
     { name: 'crotal', type: 'string', isIndexed: true },
     { name: 'sex', type: 'string', isIndexed: true },
     { name: 'species', type: 'string' },
+    { name: 'species_id', type: 'string', isOptional: true, isIndexed: true },
     { name: 'birth_date', type: 'number', isOptional: true },
     { name: 'is_founder', type: 'boolean' },
     { name: 'father_id', type: 'string', isOptional: true },

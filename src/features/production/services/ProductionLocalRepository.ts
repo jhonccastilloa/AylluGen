@@ -1,6 +1,9 @@
-import { restoreSyncedTimestamps } from '@/infrastructure/database/restoreSyncedTimestamps';
+import {
+  inputRaw,
+  validateLocalRecord,
+} from '@/infrastructure/database/localRules';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '@/infrastructure/database';
+import type { Database } from '@nozbe/watermelondb';
 import { DB_TABLES } from '@/infrastructure/database/constants';
 import type { ProductionRecordModel } from '@/infrastructure/database/models/ProductionRecordModel';
 import type {
@@ -33,17 +36,31 @@ const toDomain = (model: ProductionRecordModel): ProductionRecord => ({
   qualityScore: model.qualityScore ?? null,
   notes: model.notes ?? null,
   userId: model.userId,
-  syncStatus: model.recordSyncStatus as SyncStatus,
+  syncStatus: (model.syncStatus === 'synced'
+    ? 'SYNCED'
+    : 'PENDING') as SyncStatus,
   syncVersion: model.syncVersion,
   createdAt: toTimestampIsoOrEmpty(model.createdAt),
   updatedAt: toTimestampIsoOrEmpty(model.updatedAt),
 });
 
 export class ProductionLocalRepository {
-  private collection = database.get<ProductionRecordModel>(DB_TABLES.productionRecords);
+  constructor(
+    private readonly database: Database,
+    private readonly ownerId: string,
+  ) {}
+
+  private get collection() {
+    return this.database.get<ProductionRecordModel>(
+      DB_TABLES.productionRecords,
+    );
+  }
 
   async listByUserId(userId: string): Promise<ProductionRecord[]> {
-    const records = await this.collection.query(Q.where('user_id', userId)).fetch();
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
+    const records = await this.collection
+      .query(Q.where('user_id', userId))
+      .fetch();
     return records
       .map(toDomain)
       .filter(record => record.syncStatus !== 'DELETED')
@@ -53,6 +70,7 @@ export class ProductionLocalRepository {
   async getById(id: string): Promise<ProductionRecord | null> {
     try {
       const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted') return null;
       const record = toDomain(model);
       return record.syncStatus === 'DELETED' ? null : record;
     } catch {
@@ -64,10 +82,16 @@ export class ProductionLocalRepository {
     userId: string,
     input: ProductionRecordCreateInput,
   ): Promise<ProductionRecord> {
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
     const id = generateUuid();
     const timestamp = nowTimestamp();
 
-    await database.write(async () => {
+    await this.database.write(async () => {
+      await validateLocalRecord(
+        this.database,
+        'production_records',
+        inputRaw(id, input),
+      );
       await this.collection.create(record => {
         (record._raw as { id: string }).id = id;
         record.animalId = input.animalId;
@@ -94,46 +118,40 @@ export class ProductionLocalRepository {
     id: string,
     input: ProductionRecordUpdateInput,
   ): Promise<ProductionRecord | null> {
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          if (input.type !== undefined) record.type = input.type;
-          if (input.date !== undefined) {
-            record.date = isoToTimestamp(input.date) ?? record.date;
-          }
-          if (input.value !== undefined) record.value = input.value;
-          if (input.unit !== undefined) record.unit = input.unit;
-          if (input.qualityScore !== undefined) {
-            record.qualityScore = input.qualityScore;
-          }
-          if (input.notes !== undefined) record.notes = input.notes;
-          record.recordSyncStatus = 'PENDING';
-          record.syncVersion += 1;
-        });
+    await this.database.write(async () => {
+      const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted')
+        throw new Error('El registro fue eliminado.');
+      await validateLocalRecord(
+        this.database,
+        'production_records',
+        inputRaw(id, input, model._raw),
+      );
+      await model.update(record => {
+        if (input.type !== undefined) record.type = input.type;
+        if (input.date !== undefined) {
+          record.date = isoToTimestamp(input.date) ?? record.date;
+        }
+        if (input.value !== undefined) record.value = input.value;
+        if (input.unit !== undefined) record.unit = input.unit;
+        if (input.qualityScore !== undefined) {
+          record.qualityScore = input.qualityScore;
+        }
+        if (input.notes !== undefined) record.notes = input.notes;
+        record.recordSyncStatus = 'PENDING';
+        record.syncVersion += 1;
       });
-      return this.getById(id);
-    } catch {
-      return null;
-    }
+    });
+    return this.getById(id);
   }
 
   async deleteLocal(id: string): Promise<number | null> {
-    let deletedVersion: number | null = null;
-
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          record.recordSyncStatus = 'DELETED';
-          record.syncVersion += 1;
-          deletedVersion = record.syncVersion;
-        });
-      });
-      return deletedVersion;
-    } catch {
-      return null;
-    }
+    return this.database.write(async () => {
+      const records = await this.collection.query(Q.where('id', id)).fetch();
+      if (!records.length) return null;
+      await records[0].markAsDeleted();
+      return 1;
+    });
   }
 
   async listByAnimalId(animalId: string): Promise<ProductionRecord[]> {
@@ -152,10 +170,7 @@ export class ProductionLocalRepository {
     type: ProductionType,
   ): Promise<ProductionRecord[]> {
     const records = await this.collection
-      .query(
-        Q.where('animal_id', animalId),
-        Q.where('type', type),
-      )
+      .query(Q.where('animal_id', animalId), Q.where('type', type))
       .fetch();
 
     return records
@@ -163,50 +178,4 @@ export class ProductionLocalRepository {
       .filter(record => record.syncStatus !== 'DELETED')
       .sort((left, right) => right.date.localeCompare(left.date));
   }
-
-  async upsertFromServer(records: ProductionRecord[]): Promise<void> {
-    await database.write(async () => {
-      for (const record of records) {
-        const createdAt = isoToTimestamp(record.clientCreatedAt ?? record.createdAt) ?? nowTimestamp();
-        const updatedAt = isoToTimestamp(record.clientUpdatedAt ?? record.updatedAt) ?? nowTimestamp();
-        try {
-          const existing = await this.collection.find(record.id);
-          const pendingCount = await database.get(DB_TABLES.syncQueue).query(
-            Q.where('table_name', this.collection.table),
-            Q.where('record_id', record.id),
-          ).fetchCount();
-          if (pendingCount > 0) continue;
-          await existing.update(item => {
-            item.animalId = record.animalId;
-            item.type = record.type;
-            item.date = isoToTimestamp(record.date) ?? nowTimestamp();
-            item.value = record.value;
-            item.unit = record.unit;
-            item.qualityScore = record.qualityScore;
-            item.notes = record.notes;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        } catch {
-          await this.collection.create(item => {
-            (item._raw as { id: string }).id = record.id;
-            item.animalId = record.animalId;
-            item.type = record.type;
-            item.date = isoToTimestamp(record.date) ?? nowTimestamp();
-            item.value = record.value;
-            item.unit = record.unit;
-            item.qualityScore = record.qualityScore;
-            item.notes = record.notes;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        }
-      }
-    });
-  }
 }
-

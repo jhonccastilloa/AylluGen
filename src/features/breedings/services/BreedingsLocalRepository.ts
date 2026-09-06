@@ -1,6 +1,9 @@
-import { restoreSyncedTimestamps } from '@/infrastructure/database/restoreSyncedTimestamps';
+import {
+  inputRaw,
+  validateLocalRecord,
+} from '@/infrastructure/database/localRules';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '@/infrastructure/database';
+import type { Database } from '@nozbe/watermelondb';
 import { DB_TABLES } from '@/infrastructure/database/constants';
 import type { BreedingModel } from '@/infrastructure/database/models/BreedingModel';
 import type {
@@ -30,17 +33,52 @@ const toDomain = (model: BreedingModel): Breeding => ({
   breedingDate: timestampToIso(model.breedingDate),
   notes: model.notes ?? null,
   userId: model.userId,
-  syncStatus: model.recordSyncStatus as SyncStatus,
+  syncStatus: (model.syncStatus === 'synced'
+    ? 'SYNCED'
+    : 'PENDING') as SyncStatus,
   syncVersion: model.syncVersion,
   createdAt: toIsoOrEmpty(model.createdAt),
   updatedAt: toIsoOrEmpty(model.updatedAt),
 });
 
 export class BreedingsLocalRepository {
-  private collection = database.get<BreedingModel>(DB_TABLES.breedings);
+  constructor(
+    private readonly database: Database,
+    private readonly ownerId: string,
+  ) {}
+
+  private get collection() {
+    return this.database.get<BreedingModel>(DB_TABLES.breedings);
+  }
+
+  async getAnimalSyncStatus(id: string) {
+    const row = (
+      await this.database.get('animals').query(Q.where('id', id)).fetch()
+    )[0];
+    return row?.syncStatus;
+  }
+
+  async hasPendingGenealogy(): Promise<boolean> {
+    const counts = await Promise.all(
+      ['animals', 'species'].map(async table => {
+        const [dirty, deleted] = await Promise.all([
+          this.database
+            .get(table)
+            .query(Q.where('_status', Q.oneOf(['created', 'updated'])))
+            .fetchCount(),
+          this.database.adapter.getDeletedRecords(table),
+        ]);
+        return dirty + deleted.length;
+      }),
+    );
+    return counts.some(count => count > 0);
+  }
 
   async listByUserId(userId: string): Promise<Breeding[]> {
-    const records = await this.collection.query(Q.where('user_id', userId)).fetch();
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
+    const records = await this.collection
+      .query(Q.where('user_id', userId))
+      .fetch();
     return records
       .map(toDomain)
       .filter(record => record.syncStatus !== 'DELETED')
@@ -50,6 +88,7 @@ export class BreedingsLocalRepository {
   async getById(id: string): Promise<Breeding | null> {
     try {
       const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted') return null;
       const record = toDomain(model);
       return record.syncStatus === 'DELETED' ? null : record;
     } catch {
@@ -57,11 +96,20 @@ export class BreedingsLocalRepository {
     }
   }
 
-  async createLocal(userId: string, input: BreedingCreateInput): Promise<Breeding> {
+  async createLocal(
+    userId: string,
+    input: BreedingCreateInput,
+  ): Promise<Breeding> {
+    if (userId !== this.ownerId) throw new Error('Cuenta local inválida.');
     const id = generateUuid();
     const timestamp = nowTimestamp();
 
-    await database.write(async () => {
+    await this.database.write(async () => {
+      await validateLocalRecord(
+        this.database,
+        'breedings',
+        inputRaw(id, input),
+      );
       await this.collection.create(record => {
         (record._raw as { id: string }).id = id;
         record.maleId = input.maleId;
@@ -82,47 +130,47 @@ export class BreedingsLocalRepository {
     return localBreeding;
   }
 
-  async updateLocal(id: string, input: BreedingUpdateInput): Promise<Breeding | null> {
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          if (input.breedingDate !== undefined) {
-            record.breedingDate = isoToTimestamp(input.breedingDate);
-          }
-          if (input.notes !== undefined) record.notes = input.notes;
-          if (input.offspringId !== undefined) record.offspringId = input.offspringId;
-          record.recordSyncStatus = 'PENDING';
-          record.syncVersion += 1;
-        });
+  async updateLocal(
+    id: string,
+    input: BreedingUpdateInput,
+  ): Promise<Breeding | null> {
+    await this.database.write(async () => {
+      const model = await this.collection.find(id);
+      if (model.syncStatus === 'deleted')
+        throw new Error('El registro fue eliminado.');
+      await validateLocalRecord(
+        this.database,
+        'breedings',
+        inputRaw(id, input, model._raw),
+      );
+      await model.update(record => {
+        if (input.breedingDate !== undefined) {
+          record.breedingDate = isoToTimestamp(input.breedingDate);
+        }
+        if (input.notes !== undefined) record.notes = input.notes;
+        if (input.offspringId !== undefined)
+          record.offspringId = input.offspringId;
+        record.recordSyncStatus = 'PENDING';
+        record.syncVersion += 1;
       });
+    });
 
-      return this.getById(id);
-    } catch {
-      return null;
-    }
+    return this.getById(id);
   }
 
   async deleteLocal(id: string): Promise<number | null> {
-    let deletedVersion: number | null = null;
-
-    try {
-      await database.write(async () => {
-        const model = await this.collection.find(id);
-        await model.update(record => {
-          record.recordSyncStatus = 'DELETED';
-          record.syncVersion += 1;
-          deletedVersion = record.syncVersion;
-        });
-      });
-      return deletedVersion;
-    } catch {
-      return null;
-    }
+    return this.database.write(async () => {
+      const records = await this.collection.query(Q.where('id', id)).fetch();
+      if (!records.length) return null;
+      await records[0].markAsDeleted();
+      return 1;
+    });
   }
 
   async listByAnimalId(userId: string, animalId: string): Promise<Breeding[]> {
-    const records = await this.collection.query(Q.where('user_id', userId)).fetch();
+    const records = await this.collection
+      .query(Q.where('user_id', userId))
+      .fetch();
 
     return records
       .map(toDomain)
@@ -137,50 +185,4 @@ export class BreedingsLocalRepository {
         ),
       );
   }
-
-  async upsertFromServer(records: Breeding[]): Promise<void> {
-    await database.write(async () => {
-      for (const record of records) {
-        const createdAt = isoToTimestamp(record.clientCreatedAt ?? record.createdAt) ?? nowTimestamp();
-        const updatedAt = isoToTimestamp(record.clientUpdatedAt ?? record.updatedAt) ?? nowTimestamp();
-        try {
-          const existing = await this.collection.find(record.id);
-          const pendingCount = await database.get(DB_TABLES.syncQueue).query(
-            Q.where('table_name', this.collection.table),
-            Q.where('record_id', record.id),
-          ).fetchCount();
-          if (pendingCount > 0) continue;
-          await existing.update(item => {
-            item.maleId = record.maleId;
-            item.femaleId = record.femaleId;
-            item.projectedCoi = record.projectedCOI;
-            item.riskLevel = record.riskLevel;
-            item.offspringId = record.offspringId;
-            item.breedingDate = isoToTimestamp(record.breedingDate);
-            item.notes = record.notes;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        } catch {
-          await this.collection.create(item => {
-            (item._raw as { id: string }).id = record.id;
-            item.maleId = record.maleId;
-            item.femaleId = record.femaleId;
-            item.projectedCoi = record.projectedCOI;
-            item.riskLevel = record.riskLevel;
-            item.offspringId = record.offspringId;
-            item.breedingDate = isoToTimestamp(record.breedingDate);
-            item.notes = record.notes;
-            item.userId = record.userId;
-            item.recordSyncStatus = record.syncStatus;
-            item.syncVersion = record.syncVersion;
-            restoreSyncedTimestamps(item, new Date(createdAt), new Date(updatedAt));
-          });
-        }
-      }
-    });
-  }
 }
-

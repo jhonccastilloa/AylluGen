@@ -1,182 +1,41 @@
-import { DB_TABLES } from '@/infrastructure/database/constants';
-import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
-import { AnimalsApi, type AnimalQueryParams } from '@/features/animals/services/AnimalsApi';
-import {
+import type {
   AnimalsLocalRepository,
-  type AnimalsFilter,
-} from '@/features/animals/services/AnimalsLocalRepository';
+  AnimalsFilter,
+} from '../services/AnimalsLocalRepository';
 import type {
   Animal,
   AnimalCreateInput,
   AnimalUpdateInput,
-} from '@/features/animals/interfaces/animals.types';
-import type { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
-
-interface ListInventoryOptions {
-  refreshFromServer?: boolean;
-}
+} from '../interfaces/animals.types';
 
 export class AnimalsUseCases {
-  constructor(
-    private readonly api: AnimalsApi,
-    private readonly localRepository: AnimalsLocalRepository,
-    private readonly syncOrchestrator: SyncOrchestrator,
-  ) {}
-
-  async listInventory(
-    userId: string,
-    filter?: AnimalsFilter,
-    options?: ListInventoryOptions,
-  ): Promise<Animal[]> {
-    if (options?.refreshFromServer) {
-      await this.refreshAllFromServer();
-    }
+  constructor(private readonly localRepository: AnimalsLocalRepository) {}
+  listInventory(userId: string, filter?: AnimalsFilter) {
     return this.localRepository.listByUserId(userId, filter);
   }
-
-  async getById(animalId: string): Promise<Animal | null> {
-    const localAnimal = await this.localRepository.getById(animalId);
-    if (localAnimal) return localAnimal;
-
-    try {
-      const remoteAnimal = await this.api.getById(animalId);
-      await this.localRepository.upsertFromServer([remoteAnimal]);
-      return remoteAnimal;
-    } catch {
-      return null;
-    }
+  getById(id: string) {
+    return this.localRepository.getById(id);
   }
-
-  async getByIdFromApi(animalId: string): Promise<Animal | null> {
-    try {
-      const remoteAnimal = await this.api.getById(animalId);
-      await this.localRepository.upsertFromServer([remoteAnimal]);
-      return remoteAnimal;
-    } catch {
-      return null;
-    }
+  registerAnimal(userId: string, input: AnimalCreateInput) {
+    return this.localRepository.createLocal(userId, input);
   }
-
-  async registerAnimal(userId: string, input: AnimalCreateInput): Promise<Animal> {
-    const localAnimal = await this.localRepository.createLocal(userId, input);
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.animals,
-      'CREATE',
-      localAnimal.id,
-      {
-        clientCreatedAt: localAnimal.createdAt,
-        clientUpdatedAt: localAnimal.updatedAt,
-        crotal: localAnimal.crotal,
-        sex: localAnimal.sex,
-        speciesId: localAnimal.speciesId ?? undefined,
-        speciesCode: localAnimal.species,
-        birthDate: localAnimal.birthDate ?? undefined,
-        isFounder: localAnimal.isFounder,
-        fatherId: localAnimal.fatherId ?? undefined,
-        motherId: localAnimal.motherId ?? undefined,
-      },
-      localAnimal.syncVersion,
-    );
-
-    return localAnimal;
+  updateAnimal(id: string, input: AnimalUpdateInput) {
+    return this.localRepository.updateLocal(id, input);
   }
-
-  async updateAnimal(
-    animalId: string,
-    input: AnimalUpdateInput,
-  ): Promise<Animal | null> {
-    const updatedAnimal = await this.localRepository.updateLocal(animalId, input);
-    if (!updatedAnimal) return null;
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.animals,
-      'UPDATE',
-      animalId,
-      { ...input, clientUpdatedAt: updatedAnimal.updatedAt },
-      updatedAnimal.syncVersion,
-    );
-
-    return updatedAnimal;
+  async deleteAnimal(id: string) {
+    return Boolean(await this.localRepository.softDeleteLocal(id));
   }
-
-  async deleteAnimal(animalId: string): Promise<boolean> {
-    const deletedVersion = await this.localRepository.softDeleteLocal(animalId);
-    if (!deletedVersion) return false;
-
-    await this.syncOrchestrator.enqueueChange(
-      DB_TABLES.animals,
-      'DELETE',
-      animalId,
-      null,
-      deletedVersion,
-    );
-
-    return true;
-  }
-
-  async getFounders(userId: string): Promise<Animal[]> {
-    await this.refreshFoundersFromServer();
+  getFounders(userId: string) {
     return this.localRepository.getFounders(userId);
   }
-
-  async getMales(userId: string): Promise<Animal[]> {
-    await this.refreshMalesFromServer();
+  getMales(userId: string) {
     return this.localRepository.getMales(userId);
   }
-
-  async getFemales(userId: string): Promise<Animal[]> {
-    await this.refreshFemalesFromServer();
+  getFemales(userId: string) {
     return this.localRepository.getFemales(userId);
   }
-
-  async getPedigree(animalId: string): Promise<Animal | null> {
-    try {
-      return await this.api.getPedigree(animalId);
-    } catch {
-      return null;
-    }
-  }
-
-  async fetchFromApi(query?: AnimalQueryParams): Promise<Animal[]> {
-    const response = await this.api.getAll(query);
-    return response.animals;
-  }
-
-  private async refreshAllFromServer(): Promise<void> {
-    try {
-      const response = await this.api.getAll({ limit: 500, offset: 0 });
-      await this.localRepository.upsertFromServer(response.animals);
-    } catch (error) {
-      console.warn('No se pudo refrescar animales', extractApiErrorMessage(error));
-    }
-  }
-
-  private async refreshFoundersFromServer(): Promise<void> {
-    try {
-      const founders = await this.api.getFounders();
-      await this.localRepository.upsertFromServer(founders);
-    } catch (error) {
-      console.warn('No se pudo refrescar fundadores', extractApiErrorMessage(error));
-    }
-  }
-
-  private async refreshMalesFromServer(): Promise<void> {
-    try {
-      const males = await this.api.getMales();
-      await this.localRepository.upsertFromServer(males);
-    } catch (error) {
-      console.warn('No se pudo refrescar machos', extractApiErrorMessage(error));
-    }
-  }
-
-  private async refreshFemalesFromServer(): Promise<void> {
-    try {
-      const females = await this.api.getFemales();
-      await this.localRepository.upsertFromServer(females);
-    } catch (error) {
-      console.warn('No se pudo refrescar hembras', extractApiErrorMessage(error));
-    }
+  async getPedigree(id: string): Promise<Animal | null> {
+    // The detail UI uses this record's parent IDs; no remote entity fallback.
+    return this.localRepository.getById(id);
   }
 }
-

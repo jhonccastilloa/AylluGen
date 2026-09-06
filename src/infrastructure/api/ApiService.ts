@@ -37,7 +37,13 @@ export class ApiService {
       useNetworkStore.getState().markOnline();
       return data;
     } catch (error) {
-      if (error instanceof NetworkUnavailableError || isTransportNetworkError(error)) {
+      // A timeout/5xx is not evidence that device connectivity disappeared. NetInfo
+      // remains authoritative for sync so bounded retries can reach a recovering API.
+      if (
+        !config?.headers?.['x-local-account'] &&
+        (error instanceof NetworkUnavailableError ||
+          isTransportNetworkError(error))
+      ) {
         useNetworkStore.getState().markOffline();
       }
       handleApiError(error, config?.showErrorToast ?? false);
@@ -45,10 +51,7 @@ export class ApiService {
     }
   }
 
-  static async get<T>(
-    url: string,
-    config?: RequestConfig,
-  ): Promise<T> {
+  static async get<T>(url: string, config?: RequestConfig): Promise<T> {
     return this.execute(async () => {
       const response = await api.get<T>(url, buildRequestConfig(config));
       return response.data;
@@ -83,15 +86,16 @@ export class ApiService {
     config?: RequestConfig,
   ): Promise<T> {
     return this.execute(async () => {
-      const response = await api.patch<T>(url, data, buildRequestConfig(config));
+      const response = await api.patch<T>(
+        url,
+        data,
+        buildRequestConfig(config),
+      );
       return response.data;
     }, config);
   }
 
-  static async delete<T>(
-    url: string,
-    config?: RequestConfig,
-  ): Promise<T> {
+  static async delete<T>(url: string, config?: RequestConfig): Promise<T> {
     return this.execute(async () => {
       const response = await api.delete<T>(url, buildRequestConfig(config));
       return response.data;

@@ -16,6 +16,8 @@ end
 
 target 'AylluGen' do
   config = use_native_modules!
+  # Use WatermelonDB's already-installed NPM dependency, not the CocoaPods copy.
+  pod 'simdjson', path: '../node_modules/@nozbe/simdjson', modular_headers: true
 
   use_react_native!(
     :path => config[:reactNativePath],

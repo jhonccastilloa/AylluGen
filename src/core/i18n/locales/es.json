@@ -165,7 +165,7 @@
     "submitting": "Registrando...",
     "foundersAvailable": "Fundadores disponibles: {{count}}",
     "speciesLoading": "Cargando catálogo de especies...",
-    "speciesOfflineHint": "Sin conexión: puedes registrar usando especies en cache."
+    "speciesOfflineHint": "Sin conexión: puedes crear especies y registrar animales localmente."
   },
   "breedingMatchScreen": {
     "missingDataTitle": "Faltan datos",
@@ -346,7 +346,7 @@
     "unitLabel": "Unidad",
     "unitPlaceholder": "kg / L",
     "qualityLabel": "Puntaje de calidad",
-    "qualityPlaceholder": "0 - 100",
+    "qualityPlaceholder": "1 - 10",
     "notesLabel": "Notas",
     "notesPlaceholder": "Detalles adicionales",
     "submit": "Guardar registro productivo",
@@ -358,7 +358,7 @@
     "invalidValueTitle": "Valor inválido",
     "invalidValueMessage": "Ingresa un valor numérico mayor a 0.",
     "invalidQualityTitle": "Puntaje inválido",
-    "invalidQualityMessage": "El puntaje de calidad debe estar entre 0 y 100.",
+    "invalidQualityMessage": "El puntaje de calidad debe ser un entero entre 1 y 10.",
     "successTitle": "Registro de producción guardado",
     "successOnline": "Registro sincronizado con backend.",
     "successOffline": "Registro guardado localmente y pendiente de sincronización.",
@@ -421,7 +421,7 @@
     "speciesManageAction": "Ir a catálogo de especies",
     "speciesLoading": "Cargando especies...",
     "speciesEmpty": "No tienes especies registradas todavía.",
-    "speciesOfflineHint": "Estás sin conexión. Solo podrás consultar especies cacheadas.",
+    "speciesOfflineHint": "Sin conexión: los cambios se guardan localmente y se sincronizan después.",
     "speciesRequiredTitle": "Campos obligatorios",
     "speciesRequiredMessage": "El código y nombre de especie son obligatorios.",
     "speciesSavedTitle": "Especie guardada",

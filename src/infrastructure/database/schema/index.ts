@@ -5,10 +5,12 @@ import { breedingSchema } from './breeding.schema';
 import { healthRecordSchema } from './health-record.schema';
 import { productionRecordSchema } from './production-record.schema';
 import { syncQueueSchema } from './sync-queue.schema';
+import { speciesSchema } from './species.schema';
 
 export const databaseSchema = appSchema({
-  version: 3,
+  version: 4,
   tables: [
+    speciesSchema,
     animalSchema,
     breedingSchema,
     healthRecordSchema,

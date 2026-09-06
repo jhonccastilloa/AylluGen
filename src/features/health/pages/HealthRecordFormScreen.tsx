@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import featureContainer from '@/features/container';
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import type { Animal } from '@/features/animals/interfaces/animals.types';
 import type { HealthType } from '@/features/health/interfaces/health.types';
 import { inputDateToIso, todayInputDate } from '@/features/shared/utils/date';
@@ -29,7 +30,6 @@ import AppIcon from '@/presentation/components/appIcon/AppIcon';
 import type { RootStackParamList } from '@/presentation/navigation/types';
 import { extractApiErrorMessage } from '@/core/utils/apiErrorHandler';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useNetworkStore } from '@/store/useNetworkStore';
 
 const HEALTH_TYPE_OPTIONS: HealthType[] = [
   'VACCINATION',
@@ -42,10 +42,9 @@ const HEALTH_TYPE_OPTIONS: HealthType[] = [
 const HealthRecordFormScreen = () => {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore(state => state.user);
-  const isOnline = useNetworkStore(state => state.isOnline);
-  const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
 
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,37 +81,20 @@ const HealthRecordFormScreen = () => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshAnimalsFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const remoteAnimals = await featureContainer.animals.listInventory(
-      user.id,
-      undefined,
-      { refreshFromServer: true },
-    );
-    setAnimals(remoteAnimals);
-    setIsUsingCachedData(false);
-  }, [user?.id]);
+  useLocalRefresh(loadLocalAnimals);
 
   const loadAnimals = useCallback(async () => {
     setError(undefined);
     setIsLoading(true);
     try {
       await loadLocalAnimals();
-      if (!isNetworkInitialized || isOnline) {
-        await refreshAnimalsFromServer();
-      }
     } catch (loadError) {
       setError(extractApiErrorMessage(loadError));
       setIsUsingCachedData(true);
     } finally {
       setIsLoading(false);
     }
-  }, [
-    isNetworkInitialized,
-    isOnline,
-    loadLocalAnimals,
-    refreshAnimalsFromServer,
-  ]);
+  }, [loadLocalAnimals]);
 
   useEffect(() => {
     loadAnimals();
@@ -152,17 +134,10 @@ const HealthRecordFormScreen = () => {
         completed,
       });
 
-      featureContainer.sync.syncNow(user.id).catch(() => {
-        // Sync feedback is handled globally.
-      });
-
       Toast.show({
         type: 'success',
         text1: t('health.successTitle'),
-        text2:
-          isOnline || !isNetworkInitialized
-            ? t('health.successOnline')
-            : t('health.successOffline'),
+        text2: t('health.successOffline'),
       });
 
       navigation.goBack();
@@ -186,7 +161,11 @@ const HealthRecordFormScreen = () => {
       >
         <View style={styles.header}>
           <View style={styles.headerIcon}>
-            <AppIcon name="calendarBlank" size="sm" mColor={theme.colors.primary} />
+            <AppIcon
+              name="calendarBlank"
+              size="sm"
+              mColor={theme.colors.primary}
+            />
           </View>
           <View style={styles.headerTextBlock}>
             <Text style={styles.title}>{t('health.newRecord')}</Text>
@@ -208,7 +187,9 @@ const HealthRecordFormScreen = () => {
         {isLoading ? (
           <View style={styles.feedbackCard}>
             <ActivityIndicator color={theme.colors.primary} />
-            <Text style={styles.feedbackText}>{t('offline.banner.cacheDescription')}</Text>
+            <Text style={styles.feedbackText}>
+              {t('offline.banner.cacheDescription')}
+            </Text>
           </View>
         ) : (
           <View style={styles.formCard}>
@@ -221,12 +202,16 @@ const HealthRecordFormScreen = () => {
 
             {animals.length === 0 ? (
               <View style={styles.emptyAnimalsCard}>
-                <Text style={styles.feedbackText}>{t('herd.noAnimalsText')}</Text>
+                <Text style={styles.feedbackText}>
+                  {t('herd.noAnimalsText')}
+                </Text>
                 <Pressable
                   style={styles.secondaryAction}
                   onPress={() => navigation.navigate('RegisterAnimal')}
                 >
-                  <Text style={styles.secondaryActionText}>{t('herd.register')}</Text>
+                  <Text style={styles.secondaryActionText}>
+                    {t('herd.register')}
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
@@ -236,7 +221,10 @@ const HealthRecordFormScreen = () => {
               {HEALTH_TYPE_OPTIONS.map(option => (
                 <Pressable
                   key={option}
-                  style={[styles.typeChip, type === option && styles.typeChipSelected]}
+                  style={[
+                    styles.typeChip,
+                    type === option && styles.typeChipSelected,
+                  ]}
                   onPress={() => setType(option)}
                 >
                   <Text

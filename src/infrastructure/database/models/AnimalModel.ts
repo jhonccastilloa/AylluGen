@@ -8,6 +8,7 @@ export class AnimalModel extends Model {
   @text('crotal') crotal!: string;
   @text('sex') sex!: string;
   @text('species') species!: string;
+  @field('species_id') speciesId!: string | null;
   @field('birth_date') birthDate!: number | null;
   @field('is_founder') isFounder!: boolean;
   @field('father_id') fatherId!: string | null;

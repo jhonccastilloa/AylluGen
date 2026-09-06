@@ -1,0 +1,169 @@
+import { Q, type Database } from '@nozbe/watermelondb';
+import type { DirtyRaw } from '@nozbe/watermelondb/RawRecord';
+import {
+  wireSchemas,
+  type SyncTable,
+} from '@/features/sync/services/watermelonProtocol';
+
+const inputColumns: Record<string, string> = {
+  crotal: 'crotal',
+  sex: 'sex',
+  speciesId: 'species_id',
+  birthDate: 'birth_date',
+  isFounder: 'is_founder',
+  fatherId: 'father_id',
+  motherId: 'mother_id',
+  maleId: 'male_id',
+  femaleId: 'female_id',
+  projectedCOI: 'projected_coi',
+  riskLevel: 'risk_level',
+  offspringId: 'offspring_id',
+  breedingDate: 'breeding_date',
+  notes: 'notes',
+  animalId: 'animal_id',
+  type: 'type',
+  date: 'date',
+  nextDueDate: 'next_due_date',
+  completed: 'completed',
+  value: 'value',
+  unit: 'unit',
+  qualityScore: 'quality_score',
+};
+const dates = new Set(['birthDate', 'breedingDate', 'date', 'nextDueDate']);
+export function inputRaw(
+  id: string,
+  input: object,
+  existing?: object,
+): DirtyRaw {
+  const raw: DirtyRaw = {
+    id,
+    notes: null,
+    offspring_id: null,
+    breeding_date: null,
+    date: Date.now(),
+    next_due_date: null,
+    completed: true,
+    quality_score: null,
+    ...existing,
+  };
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined && inputColumns[key])
+      raw[inputColumns[key]] =
+        dates.has(key) && value !== null ? Date.parse(value as string) : value;
+  }
+  return raw;
+}
+
+export async function validateLocalRecord(
+  db: Database,
+  table: SyncTable,
+  raw: DirtyRaw,
+) {
+  const legacyAnimal =
+    table === 'animals' &&
+    raw.species_id === null &&
+    typeof raw.species === 'string' &&
+    raw.species.length > 0;
+  if (legacyAnimal) {
+    // Existing archived animals can still be edited offline before their first pull
+    // supplies the species IDs. New animal creation always requires a real species.
+    if (!(await db.get('animals').query(Q.where('id', raw.id)).fetchCount()))
+      throw new Error('Selecciona una especie local.');
+    wireSchemas.animals.omit({ species_id: true }).parse(raw);
+  } else wireSchemas[table].parse(raw);
+  const speciesKey = (row?: DirtyRaw) => row?.species_id ?? row?.species;
+  const active = async (name: string, id: string) => {
+    const rows = await db.get(name).query(Q.where('id', id)).fetch();
+    if (!rows.length)
+      throw new Error('Una relación no existe o fue eliminada de esta cuenta.');
+    return rows[0]._raw as DirtyRaw;
+  };
+  if (table === 'animals') {
+    if (!legacyAnimal) await active('species', raw.species_id);
+    const duplicates = await db
+      .get('animals')
+      .query(Q.where('crotal', raw.crotal))
+      .fetch();
+    if (duplicates.some(r => r.id !== raw.id))
+      throw new Error('Ya existe un animal con ese crotal.');
+    const rows = (await db.get('animals').query().fetch()).map(
+      r => r._raw as DirtyRaw,
+    );
+    const graph = new Map(rows.map(r => [r.id, r]));
+    graph.set(raw.id, raw);
+    // Changes to a parent's species must not invalidate its children or breeding pairs.
+    for (const row of graph.values()) {
+      for (const [column, sex] of [
+        ['father_id', 'MALE'],
+        ['mother_id', 'FEMALE'],
+      ]) {
+        if (!row[column]) continue;
+        const parent = graph.get(row[column]);
+        if (
+          !parent ||
+          parent.sex !== sex ||
+          speciesKey(parent) !== speciesKey(row)
+        )
+          throw new Error(
+            'Los padres deben existir, tener el sexo correcto y pertenecer a la misma especie.',
+          );
+      }
+    }
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+    const stack: [string, boolean][] = [[raw.id, false]];
+    while (stack.length) {
+      const [id, exiting] = stack.pop()!;
+      if (exiting) {
+        visiting.delete(id);
+        visited.add(id);
+        continue;
+      }
+      if (visiting.has(id))
+        throw new Error('El árbol genealógico no puede contener ciclos.');
+      if (visited.has(id)) continue;
+      visiting.add(id);
+      stack.push([id, true]);
+      const row = graph.get(id);
+      if (row?.father_id) stack.push([row.father_id, false]);
+      if (row?.mother_id) stack.push([row.mother_id, false]);
+    }
+    const pairs = await db
+      .get('breedings')
+      .query(
+        Q.or(
+          Q.where('male_id', raw.id),
+          Q.where('female_id', raw.id),
+          Q.where('offspring_id', raw.id),
+        ),
+      )
+      .fetch();
+    for (const pair of pairs) {
+      const p = pair._raw as DirtyRaw;
+      if (
+        speciesKey(graph.get(p.male_id)) !==
+          speciesKey(graph.get(p.female_id)) ||
+        (p.offspring_id &&
+          speciesKey(graph.get(p.offspring_id)) !==
+            speciesKey(graph.get(p.male_id)))
+      )
+        throw new Error('El cambio de especie invalidaría un cruce existente.');
+    }
+  } else if (table === 'breedings') {
+    const male = await active('animals', raw.male_id);
+    const female = await active('animals', raw.female_id);
+    if (
+      male.sex !== 'MALE' ||
+      female.sex !== 'FEMALE' ||
+      speciesKey(male) !== speciesKey(female)
+    )
+      throw new Error('El cruce requiere macho y hembra de la misma especie.');
+    if (
+      raw.offspring_id &&
+      speciesKey(await active('animals', raw.offspring_id)) !== speciesKey(male)
+    )
+      throw new Error('La cría debe pertenecer a la misma especie.');
+  } else if (table === 'health_records' || table === 'production_records') {
+    await active('animals', raw.animal_id);
+  }
+}

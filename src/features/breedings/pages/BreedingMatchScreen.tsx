@@ -1,3 +1,4 @@
+import { useLocalRefresh } from '@/features/shared/hooks/useLocalRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -40,7 +41,9 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
   const [selectedFemaleId, setSelectedFemaleId] = useState('');
   const [loading, setLoading] = useState(false);
   const [parentsLoading, setParentsLoading] = useState(true);
-  const [parentsError, setParentsError] = useState<string | undefined>(undefined);
+  const [parentsError, setParentsError] = useState<string | undefined>(
+    undefined,
+  );
   const [historyRecords, setHistoryRecords] = useState<Breeding[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isUsingCachedData, setIsUsingCachedData] = useState(true);
@@ -56,18 +59,6 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
     setIsUsingCachedData(true);
   }, [user?.id]);
 
-  const refreshParentsFromServer = useCallback(async () => {
-    if (!user?.id) return;
-    const [remoteMales, remoteFemales] = await Promise.all([
-      featureContainer.animals.getMales(user.id),
-      featureContainer.animals.getFemales(user.id),
-    ]);
-    setMales(remoteMales);
-    setFemales(remoteFemales);
-    await featureContainer.breedings.list(user.id, { refreshFromServer: true });
-    setIsUsingCachedData(false);
-  }, [user?.id]);
-
   const loadParents = useCallback(async () => {
     if (!user?.id) {
       setParentsLoading(false);
@@ -79,22 +70,13 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
 
     try {
       await loadParentsFromLocal();
-      if (!isNetworkInitialized || isOnline) {
-        await refreshParentsFromServer();
-      }
     } catch (error) {
       setParentsError(extractApiErrorMessage(error));
       setIsUsingCachedData(true);
     } finally {
       setParentsLoading(false);
     }
-  }, [
-    isNetworkInitialized,
-    isOnline,
-    loadParentsFromLocal,
-    refreshParentsFromServer,
-    user?.id,
-  ]);
+  }, [loadParentsFromLocal, user?.id]);
 
   useEffect(() => {
     loadParents();
@@ -105,7 +87,6 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
       setHistoryRecords([]);
       return;
     }
-    if (isNetworkInitialized && !isOnline) return;
 
     let isMounted = true;
     const loadHistory = async () => {
@@ -134,6 +115,14 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
       isMounted = false;
     };
   }, [isNetworkInitialized, isOnline, selectedFemaleId, user?.id]);
+
+  useLocalRefresh(async () => {
+    await loadParents();
+    if (selectedFemaleId)
+      setHistoryRecords(
+        await featureContainer.breedings.getHistory(selectedFemaleId, user?.id),
+      );
+  });
 
   const selectedMale = useMemo(
     () => males.find(item => item.id === selectedMaleId) ?? null,
@@ -213,8 +202,7 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
   };
 
   const inspectBreeding = async (breedingId: string) => {
-    if (isNetworkInitialized && !isOnline) return;
-    const detail = await featureContainer.breedings.getByIdFromApi(breedingId);
+    const detail = await featureContainer.breedings.getById(breedingId);
     if (!detail) return;
     Toast.show({
       type: 'info',
@@ -224,20 +212,30 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
   };
 
   const updateBreedingHistory = async (record: Breeding) => {
-    if (!user?.id) return;
-    const updated = await featureContainer.breedings.updateBreeding(record.id, {
-      notes: record.notes
-        ? `${record.notes} • ${t('breedingMatchScreen.updatedTag')}`
-        : t('breedingMatchScreen.updatedTag'),
-    });
-    if (!updated) return;
-    await featureContainer.breedings.list(user.id, { refreshFromServer: true });
-    if (selectedFemaleId) {
-      const history = await featureContainer.breedings.getHistory(
-        selectedFemaleId,
-        user?.id,
+    try {
+      if (!user?.id) return;
+      const updated = await featureContainer.breedings.updateBreeding(
+        record.id,
+        {
+          notes: record.notes
+            ? `${record.notes} • ${t('breedingMatchScreen.updatedTag')}`
+            : t('breedingMatchScreen.updatedTag'),
+        },
       );
-      setHistoryRecords(history);
+      if (!updated) return;
+      if (selectedFemaleId) {
+        const history = await featureContainer.breedings.getHistory(
+          selectedFemaleId,
+          user?.id,
+        );
+        setHistoryRecords(history);
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('breedingMatchScreen.errorTitle'),
+        text2: extractApiErrorMessage(error),
+      });
     }
   };
 
@@ -252,16 +250,24 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
           text: t('breedingMatchScreen.deleteAction'),
           style: 'destructive',
           onPress: async () => {
-            if (!user?.id) return;
-            const deleted = await featureContainer.breedings.deleteBreeding(breedingId);
-            if (!deleted) return;
-            await featureContainer.breedings.list(user.id, { refreshFromServer: true });
-            if (selectedFemaleId) {
-              const history = await featureContainer.breedings.getHistory(
-                selectedFemaleId,
-                user?.id,
-              );
-              setHistoryRecords(history);
+            try {
+              if (!user?.id) return;
+              const deleted =
+                await featureContainer.breedings.deleteBreeding(breedingId);
+              if (!deleted) return;
+              if (selectedFemaleId) {
+                const history = await featureContainer.breedings.getHistory(
+                  selectedFemaleId,
+                  user?.id,
+                );
+                setHistoryRecords(history);
+              }
+            } catch (error) {
+              Toast.show({
+                type: 'error',
+                text1: t('breedingMatchScreen.errorTitle'),
+                text2: extractApiErrorMessage(error),
+              });
             }
           },
         },
@@ -274,7 +280,9 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
       return (
         <View style={styles.feedbackCard}>
           <ActivityIndicator color={theme.colors.primary} />
-          <Text style={styles.feedbackText}>{t('offline.banner.cacheDescription')}</Text>
+          <Text style={styles.feedbackText}>
+            {t('offline.banner.cacheDescription')}
+          </Text>
         </View>
       );
     }
@@ -343,7 +351,9 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
         {renderParentSection()}
 
         <View style={styles.parentCard}>
-          <Text style={styles.parentTitle}>{t('breedingMatchScreen.historyTitle')}</Text>
+          <Text style={styles.parentTitle}>
+            {t('breedingMatchScreen.historyTitle')}
+          </Text>
           {historyLoading ? (
             <View style={styles.historyFeedback}>
               <ActivityIndicator color={theme.colors.primary} />
@@ -352,7 +362,9 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
               </Text>
             </View>
           ) : historyRecords.length === 0 ? (
-            <Text style={styles.emptyHint}>{t('breedingMatchScreen.historyEmpty')}</Text>
+            <Text style={styles.emptyHint}>
+              {t('breedingMatchScreen.historyEmpty')}
+            </Text>
           ) : (
             <View style={styles.historyList}>
               {historyRecords.slice(0, 3).map(record => (
@@ -365,7 +377,8 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
                     COI {(record.projectedCOI * 100).toFixed(2)}%
                   </Text>
                   <Text style={styles.historyItemText}>
-                    {record.notes || t('breedingMatchScreen.historyDetailFallback')}
+                    {record.notes ||
+                      t('breedingMatchScreen.historyDetailFallback')}
                   </Text>
                   <View style={styles.historyActions}>
                     <Pressable
@@ -377,7 +390,10 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
                       </Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.historyActionButton, styles.historyActionDanger]}
+                      style={[
+                        styles.historyActionButton,
+                        styles.historyActionDanger,
+                      ]}
                       onPress={() => deleteBreedingHistory(record.id)}
                     >
                       <Text
@@ -397,11 +413,16 @@ const BreedingMatchScreen = ({ navigation }: Props) => {
         </View>
 
         <View style={styles.noticeCard}>
-          <Text style={styles.noticeText}>{t('breedingMatchScreen.notice')}</Text>
+          <Text style={styles.noticeText}>
+            {t('breedingMatchScreen.notice')}
+          </Text>
         </View>
 
         <Pressable
-          style={[styles.calculateButton, loading && styles.calculateButtonDisabled]}
+          style={[
+            styles.calculateButton,
+            loading && styles.calculateButtonDisabled,
+          ]}
           onPress={calculate}
           disabled={loading}
           accessibilityRole="button"

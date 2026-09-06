@@ -1,4 +1,5 @@
 export const DB_TABLES = {
+  species: 'species',
   animals: 'animals',
   breedings: 'breedings',
   healthRecords: 'health_records',

@@ -46,7 +46,7 @@ const getNormalizedLanguage = (language: string): SupportedLanguage => {
   if (supportedLanguages.includes(normalizedLanguage)) {
     return normalizedLanguage;
   }
-  return 'en';
+  return 'es';
 };
 
 const mapToAuthUser = (
