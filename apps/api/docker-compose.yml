@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    container_name: AlluGen-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5438:5432"
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    networks:
+      - ayllu_gen_network
+  backend:
+    build: .
+    restart: always
+    container_name: AlluGen-bk
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - ayllu_gen_network
+    env_file:
+      - .env
+networks:
+  ayllu_gen_network:
+    driver: bridge

@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/infrastructure/database/prisma/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String             @id @default(uuid())
+  dni               String             @unique
+  password          String
+  refreshToken      RefreshToken[]
+  animals           Animal[]
+  speciesCatalog    Species[]
+  breedings         Breeding[]
+  healthRecords     HealthRecord[]
+  productionRecords ProductionRecord[]
+  syncClock         SyncClock?
+  syncRecords       SyncRecord[]
+  syncReceipts      SyncReceipt[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Animal {
+  id                String             @id @default(uuid())
+  crotal            String
+  sex               Sex
+  speciesId         String
+  speciesCatalog    Species            @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+  birthDate         DateTime?
+  isFounder         Boolean            @default(false)
+  fatherId          String?
+  motherId          String?
+  father            Animal?            @relation("FatherChildren", fields: [fatherId], references: [id], onDelete: SetNull)
+  mother            Animal?            @relation("MotherChildren", fields: [motherId], references: [id], onDelete: SetNull)
+  fatherOf          Animal[]           @relation("FatherChildren")
+  motherOf          Animal[]           @relation("MotherChildren")
+  breedings         Breeding[]
+  healthRecords     HealthRecord[]
+  productionRecords ProductionRecord[]
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus        SyncStatus         @default(SYNCED)
+  syncVersion       Int                @default(1)
+  clientCreatedAt DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([userId, crotal])
+  @@index([userId])
+  @@index([speciesId])
+  @@index([fatherId])
+  @@index([motherId])
+  @@map("animals")
+}
+
+model Species {
+  id          String   @id @default(uuid())
+  code        String
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animals     Animal[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([userId, code])
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("species")
+}
+
+model Breeding {
+  id           String     @id @default(uuid())
+  maleId       String
+  femaleId     String
+  projectedCOI Float
+  riskLevel    RiskLevel
+  offspringId  String?
+  offspring    Animal?    @relation(fields: [offspringId], references: [id], onDelete: SetNull)
+  breedingDate DateTime?
+  notes        String?
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus   SyncStatus @default(SYNCED)
+  syncVersion  Int        @default(1)
+  clientCreatedAt DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([maleId])
+  @@index([femaleId])
+  @@index([offspringId])
+  @@map("breedings")
+}
+
+model HealthRecord {
+  id          String     @id @default(uuid())
+  animalId    String
+  animal      Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type        HealthType
+  date        DateTime
+  notes       String?
+  nextDueDate DateTime?
+  completed   Boolean    @default(true)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus  SyncStatus @default(SYNCED)
+  syncVersion Int        @default(1)
+  clientCreatedAt DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([animalId])
+  @@index([type])
+  @@index([date])
+  @@map("health_records")
+}
+
+model ProductionRecord {
+  id           String         @id @default(uuid())
+  animalId     String
+  animal       Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type         ProductionType
+  date         DateTime
+  value        Float
+  unit         String
+  qualityScore Int?
+  notes        String?
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus   SyncStatus     @default(SYNCED)
+  syncVersion  Int            @default(1)
+  clientCreatedAt DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([animalId])
+  @@index([type])
+  @@index([date])
+  @@map("production_records")
+}
+
+model SyncLog {
+  id        String     @id @default(uuid())
+  userId    String
+  action    SyncAction
+  tableName String
+  recordId  String
+  data      Json
+  status    SyncStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@map("sync_logs")
+}
+
+// Infrastructure state. Versions are assigned by PostgreSQL triggers, never clients.
+model SyncClock {
+  userId  String @id
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version BigInt @default(1)
+
+  @@map("sync_clocks")
+}
+
+model SyncRecord {
+  tableName      String
+  recordId       String
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdVersion BigInt
+  version        BigInt
+  deleted        Boolean  @default(false)
+  data           Json?
+  changedAt      DateTime @default(now())
+
+  @@id([tableName, recordId])
+  @@index([userId, version])
+  @@index([userId, tableName])
+  @@index([recordId])
+  @@map("sync_records")
+}
+
+model SyncReceipt {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hash      String
+  createdAt DateTime @default(now())
+
+  @@id([userId, hash])
+  @@map("sync_receipts")
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum RiskLevel {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum HealthType {
+  VACCINATION
+  DEWORMING
+  SHEARING
+  CHECKUP
+  TREATMENT
+}
+
+enum ProductionType {
+  WEIGHT
+  WOOL
+  FIBER
+  MEAT
+  MILK
+}
+
+enum SyncStatus {
+  SYNCED
+  PENDING
+  CONFLICT
+  DELETED
+}
+
+enum SyncAction {
+  CREATE
+  UPDATE
+  DELETE
+}

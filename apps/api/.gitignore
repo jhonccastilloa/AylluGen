@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+/logs
+coverage
+.nyc_output
+.DS_Store
+*.tsbuildinfo
+postgres
+src/infrastructure/database/prisma/generated
+src/infrastructure/database/prisma/generatedlogs/
+
