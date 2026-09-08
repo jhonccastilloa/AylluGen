@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1028594539014",
+    "project_id": "ayllu-gen",
+    "storage_bucket": "ayllu-gen.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1028594539014:android:2159f09fc119b61a190187",
+        "android_client_info": {
+          "package_name": "com.ayllugen"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALT3tXp7Sk25MRJFYa6_QLuwO76NmEEWE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
