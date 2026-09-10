@@ -6,13 +6,6 @@ export enum RiskLevel {
   RED = "RED",
 }
 
-export enum SyncStatus {
-  SYNCED = "SYNCED",
-  PENDING = "PENDING",
-  CONFLICT = "CONFLICT",
-  DELETED = "DELETED",
-}
-
 export interface Breeding {
   id: string;
   maleId: string;
@@ -24,10 +17,8 @@ export interface Breeding {
   breedingDate?: Date;
   notes?: string;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: Date;
-  clientUpdatedAt?: Date;
+  clientCreatedAt: Date;
+  clientUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

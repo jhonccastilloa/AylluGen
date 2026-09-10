@@ -8,14 +8,13 @@ export class AnimalModel extends Model {
   @text('crotal') crotal!: string;
   @text('sex') sex!: string;
   @text('species') species!: string;
-  @field('species_id') speciesId!: string | null;
+  @field('species_id') speciesId!: string;
   @field('birth_date') birthDate!: number | null;
   @field('is_founder') isFounder!: boolean;
   @field('father_id') fatherId!: string | null;
   @field('mother_id') motherId!: string | null;
   @text('user_id') userId!: string;
-  @text('sync_status') recordSyncStatus!: string;
-  @field('sync_version') syncVersion!: number;
+  // Native Watermelon dates: sync maps these to Prisma's client* timestamps.
   @readonly @date('created_at') readonly createdAt!: Date;
   @readonly @date('updated_at') readonly updatedAt!: Date;
   @field('deleted_at') deletedAt!: number | null;

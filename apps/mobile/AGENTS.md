@@ -44,9 +44,9 @@ iOS native deps (first clone or native dependency updates):
 
 - Species, animals, breedings, health and production use WatermelonDB only for UI CRUD. Do not restore REST CRUD adapters or a manual sync queue.
 - SyncOrchestrator owns synchronize(), single-flight, event triggers and backoff; no periodic polling.
-- Keep schema 4 migrations, legacy sync_queue/model and importLegacy: they preserve offline data.
-- Preserve per-account databases and pending work on logout; no reset, downgrade or destructive migration.
-- Keep IDs as client-generated UUID strings and project ownership/audit fields out of push.
+- Current account schema is 7, a clean-install development baseline with five business tables. No historical imports, archive DB, queue, app_meta or migration backfills. Existing development installs must clear app storage once before using this baseline, including previous schema 6 installations.
+- Preserve per-account databases and pending work on logout; no automatic reset or downgrade. Explicit one-time development cleanup is separate from normal app operation.
+- Keep IDs as client-generated UUID strings and project ownership/server audit fields out of push. All five entities send native created_at/updated_at as device action dates, mapped to Prisma clientCreatedAt/clientUpdatedAt in both directions. No duplicate client_* dates or custom sync_status/sync_version in any active business model. Watermelon automatically stamps local edits; pull must not restamp them.
 - Auth/account/COI remain REST; COI requires synchronized genealogy.
 - See [integration](docs/LOCAL_FIRST_MOBILE.md) and [setup](README_SETUP.md).
 
@@ -56,7 +56,7 @@ iOS native deps (first clone or native dependency updates):
 - Place tests in `__tests__/` or alongside modules as `*.test.ts(x)`.
 - Test names should describe behavior (example: `renders correctly`).
 - Run `npm test` before opening a PR; add tests for new store logic, API utilities, and reusable UI behavior.
-- Latest cleanup verification: 59 tests pass; TypeScript passes; full lint still has 14 preexisting errors. Native E2E and iOS are pending. Do not present previous debug compilation as device verification.
+- Sync tests use real Watermelon with Loki and mocked HTTP. Native SQLite/device E2E remains a separate verification; do not present typechecks or previous APK builds as device verification.
 
 ## Commit & Pull Request Guidelines
 

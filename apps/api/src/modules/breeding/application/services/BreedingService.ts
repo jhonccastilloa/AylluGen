@@ -100,7 +100,9 @@ export class BreedingService {
 
   async getAll(userId: string): Promise<{ breedings: BreedingResponse[] }> {
     const breedings = await this.breedingRepository.findAllByUserId(userId);
-    return { breedings: breedings.map((breeding) => this.mapToResponse(breeding)) };
+    return {
+      breedings: breedings.map((breeding) => this.mapToResponse(breeding)),
+    };
   }
 
   async getById(id: string, userId: string): Promise<BreedingResponse> {
@@ -174,8 +176,11 @@ export class BreedingService {
       );
     }
 
-    const breedings = await this.breedingRepository.findBreedingHistory(animalId);
-    return { breedings: breedings.map((breeding) => this.mapToResponse(breeding)) };
+    const breedings =
+      await this.breedingRepository.findBreedingHistory(animalId);
+    return {
+      breedings: breedings.map((breeding) => this.mapToResponse(breeding)),
+    };
   }
 
   private async buildPedigree(
@@ -240,10 +245,8 @@ export class BreedingService {
       breedingDate: breeding.breedingDate?.toISOString() || null,
       notes: breeding.notes || null,
       userId: breeding.userId,
-      syncStatus: breeding.syncStatus,
-      syncVersion: breeding.syncVersion,
-      clientCreatedAt: (breeding.clientCreatedAt ?? breeding.createdAt).toISOString(),
-      clientUpdatedAt: (breeding.clientUpdatedAt ?? breeding.updatedAt).toISOString(),
+      clientCreatedAt: breeding.clientCreatedAt.toISOString(),
+      clientUpdatedAt: breeding.clientUpdatedAt.toISOString(),
       createdAt: breeding.createdAt.toISOString(),
       updatedAt: breeding.updatedAt.toISOString(),
     };

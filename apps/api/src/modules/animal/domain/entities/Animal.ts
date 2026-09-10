@@ -5,13 +5,6 @@ export enum Sex {
 
 export type SpeciesCode = string;
 
-export enum SyncStatus {
-  SYNCED = "SYNCED",
-  PENDING = "PENDING",
-  CONFLICT = "CONFLICT",
-  DELETED = "DELETED",
-}
-
 export interface Animal {
   id: string;
   crotal: string;
@@ -27,10 +20,8 @@ export interface Animal {
   mother?: Animal;
   children?: Animal[];
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: Date;
-  clientUpdatedAt?: Date;
+  clientCreatedAt: Date;
+  clientUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;

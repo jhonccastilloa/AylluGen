@@ -101,6 +101,8 @@
     "confirmPasswordPlaceholder": "Repite tu contraseña"
   },
   "herd": {
+    "registeredAt": "Registrado: {{date}}",
+    "modifiedAt": "Actualizado: {{date}}",
     "title": "Inventario de ganado",
     "subtitle": "Gestión de ganado",
     "totalCount": "Total de ganado",

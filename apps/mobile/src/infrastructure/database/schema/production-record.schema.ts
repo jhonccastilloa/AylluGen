@@ -12,8 +12,6 @@ export const productionRecordSchema = tableSchema({
     { name: 'quality_score', type: 'number', isOptional: true },
     { name: 'notes', type: 'string', isOptional: true },
     { name: 'user_id', type: 'string', isIndexed: true },
-    { name: 'sync_status', type: 'string', isIndexed: true },
-    { name: 'sync_version', type: 'number' },
     { name: 'created_at', type: 'number' },
     { name: 'updated_at', type: 'number' },
   ],

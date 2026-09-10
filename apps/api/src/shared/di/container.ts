@@ -11,7 +11,6 @@ import { AnimalRepository } from "../../modules/animal/infrastructure/repositori
 import { BreedingRepository } from "../../modules/breeding/infrastructure/repositories/BreedingRepository";
 import { HealthRecordRepository } from "../../modules/health/infrastructure/repositories/HealthRecordRepository";
 import { ProductionRecordRepository } from "../../modules/production/infrastructure/repositories/ProductionRecordRepository";
-import { SyncRepository } from "../../modules/sync/infrastructure/repositories/SyncRepository";
 import { SpeciesRepository } from "../../modules/species/infrastructure/repositories/SpeciesRepository";
 
 // Importar servicios existentes
@@ -23,7 +22,6 @@ import { AnimalService } from "../../modules/animal/application/services/AnimalS
 import { BreedingService } from "../../modules/breeding/application/services/BreedingService";
 import { HealthRecordService } from "../../modules/health/application/services/HealthRecordService";
 import { ProductionRecordService } from "../../modules/production/application/services/ProductionRecordService";
-import { SyncService } from "../../modules/sync/application/services/SyncService";
 import { SpeciesService } from "../../modules/species/application/services/SpeciesService";
 
 // Importar controladores existentes
@@ -35,7 +33,6 @@ import { AnimalController } from "../../modules/animal/presentation/controllers/
 import { BreedingController } from "../../modules/breeding/presentation/controllers/BreedingController";
 import { HealthRecordController } from "../../modules/health/presentation/controllers/HealthRecordController";
 import { ProductionRecordController } from "../../modules/production/presentation/controllers/ProductionRecordController";
-import { SyncController } from "../../modules/sync/presentation/controllers/SyncController";
 import { SpeciesController } from "../../modules/species/presentation/controllers/SpeciesController";
 import { WatermelonRepository } from "../../modules/sync/infrastructure/repositories/WatermelonRepository";
 import {
@@ -68,7 +65,6 @@ container
 container
   .bind<ProductionRecordRepository>(TYPES.IProductionRecordRepository)
   .to(ProductionRecordRepository);
-container.bind<SyncRepository>(TYPES.ISyncRepository).to(SyncRepository);
 container
   .bind<SpeciesRepository>(TYPES.ISpeciesRepository)
   .to(SpeciesRepository);
@@ -84,7 +80,6 @@ container
 container
   .bind<ProductionRecordService>(TYPES.ProductionRecordService)
   .to(ProductionRecordService);
-container.bind<SyncService>(TYPES.SyncService).to(SyncService);
 container.bind<SpeciesService>(TYPES.SpeciesService).to(SpeciesService);
 
 // ============ BINDEOS DE CONTROLADORES ============
@@ -100,7 +95,6 @@ container
 container
   .bind<ProductionRecordController>(TYPES.ProductionRecordController)
   .to(ProductionRecordController);
-container.bind<SyncController>(TYPES.SyncController).to(SyncController);
 container
   .bind<SpeciesController>(TYPES.SpeciesController)
   .to(SpeciesController);

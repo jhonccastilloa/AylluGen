@@ -27,7 +27,6 @@ export const TYPES = {
   IProductionRecordRepository: Symbol("IProductionRecordRepository"),
 
   // Repositorios de Dominio - Sync Module
-  ISyncRepository: Symbol("ISyncRepository"),
 
   // Repositorios de Dominio - Species Module
   ISpeciesRepository: Symbol("ISpeciesRepository"),
@@ -45,7 +44,6 @@ export const TYPES = {
   ProductionRecordService: Symbol("ProductionRecordService"),
 
   // Servicios de Aplicación - Sync Module
-  SyncService: Symbol("SyncService"),
 
   // Servicios de Aplicación - Species Module
   SpeciesService: Symbol("SpeciesService"),
@@ -63,7 +61,6 @@ export const TYPES = {
   ProductionRecordController: Symbol("ProductionRecordController"),
 
   // Controladores - Sync Module
-  SyncController: Symbol("SyncController"),
 
   // Controladores - Species Module
   SpeciesController: Symbol("SpeciesController"),

@@ -49,14 +49,8 @@ const toIsoDate = (value: string): string | undefined => {
   return parsedDate.toISOString();
 };
 
-const getSpeciesMatchKey = (animal?: Animal): string | undefined => {
-  if (!animal) return undefined;
-  const maybeSpeciesId =
-    'speciesId' in animal
-      ? (animal as Animal & { speciesId?: string | null }).speciesId
-      : undefined;
-  return maybeSpeciesId ?? animal.species ?? undefined;
-};
+const getSpeciesMatchKey = (animal?: Animal): string | undefined =>
+  animal?.speciesId;
 
 const RegisterAnimalScreen = ({ navigation }: Props) => {
   const { theme } = useUnistyles();

@@ -1,6 +1,6 @@
 # Integración Local-First móvil
 
-Revisado: 2026-09-05, después de la limpieza de código muerto. Entrada del proyecto: [README](../README.md). Los resultados de compilación inicial y los posteriores a limpieza se distinguen al final; implementación no equivale a despliegue.
+Revisado: 2026-09-09. Baseline de desarrollo de instalación limpia: schema 7, cinco tablas, sin importación ni compatibilidad con versiones anteriores. Ver [fechas de las entidades sincronizadas](../../api/docs/ANIMAL_DEVICE_DATES.md).
 
 ## Resultado y alcance
 
@@ -8,14 +8,13 @@ La app utiliza React Native 0.83, WatermelonDB 0.28 y SQLite, sin dependencias n
 
 Antes había una base compartida, lecturas REST con upserts manuales, una tabla `sync_queue`, push antes de pull y un intervalo de 45 segundos. Ahora `SyncOrchestrator` es el SyncManager central y utiliza `synchronize()` de WatermelonDB: pull incremental, reconciliación, push y confirmación nativa de cambios. No hay cola paralela ni elección de camino según la conexión.
 
-Se eliminaron los adaptadores CRUD REST sin consumidores, `SyncQueueRepository`, su compactador y tipos, el restaurador de timestamps de los upserts antiguos y el cargador `getFeatureContainer`. `BreedingsApi` conserva únicamente el cálculo remoto de COI. También se retiraron `BackendHealthProvider` y `SystemApi`: no hay sondeos periódicos. Se limpiaron sus tests/mocks obsoletos y los ejemplos de UI desconectados de navegación. No se han eliminado endpoints del backend ni tablas, modelos o datos necesarios para importar pendientes antiguos.
+Se eliminaron los adaptadores CRUD REST sin consumidores, `SyncQueueRepository`, su compactador y tipos, el restaurador de timestamps de los upserts antiguos y el cargador `getFeatureContainer`. `BreedingsApi` conserva únicamente el cálculo remoto de COI. También se retiraron `BackendHealthProvider` y `SystemApi`: no hay sondeos periódicos. Se limpiaron sus tests/mocks obsoletos y los ejemplos de UI desconectados de navegación. Se retiraron la importación histórica, sus tablas auxiliares y los endpoints del protocolo de cola del backend.
 
 ## Archivos principales
 
 - `src/features/container.ts`: contenedor y base de datos independientes por cuenta; cada repositorio captura su base.
-- `src/infrastructure/database/{index.ts,PreservingSQLiteAdapter.ts}`: apertura SQLite, UUID y protección frente a migraciones antiguas desconocidas.
-- `src/infrastructure/database/{schema,migrations,models}`: esquema 4, especies y relación `animals.species_id` indexada.
-- `src/infrastructure/database/importLegacy.ts`: importación del archivo antiguo, tracking nativo y conciliación del primer pull.
+- `src/infrastructure/database/{index.ts,PreservingSQLiteAdapter.ts}`: apertura SQLite, UUID y protección frente a resets automáticos de bases incompatibles.
+- `src/infrastructure/database/{schema,models}`: esquema 7 con cinco tablas y `animals.species_id` obligatorio e indexado.
 - `src/features/sync/{hooks/SyncOrchestrator.ts,services/SyncApi.ts,services/watermelonProtocol.ts}`: ejecución, transporte y whitelist/validación.
 - Repositorios locales y casos de uso de las cinco entidades: CRUD local, validaciones y tombstones; sin upserts REST.
 - `src/features/shared/hooks/useLocalRefresh.ts`: relectura de proyecciones al cambiar la base, incluyendo cambios recibidos del servidor.
@@ -33,7 +32,7 @@ La configuración existente usa el mismo servidor remoto en debug y release. Un 
 `POST /api/sync/v2/pull`, Bearer token:
 
 ```json
-{ "lastPulledAt": null, "schemaVersion": 4, "migration": null }
+{ "lastPulledAt": null, "schemaVersion": 7, "migration": null }
 ```
 
 Respuesta:
@@ -69,7 +68,9 @@ La respuesta de red mantiene `created/updated/deleted`. Antes de entregarla al m
           "id": "11111111-1111-4111-8111-111111111111",
           "code": "ALPACA",
           "name": "Alpaca",
-          "description": null
+          "description": null,
+          "created_at": 1788256800123,
+          "updated_at": 1788429600123
         }
       ],
       "updated": [],
@@ -79,9 +80,9 @@ La respuesta de red mantiene `created/updated/deleted`. Antes de entregarla al m
 }
 ```
 
-Éxito: **204**, sin cuerpo. El cliente proyecta una copia con las columnas explícitamente permitidas; no modifica el snapshot que Watermelon usa para confirmar cambios. No envía `user_id`, `sync_status`, `sync_version`, `deleted_at`, `species` antiguo ni timestamps de auditoría. Los IDs UUID generados localmente se conservan. Las fechas de negocio son números de milisegundos o `null`; la auditoría pertenece al servidor.
+Éxito: **204**, sin cuerpo. El cliente proyecta una copia con las columnas explícitamente permitidas; no modifica el snapshot que Watermelon usa para confirmar cambios. No envía `user_id`, `sync_status`, `sync_version`, `deleted_at`, `species` antiguo ni timestamps de auditoría. Los IDs UUID generados localmente se conservan. En las cinco entidades, `created_at` y `updated_at` son obligatorios y corresponden a `clientCreatedAt`/`clientUpdatedAt` en Prisma. El pull conserva esas fechas del dispositivo. Las fechas de negocio son números de milisegundos o `null` según el campo; la auditoría pertenece al servidor.
 
-El código `watermelonProtocol.ts` es la referencia ejecutable de los campos. El contrato ampliado del servidor está en `../AylluGen-bk/.claude/docs/ai/watermelon-sync/api-handoff.md`.
+El código `watermelonProtocol.ts` es la referencia ejecutable de los campos. El contrato del servidor está en [LOCAL_FIRST.md](../../api/docs/LOCAL_FIRST.md).
 
 ## Disparadores, conflictos y errores
 
@@ -90,25 +91,22 @@ El código `watermelonProtocol.ts` es la referencia ejecutable de los campos. El
 - TTL de 60 s evaluado al volver a foreground, no mediante un temporizador periódico. El arranque vuelve a comprobar el servidor aunque exista una fecha de sincronización previa.
 - Una sola promesa de sincronización por cuenta; llamadas simultáneas comparten el trabajo.
 - 409: un nuevo `synchronize()` hace pull y reconciliación por columna de Watermelon, seguido del reintento. No hay resolución `server wins` ni `last write wins` general.
-- Tras un push exitoso se hace una pasada adicional para obtener auditoría y efectos del servidor. Los cambios hechos durante un push conservan su tracking nativo.
+- Tras un push exitoso se hace una pasada adicional para obtener el estado confirmado y los efectos del servidor. Los cambios hechos durante un push conservan su tracking nativo.
 - Fallos transitorios: hasta cinco reintentos con backoff exponencial y jitter. Background/logout cancela los temporizadores, sin resetear la base ni borrar pendientes. Un ciclo ya iniciado puede terminar en su base capturada.
 - 400/403/413 y conflictos persistentes: error visible, pendientes conservados, sin reintento automático infinito. Se reintenta tras correcciones/eventos o manualmente.
 - La fecha `sync_display_last_success` es solo informativa y se guarda separadamente del checkpoint.
 
 Un timeout del backend no altera la conectividad del dispositivo para sync: NetInfo es la autoridad. Un fallo transitorio al refrescar tokens tampoco cierra la sesión ni vuelve inaccesible el trabajo offline. Un refresh rechazado por autenticación sí exige iniciar sesión otra vez.
 
-## Migración e instalaciones existentes
+## Instalación limpia de desarrollo
 
-1. La migración 3→4 agrega `species` y `animals.species_id` nullable/indexado. Se conserva la migración 2→3. La nulabilidad permite leer animales históricos; las creaciones nuevas necesitan una especie válida.
-2. Cada cuenta utiliza `ayllugen_sync_<userUUID>`. Se conserva `ayllugen_offline` y su cola; la apertura puede aplicar las migraciones aditivas, pero la importación nunca elimina ni reescribe sus registros de negocio.
-3. Se importan solo registros con `user_id` de esa cuenta. El marcador `legacy-v4-imported` se confirma en el mismo batch que los registros. Un reintento no duplica la importación.
-4. Se reconstruyen `_status/_changed` desde la cola y estados antiguos; los upserts REST anteriores habían marcado incluso la caché sincronizada como `created` en Watermelon. No se confía en ese estado nativo antiguo. Se conservan IDs y timestamps.
-5. El primer pull nativo parte de `null`. Vincula códigos de especie históricos con los IDs del catálogo remoto. Si un animal creado offline requiere una especie inexistente, prepara una especie local para el mismo push. Una caché ya sincronizada ausente de ese snapshot inicial se retira; los pendientes no se descartan arbitrariamente.
-6. Una actualización antigua cuyo ID ya no existe en el servidor, IDs inválidos, una cola huérfana sin propietario verificable, un catálogo inválido o un archivo demasiado grande requieren recuperación asistida. Se preservan los datos y se detiene la operación: no se inventa ownership ni se recrean borrados remotamente en silencio.
+Esta entrega no soporta bases de versiones anteriores, incluidas todas las de schema 6. Borrar una vez el almacenamiento de la app de desarrollo o reinstalar sin restaurar datos antes de ejecutarla. Se pierden sesiones, preferencias y pendientes locales; el usuario aceptó descartar estos datos de desarrollo. No se añadió ninguna rutina de borrado automático.
 
-Una cuenta nueva no recibe especies ficticias `fallback-*`; puede crearlas offline con UUIDs reales. Login/registro inicial sigue necesitando red. No se debe desinstalar, limpiar datos, hacer `unsafeResetDatabase` ni purgar el archivo antiguo para solucionar un error de sync. Tampoco se debe instalar una versión con esquema inferior: Watermelon tiene un reset nativo en downgrades. El adaptador protege el caso de una versión **anterior** sin ruta de migración (por ejemplo la versión 1 desconocida), no autoriza downgrades. Su override interno debe revisarse al actualizar WatermelonDB.
+Cada cuenta utiliza `ayllugen_sync_<userUUID>`. Solo existen las cinco tablas de negocio: especies, animales, cruces, salud y producción. No se abre `ayllugen_offline`, no hay `sync_queue` ni `app_meta`, y no se reconstruye tracking antiguo. Watermelon mantiene sus metadatos internos y checkpoint.
 
-El archivo antiguo y las bases por cuenta contienen datos privados: aplicar las protecciones de almacenamiento/backups del dispositivo. No se añadió cifrado de SQLite. El logout conserva las bases y sus pendientes; cualquier función futura de borrado local debe pedir consentimiento explícito y comprobar que no se perderán cambios.
+El arranque espera la apertura de la base y habilita UI/sync. Los animales requieren una especie local válida; no se aceptan referencias históricas basadas únicamente en códigos. Logout conserva la base y los pendientes nuevos. Las bases contienen datos privados y no se añadió cifrado SQLite.
+
+La versión 7 identifica el contrato unificado de las cinco entidades. No hay migración local desde versiones anteriores. Futuras versiones publicadas necesitarán diseñar sus migraciones de forma explícita. No hacer downgrades ni convertir un error de sync en un reset automático.
 
 ## Deletes y reglas locales
 
@@ -126,13 +124,15 @@ Autenticación, refresh/logout y operaciones de cuenta/perfil/contraseña contin
 
 Se sincroniza el dataset del propietario, no toda la base del servidor. Límite acordado: 500 operaciones y 2 MiB por push; 20.000 registros/16 MiB por pull; 10.000 registros en el grafo del backend. La comprobación móvil de tamaño usa una cota UTF-8 conservadora. No se divide un push en varios requests confirmando parcialmente el snapshot: rompería la garantía atómica. Si el uso offline necesita exceder estos límites, ampliar/scopar el contrato coordinadamente antes de distribuirlo.
 
-Se reutilizan los índices existentes y se añade `species_id`. La importación agrupa la cola en memoria por tabla/ID y usa un batch. Las lecturas de catálogo para mostrar animales se agrupan; no hay un request por registro. Las pantallas reconsultan proyecciones locales y agrupan notificaciones concurrentes.
+Se reutilizan los índices existentes y se añade `species_id`. Las lecturas de catálogo para mostrar animales se agrupan; no hay un request por registro. Las pantallas reconsultan proyecciones locales y agrupan notificaciones concurrentes.
 
 Android usa el bridge SQLite asíncrono ya autolinkeado: el proyecto no tenía integrada la biblioteca opcional `android-jsi`. No se introduce una integración nativa adicional para implementar el protocolo. iOS solicita JSI y el Podfile referencia `@nozbe/simdjson`, dependencia ya instalada de WatermelonDB, según la [instalación oficial](https://watermelondb.dev/docs/Installation). Ejecutar `bundle exec pod install` y compilar en macOS antes de distribuir iOS.
 
 ## Verificación y salida a producción
 
-Los tests Jest ejercitan el motor real `synchronize()` con el adaptador Loki en memoria y transporte simulado; también hay tests de los interceptores Axios. Cubren first/incremental pull, CRUD y tombstones, rollback antes del batch, importación idempotente, UUIDs, conflictos, respuestas perdidas, ediciones durante push, aislamiento de cuentas, refresh tardío, offline prolongado, debounce, backoff y límites. Esto **no sustituye** una prueba E2E con SQLite nativo y PostgreSQL.
+Los resultados de compilación fechados a continuación son históricos; no acreditan esta limpieza ni instalación en un dispositivo.
+
+Los tests Jest ejercitan el motor real `synchronize()` con el adaptador Loki en memoria y transporte simulado; también hay tests de los interceptores Axios. Cubren first/incremental pull, CRUD y tombstones, rollback antes del batch, UUIDs, conflictos, respuestas perdidas, ediciones durante push, aislamiento de cuentas, refresh tardío, offline prolongado, debounce, backoff y límites. Esto **no sustituye** una prueba E2E con SQLite nativo y PostgreSQL.
 
 Comandos:
 
@@ -151,10 +151,4 @@ Resultados de verificación (2026-09-05): **68 tests, 13 suites, todos correctos
 
 `assembleDevelopmentDebug`: **BUILD SUCCESSFUL**, incluyendo las cuatro arquitecturas configuradas. APK generado en `android/app/build/outputs/apk/development/debug/app-development-debug.apk`. No se instaló ni ejecutó en un dispositivo; el build nativo no acredita por sí solo el funcionamiento E2E.
 
-Antes de publicar: desplegar y auditar las migraciones/endpoints v2 del backend; probar actualización in-place desde una instalación 2/3 con pendientes y dos cuentas; probar modo avión/reinicio, dos dispositivos con ediciones concurrentes, expiración de tokens y borrados remotos. Revisar firma/versionCode y distribución con el responsable de la app. iOS necesita compilar y ejecutar en macOS. No se publica una app ni se modifica producción automáticamente.
-
-## Verificación posterior a la limpieza de código muerto (2026-09-05)
-
-Se retiraron 21 archivos móviles (19 de código/tipos y dos de tests exclusivos del legado), seis métodos CRUD de `BreedingsApi` y los mocks/casos asociados. Los 59 tests restantes pasan en 11 suites; la reducción desde 68 corresponde a nueve casos del compactador/restaurador retirados, no a tests omitidos. TypeScript pasa; el lint general conserva los mismos 14 errores preexistentes. No se recompilaron los binarios nativos después de esta limpieza.
-
-En el backend se retiraron tres archivos sin importadores y dos métodos sin consumidores de `SyncRepository`, junto a sus declaraciones/mocks. Pasan 184 tests; 41 casos de integración PostgreSQL quedan omitidos sin `SYNC_TEST_DATABASE_URL`. Build y lint pasan. Se conservan rutas REST/v1/v2, persistencia, migraciones y dependencias npm de ambos proyectos.
+Antes de publicar: desplegar y auditar las migraciones/endpoints v2 del backend; probar instalación limpia y aislamiento de dos cuentas; probar modo avión/reinicio, dos dispositivos con ediciones concurrentes, expiración de tokens y borrados remotos. Revisar firma/versionCode y distribución con el responsable de la app. iOS necesita compilar y ejecutar en macOS. No se publica una app ni se modifica producción automáticamente.

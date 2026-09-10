@@ -4,7 +4,6 @@ import { IAnimalRepository } from "../../../../src/modules/animal/domain/reposit
 import {
   Breeding,
   RiskLevel,
-  SyncStatus,
 } from "../../../../src/modules/breeding/domain/entities/Breeding";
 import {
   Animal,
@@ -37,8 +36,8 @@ describe("BreedingService", () => {
     birthDate: new Date("2023-01-01"),
     isFounder: true,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2023-01-01"),
+    clientUpdatedAt: new Date("2023-01-01"),
     createdAt: new Date("2023-01-01"),
     updatedAt: new Date("2023-01-01"),
   };
@@ -52,8 +51,8 @@ describe("BreedingService", () => {
     birthDate: new Date("2023-01-01"),
     isFounder: true,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2023-01-01"),
+    clientUpdatedAt: new Date("2023-01-01"),
     createdAt: new Date("2023-01-01"),
     updatedAt: new Date("2023-01-01"),
   };
@@ -67,8 +66,8 @@ describe("BreedingService", () => {
     breedingDate: new Date("2024-01-01"),
     notes: "Good match",
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };

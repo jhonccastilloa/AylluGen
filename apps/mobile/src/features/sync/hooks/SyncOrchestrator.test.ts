@@ -12,6 +12,7 @@ import {
   parsePull,
   projectPush,
   type SyncChanges,
+  type SyncTable,
 } from '../services/watermelonProtocol';
 import { testDatabase, seed, OWNER, OTHER } from '../services/syncTestDatabase';
 import authSession from '@/infrastructure/auth/AuthSession';
@@ -19,6 +20,11 @@ import { useNetworkStore } from '@/store/useNetworkStore';
 import { useSyncStore } from '@/store/useSyncStore';
 import type { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
 import { generateUuid } from '@/features/shared/utils/id';
+import { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
+import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
+import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
+import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
+import { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
 
 // Real Watermelon synchronize()/change tracking; only the HTTP boundary is substituted.
 function fixture() {
@@ -47,9 +53,9 @@ function fixture() {
       raw: {
         id,
         created_at: 1000,
+        updated_at: 1000,
         ...prior?.raw,
         ...data,
-        updated_at: version * 1000,
       },
       version,
       created: prior?.created ?? version,
@@ -94,6 +100,147 @@ const species = (id = generateUuid()) => ({
   name: 'Alpaca',
   description: null,
 });
+
+it.each(SYNC_TABLES)(
+  '%s preserves device dates through offline work, retries, conflicts and in-flight edits',
+  async table => {
+    const f = fixture();
+    const createdAt = Date.parse('2026-09-01T10:00:00.123Z');
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(createdAt);
+    useNetworkStore.getState().markOffline();
+    const kinds = new SpeciesLocalRepository(f.db, OWNER);
+    const animals = new AnimalsLocalRepository(f.db, OWNER);
+    const breedings = new BreedingsLocalRepository(f.db, OWNER);
+    const health = new HealthLocalRepository(f.db, OWNER);
+    const production = new ProductionLocalRepository(f.db, OWNER);
+    const kind = await kinds.create({ code: 'ALPACA', name: 'Alpaca' });
+    const male = await animals.createLocal(OWNER, {
+      crotal: 'MALE',
+      sex: 'MALE',
+      species: 'ALPACA',
+      speciesId: kind.id,
+    });
+    const female = await animals.createLocal(OWNER, {
+      crotal: 'FEMALE',
+      sex: 'FEMALE',
+      species: 'ALPACA',
+      speciesId: kind.id,
+    });
+    const eventDate = '2026-08-31T09:00:00.000Z';
+    const pair = await breedings.createLocal(OWNER, {
+      maleId: male.id,
+      femaleId: female.id,
+      projectedCOI: 0,
+      riskLevel: 'GREEN',
+      breedingDate: eventDate,
+    });
+    const checkup = await health.createLocal(OWNER, {
+      animalId: male.id,
+      type: 'CHECKUP',
+      date: eventDate,
+    });
+    const weight = await production.createLocal(OWNER, {
+      animalId: male.id,
+      type: 'WEIGHT',
+      value: 50,
+      unit: 'kg',
+      date: eventDate,
+    });
+    const records = {
+      species: kind,
+      animals: male,
+      breedings: pair,
+      health_records: checkup,
+      production_records: weight,
+    };
+    const id = records[table].id;
+    const edit: Record<SyncTable, (text: string) => Promise<unknown>> = {
+      species: text => kinds.update(id, { name: text }),
+      animals: text => animals.updateLocal(id, { crotal: text }),
+      breedings: text => breedings.updateLocal(id, { notes: text }),
+      health_records: text => health.updateLocal(id, { notes: text }),
+      production_records: text => production.updateLocal(id, { notes: text }),
+    };
+    for (const record of Object.values(records)) {
+      expect(record.createdAt).toBe(new Date(createdAt).toISOString());
+      expect(record).not.toHaveProperty('syncStatus');
+      expect(record).not.toHaveProperty('syncVersion');
+    }
+    const editedAt = createdAt + 2 * 86400000;
+    clock.mockReturnValue(editedAt);
+    await edit[table]('Offline edit');
+    await f.manager.syncNow(OWNER);
+    expect(f.pull).not.toHaveBeenCalled();
+    expect(f.push).not.toHaveBeenCalled();
+    clock.mockReturnValue(createdAt + 7 * 86400000);
+    useNetworkStore.getState().markOnline();
+    f.push.mockImplementationOnce(async args => {
+      await f.commit(args);
+      throw new Error('lost response');
+    });
+    await expect(f.manager.syncNow(OWNER)).rejects.toThrow('lost response');
+    await f.manager.syncNow(OWNER);
+    const row = await f.db.get(table).find(id);
+    expect(row._raw).toMatchObject({
+      created_at: createdAt,
+      updated_at: editedAt,
+      _status: 'synced',
+    });
+    expect(f.remote.get(checkup.id)?.raw.date).toBe(Date.parse(eventDate));
+    expect(f.remote.get(weight.id)?.raw.date).toBe(Date.parse(eventDate));
+    expect(f.remote.get(pair.id)?.raw.breeding_date).toBe(
+      Date.parse(eventDate),
+    );
+
+    const remotePatch = {
+      species: { description: 'Remote' },
+      animals: { is_founder: true },
+      breedings: { projected_coi: 0.05 },
+      health_records: { completed: false },
+      production_records: { quality_score: 4 },
+    };
+    const conflictAt = createdAt + 8 * 86400000;
+    clock.mockReturnValue(conflictAt);
+    await edit[table]('Local conflict edit');
+    f.push.mockImplementationOnce(async () => {
+      f.change(
+        id,
+        { ...remotePatch[table], updated_at: conflictAt + 1000 },
+        table,
+      );
+      throw { response: { status: 409 } };
+    });
+    await f.manager.syncNow(OWNER);
+    expect(f.remote.get(id)?.raw).toMatchObject({
+      ...remotePatch[table],
+      created_at: createdAt,
+      updated_at: conflictAt,
+    });
+
+    clock.mockReturnValue(conflictAt + 2000);
+    await edit[table]('Before push');
+    const duringAt = conflictAt + 3000;
+    f.push.mockImplementationOnce(async args => {
+      clock.mockReturnValue(duringAt);
+      await edit[table]('During push');
+      await f.commit(args);
+    });
+    await f.manager.syncNow(OWNER);
+    expect(row._raw).toMatchObject({
+      created_at: createdAt,
+      updated_at: duringAt,
+      _status: 'synced',
+    });
+    const column =
+      table === 'species' ? 'name' : table === 'animals' ? 'crotal' : 'notes';
+    expect(f.remote.get(id)?.raw).toMatchObject({
+      [column]: 'During push',
+      created_at: createdAt,
+      updated_at: duringAt,
+    });
+    expect(await f.manager.hydrateSyncState()).toBe(0);
+  },
+);
 
 beforeEach(() => {
   jest
@@ -176,7 +323,8 @@ it('first pull, unchanged pull, created, updated and deleted records', async () 
   f.change(r.id, r);
   await f.manager.syncNow(OWNER);
   expect(f.pull.mock.calls[0][0].lastPulledAt).toBeNull();
-  expect(f.pull.mock.calls[0][0].schemaVersion).toBe(4);
+  expect(f.pull.mock.calls[0][0].schemaVersion).toBe(7);
+  expect(f.pull.mock.calls[0][0].migration).toBeNull();
   expect(await f.db.get('species').query().fetchCount()).toBe(1);
   await f.manager.syncNow(OWNER);
   expect(f.pull.mock.calls[1][0].lastPulledAt).toBe(2);
@@ -190,14 +338,15 @@ it('first pull, unchanged pull, created, updated and deleted records', async () 
   await f.manager.syncNow(OWNER);
   expect(await f.db.get('species').query().fetchCount()).toBe(0);
 });
-it('pushes creates, edits and tombstones, then receives canonical server timestamps', async () => {
+it('pushes creates, edits and tombstones, then preserves device timestamps', async () => {
   const f = fixture();
   const r = species();
   await seed(f.db, 'species', { ...r, _status: 'created' });
   await f.manager.syncNow(OWNER);
   const row = await f.db.get<SpeciesModel>('species').find(r.id);
   expect(row.syncStatus).toBe('synced');
-  expect(row.updatedAt.getTime()).toBe(2000);
+  expect(row.createdAt.getTime()).toBe(1000);
+  expect(row.updatedAt.getTime()).toBe(1000);
   await f.db.write(() =>
     row.update(s => {
       s.name = 'Edited';
@@ -352,4 +501,114 @@ it('works after a long offline period and does not contact the API while disconn
   expect(
     await f.db.get('species').query(Q.where('id', r.id)).fetchCount(),
   ).toBe(0);
+});
+
+it('preserves animal device dates across seven days offline, retries and later edits', async () => {
+  const f = fixture();
+  const kind = species();
+  f.change(kind.id, kind);
+  await f.manager.syncNow(OWNER);
+  const animals = new AnimalsLocalRepository(f.db, OWNER);
+  const createdAt = Date.parse('2026-09-01T10:00:00Z');
+  const editedAt = createdAt + 2 * 86400000;
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(createdAt);
+  useNetworkStore.getState().markOffline();
+  const animal = await animals.createLocal(OWNER, {
+    crotal: 'OFFLINE',
+    sex: 'MALE',
+    species: 'ALPACA',
+    speciesId: kind.id,
+  });
+  expect(animal.createdAt).toBe(new Date(createdAt).toISOString());
+  expect(animal.updatedAt).toBe(animal.createdAt);
+  const raw = (await f.db.get('animals').find(animal.id))._raw;
+  expect(raw).toMatchObject({ created_at: createdAt, updated_at: createdAt });
+  expect(raw).not.toHaveProperty('client_created_at');
+  expect(raw).not.toHaveProperty('client_updated_at');
+  clock.mockReturnValue(editedAt);
+  await animals.updateLocal(animal.id, { crotal: 'EDITED OFFLINE' });
+  await f.manager.syncNow(OWNER);
+  expect(f.push).not.toHaveBeenCalled();
+  clock.mockReturnValue(createdAt + 7 * 86400000);
+  useNetworkStore.getState().markOnline();
+  f.push.mockImplementationOnce(async args => {
+    await f.commit(args);
+    throw new Error('lost response');
+  });
+  await expect(f.manager.syncNow(OWNER)).rejects.toThrow('lost response');
+  await f.manager.syncNow(OWNER);
+  const afterSync = await animals.getById(animal.id);
+  expect(afterSync).toMatchObject({
+    createdAt: new Date(createdAt).toISOString(),
+    updatedAt: new Date(editedAt).toISOString(),
+  });
+  expect(afterSync).not.toHaveProperty('syncStatus');
+  expect(afterSync).not.toHaveProperty('syncVersion');
+  clock.mockReturnValue(createdAt + 8 * 86400000);
+  const edited = await animals.updateLocal(animal.id, { crotal: 'NEXT EDIT' });
+  expect(edited?.createdAt).toBe(animal.createdAt);
+  expect(edited?.updatedAt).toBe(new Date(Date.now()).toISOString());
+  await f.manager.syncNow(OWNER);
+  expect((await animals.getById(animal.id))?.updatedAt).toBe(edited?.updatedAt);
+});
+
+it('retains an animal edit and its device date made while a push is in flight', async () => {
+  const f = fixture();
+  const kind = species();
+  f.change(kind.id, kind);
+  await f.manager.syncNow(OWNER);
+  const animals = new AnimalsLocalRepository(f.db, OWNER);
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+  const animal = await animals.createLocal(OWNER, {
+    crotal: 'FIRST',
+    sex: 'MALE',
+    species: 'ALPACA',
+    speciesId: kind.id,
+  });
+  f.push.mockImplementationOnce(async args => {
+    clock.mockReturnValue(1700000060000);
+    await animals.updateLocal(animal.id, { crotal: 'DURING PUSH' });
+    await f.commit(args);
+  });
+  await f.manager.syncNow(OWNER);
+  expect(f.remote.get(animal.id)?.raw).toMatchObject({
+    crotal: 'DURING PUSH',
+    created_at: 1700000000000,
+    updated_at: 1700000060000,
+  });
+  expect(await f.manager.hydrateSyncState()).toBe(0);
+});
+
+it('keeps a pending native edit date through a 409 reconciliation with remote animal changes', async () => {
+  const f = fixture();
+  const kind = species();
+  f.change(kind.id, kind);
+  await f.manager.syncNow(OWNER);
+  const animals = new AnimalsLocalRepository(f.db, OWNER);
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+  const animal = await animals.createLocal(OWNER, {
+    crotal: 'FIRST',
+    sex: 'MALE',
+    species: 'ALPACA',
+    speciesId: kind.id,
+  });
+  await f.manager.syncNow(OWNER);
+  clock.mockReturnValue(1700000060000);
+  await animals.updateLocal(animal.id, { crotal: 'LOCAL' });
+  f.push.mockImplementationOnce(async () => {
+    f.change(
+      animal.id,
+      { is_founder: true, updated_at: 1700000090000 },
+      'animals',
+    );
+    throw { response: { status: 409 } };
+  });
+  await f.manager.syncNow(OWNER);
+  expect(f.remote.get(animal.id)?.raw).toMatchObject({
+    crotal: 'LOCAL',
+    is_founder: true,
+    created_at: 1700000000000,
+    updated_at: 1700000060000,
+  });
+  expect(await f.manager.hydrateSyncState()).toBe(0);
 });

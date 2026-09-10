@@ -13,7 +13,6 @@ import {
   RecordData,
 } from "../../domain/entities/Watermelon";
 
-// UUID-shaped strings also preserve the deterministic IDs in the old species migration.
 // Configure WatermelonDB's ID generator to UUID v4 before creating local records.
 export const syncId = z
   .string()
@@ -25,8 +24,8 @@ const date = z.number().int().min(-62135596800000).max(253402300799999);
 const notes = z.string().max(10000).nullable();
 const metadata = {
   id: syncId,
-  created_at: date.optional(),
-  updated_at: date.optional(),
+  created_at: date,
+  updated_at: date,
   // Watermelon sends these on push; they never reach persistence.
   _status: z.unknown().optional(),
   _changed: z.unknown().optional(),
@@ -78,9 +77,19 @@ export const recordSchemas = {
     notes,
   }),
 };
+const timestampFields = {
+  created_at: "clientCreatedAt",
+  updated_at: "clientUpdatedAt",
+};
 export const fields: Record<SyncTable, Record<string, string>> = {
-  species: { code: "code", name: "name", description: "description" },
+  species: {
+    ...timestampFields,
+    code: "code",
+    name: "name",
+    description: "description",
+  },
   animals: {
+    ...timestampFields,
     crotal: "crotal",
     sex: "sex",
     species_id: "speciesId",
@@ -90,6 +99,7 @@ export const fields: Record<SyncTable, Record<string, string>> = {
     mother_id: "motherId",
   },
   breedings: {
+    ...timestampFields,
     male_id: "maleId",
     female_id: "femaleId",
     projected_coi: "projectedCOI",
@@ -99,6 +109,7 @@ export const fields: Record<SyncTable, Record<string, string>> = {
     notes: "notes",
   },
   health_records: {
+    ...timestampFields,
     animal_id: "animalId",
     type: "type",
     date: "date",
@@ -107,6 +118,7 @@ export const fields: Record<SyncTable, Record<string, string>> = {
     completed: "completed",
   },
   production_records: {
+    ...timestampFields,
     animal_id: "animalId",
     type: "type",
     date: "date",
@@ -117,6 +129,8 @@ export const fields: Record<SyncTable, Record<string, string>> = {
   },
 };
 const dateFields = new Set([
+  "clientCreatedAt",
+  "clientUpdatedAt",
   "birthDate",
   "breedingDate",
   "date",
@@ -129,6 +143,7 @@ export function toDatabase(
   const result: RecordData & { id: string } = { id: raw.id };
   for (const [wire, db] of Object.entries(fields[table])) {
     const value = raw[wire];
+    if (value === undefined) continue;
     result[db] =
       dateFields.has(db) && value !== null
         ? new Date(value as number).toISOString()
@@ -142,12 +157,18 @@ export function toRaw(table: SyncTable, data: RecordData): RawRecord {
     const value = data[db] ?? null;
     result[wire] =
       dateFields.has(db) && value !== null
-        ? new Date(value as string).getTime()
+        ? databaseDateMillis(value)
         : (value as RawRecord[string]);
   }
-  result.created_at = new Date(data.createdAt as string).getTime();
-  result.updated_at = new Date(data.updatedAt as string).getTime();
   return result;
+}
+
+function databaseDateMillis(value: unknown): number {
+  if (value instanceof Date) return value.getTime();
+  const text = String(value);
+  // PostgreSQL JSON omits the timezone of Prisma's UTC TIMESTAMP(3) columns.
+  // Parsing those as local time would shift device dates by five hours in Lima.
+  return Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text) ? text : `${text}Z`);
 }
 const tableChanges = (schema: z.ZodObject) =>
   z
@@ -186,53 +207,14 @@ const changesSchema = z
       ctx.addIssue({ code: "custom", message: "El push supera 500 registros" });
   });
 const checkpoint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
-const migration = z
-  .object({
-    from: z.number().int().min(1),
-    tables: z.array(z.enum(SYNC_TABLES)).max(SYNC_TABLES.length),
-    columns: z
-      .array(
-        z
-          .object({
-            table: z.enum(SYNC_TABLES),
-            columns: z.array(z.string()).max(30),
-          })
-          .strict(),
-      )
-      .max(5),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    for (const item of value.columns) {
-      if (
-        item.columns.some(
-          (column) =>
-            !Object.hasOwn(fields[item.table], column) &&
-            !["created_at", "updated_at"].includes(column),
-        )
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Columna de migración no permitida",
-        });
-      }
-    }
-  });
-// Schema 4 is the first native sync contract; 1/2/3 belong to the legacy mobile queue.
+// One clean-install contract. Future schema changes require coordinated migrations.
 export const watermelonPullSchema = z
   .object({
     lastPulledAt: checkpoint.nullable(),
-    schemaVersion: z.literal(4),
-    migration: migration.nullable().default(null),
+    schemaVersion: z.literal(7),
+    migration: z.null().default(null),
   })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (value.migration && value.migration.from >= value.schemaVersion)
-      ctx.addIssue({
-        code: "custom",
-        message: "Versión de migración inválida",
-      });
-  });
+  .strict();
 export const watermelonPushSchema = z
   .object({ lastPulledAt: checkpoint, changes: changesSchema })
   .strict();

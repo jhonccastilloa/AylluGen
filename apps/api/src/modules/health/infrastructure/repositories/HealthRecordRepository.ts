@@ -5,15 +5,10 @@ import {
   HealthRecordCreateInput,
   HealthRecordUpdateInput,
   HealthType,
-  SyncStatus,
   UpcomingHealthTask,
 } from "../../../health/domain/entities/HealthRecord";
 import { IHealthRecordRepository } from "../../../health/domain/repositories/IHealthRecordRepository";
-import {
-  Animal,
-  Sex,
-  SyncStatus as AnimalSyncStatus,
-} from "../../../animal/domain/entities/Animal";
+import { Animal, Sex } from "../../../animal/domain/entities/Animal";
 
 type HealthRecordWithAnimal = any;
 
@@ -82,7 +77,8 @@ export class HealthRecordRepository implements IHealthRecordRepository {
         }
 
         const daysUntil = Math.ceil(
-          (record.nextDueDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+          (record.nextDueDate.getTime() - now.getTime()) /
+            (24 * 60 * 60 * 1000),
         );
 
         return {
@@ -113,7 +109,10 @@ export class HealthRecordRepository implements IHealthRecordRepository {
   ): Promise<HealthRecord> {
     const record = await (prisma.healthRecord as any).update({
       where: { id },
-      data: { ...data, clientUpdatedAt: new Date(), syncVersion: { increment: 1 } },
+      data: {
+        ...data,
+        clientUpdatedAt: new Date(),
+      },
       include: { animal: { include: { speciesCatalog: true } } },
     });
 
@@ -155,10 +154,8 @@ export class HealthRecordRepository implements IHealthRecordRepository {
       nextDueDate: data.nextDueDate ?? undefined,
       completed: data.completed,
       userId: data.userId,
-      syncStatus: data.syncStatus as SyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };
@@ -177,10 +174,8 @@ export class HealthRecordRepository implements IHealthRecordRepository {
       fatherId: data.fatherId ?? undefined,
       motherId: data.motherId ?? undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as AnimalSyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       deletedAt: data.deletedAt ?? undefined,

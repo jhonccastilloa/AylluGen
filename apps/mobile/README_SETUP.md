@@ -58,8 +58,8 @@ Resultados y limitaciones vigentes en [LOCAL_FIRST_MOBILE.md](docs/LOCAL_FIRST_M
 
 ## Primera ejecución y actualización
 
-El login/registro inicial necesita red. Después se abre una base aislada por cuenta, se importa el archivo histórico de forma idempotente y se activa sync. No copiar checkpoints de otra cuenta ni usar timestamps antiguos como checkpoint v2.
+El login/registro inicial necesita red. Después se abre una base aislada por cuenta y se activa sync, sin importación histórica. No copiar checkpoints de otra cuenta ni usar timestamps antiguos como checkpoint v2.
 
-Ante fallo de migración, conservar datos; nunca ejecutar un reset automático. Probar actualización in-place desde schema 2/3 y modo avión antes de publicar. El backend debe tener aplicadas ambas migraciones de sync.
+Esta entrega requiere borrar una sola vez el almacenamiento local de la app de desarrollo o reinstalarla sin restaurar sus datos, incluidas instalaciones anteriores con schema 6. Esa limpieza descarta sesiones, preferencias y pendientes locales. No hay migración desde instalaciones anteriores ni borrado automático al arrancar. Desplegar primero backend con todas las migraciones SQL aplicadas y luego móvil; probar modo avión, reinicio y conflictos con cuentas de prueba.
 
 [Fastlane](deploy/fastlane/fastlane_setup.md) contiene automatizaciones heredadas con efectos externos; no es el camino validado para esta comprobación.

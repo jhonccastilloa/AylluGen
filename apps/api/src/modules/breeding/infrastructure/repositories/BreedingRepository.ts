@@ -4,10 +4,9 @@ import {
   RiskLevel,
   Breeding,
   BreedingCreateInput,
-  SyncStatus,
   BreedingUpdateInput,
 } from "../../../breeding/domain/entities/Breeding";
-import { Animal, Sex, SyncStatus as AnimalSyncStatus } from "../../../animal/domain/entities/Animal";
+import { Animal, Sex } from "../../../animal/domain/entities/Animal";
 import { IBreedingRepository } from "../../../breeding/domain/repositories/IBreedingRepository";
 
 type BreedingWithRelations = any;
@@ -57,7 +56,10 @@ export class BreedingRepository implements IBreedingRepository {
   async update(id: string, data: BreedingUpdateInput): Promise<Breeding> {
     const breeding = await (prisma.breeding as any).update({
       where: { id },
-      data: { ...data, clientUpdatedAt: new Date(), syncVersion: { increment: 1 } },
+      data: {
+        ...data,
+        clientUpdatedAt: new Date(),
+      },
       include: { offspring: { include: { speciesCatalog: true } } },
     });
 
@@ -86,14 +88,14 @@ export class BreedingRepository implements IBreedingRepository {
       projectedCOI: data.projectedCOI,
       riskLevel: data.riskLevel as RiskLevel,
       offspringId: data.offspringId ?? undefined,
-      offspring: data.offspring ? this.mapAnimalToEntity(data.offspring) : undefined,
+      offspring: data.offspring
+        ? this.mapAnimalToEntity(data.offspring)
+        : undefined,
       breedingDate: data.breedingDate ?? undefined,
       notes: data.notes ?? undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as SyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };
@@ -112,10 +114,8 @@ export class BreedingRepository implements IBreedingRepository {
       fatherId: data.fatherId ?? undefined,
       motherId: data.motherId ?? undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as AnimalSyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       deletedAt: data.deletedAt ?? undefined,

@@ -105,7 +105,10 @@ export class SpeciesService {
     }
 
     if (nextCode && nextCode !== existing.code) {
-      const duplicateCode = await this.speciesRepository.findByCode(userId, nextCode);
+      const duplicateCode = await this.speciesRepository.findByCode(
+        userId,
+        nextCode,
+      );
       if (duplicateCode) {
         throw new ConflictError("Ya existe una especie con ese código");
       }
@@ -140,10 +143,8 @@ export class SpeciesService {
       throw new NotFoundError("Especie no encontrada");
     }
 
-    const linkedAnimalsCount = await this.speciesRepository.countAnimalsBySpeciesId(
-      userId,
-      speciesId,
-    );
+    const linkedAnimalsCount =
+      await this.speciesRepository.countAnimalsBySpeciesId(userId, speciesId);
     if (linkedAnimalsCount > 0) {
       throw new ValidationError(
         "No se puede eliminar la especie porque está asociada a uno o más animales",
@@ -160,7 +161,9 @@ export class SpeciesService {
     await this.ensureDefaultSpecies(userId);
 
     if (input.speciesId) {
-      const speciesById = await this.speciesRepository.findById(input.speciesId);
+      const speciesById = await this.speciesRepository.findById(
+        input.speciesId,
+      );
       if (!speciesById || speciesById.userId !== userId) {
         throw new ValidationError("La especie seleccionada no existe");
       }
@@ -230,9 +233,10 @@ export class SpeciesService {
       name: species.name,
       description: species.description ?? null,
       userId: species.userId,
+      clientCreatedAt: species.clientCreatedAt.toISOString(),
+      clientUpdatedAt: species.clientUpdatedAt.toISOString(),
       createdAt: species.createdAt.toISOString(),
       updatedAt: species.updatedAt.toISOString(),
     };
   }
 }
-

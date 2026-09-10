@@ -6,7 +6,7 @@ Estado revisado: 2026-09-05. API ganadera en Node.js/TypeScript, Express 5, Pris
 
 Ocho módulos: `auth`, `user`, `species`, `animal`, `breeding`, `health`, `production`, `sync`. Cada módulo separa rutas/controladores, servicios, contratos y repositorios.
 
-El móvil guarda especies, animales, cruces, salud y producción en WatermelonDB y sincroniza por v2. REST se conserva para acciones de servidor y compatibilidad con instalaciones anteriores. No hay polling, sockets, pagos, OTP, uploads ni jobs implementados.
+El móvil guarda especies, animales, cruces, salud y producción en WatermelonDB y sincroniza por v2. REST se conserva para acciones originadas en el servidor; el móvil actual usa exclusivamente CRUD local y sync v2. No hay polling, sockets, pagos, OTP, uploads ni jobs implementados.
 
 ## Preparación
 
@@ -36,18 +36,17 @@ npm start
 
 Todas bajo `/api`, salvo Swagger y la raíz del servidor:
 
-| Grupo             | Rutas / uso                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| Auth              | POST /auth/register, /auth/login, /auth/refresh, /auth/logout                                          |
-| Cuenta propia     | GET /users/me; GET/PUT/DELETE /users/:userId                                                           |
-| Sync nativo       | POST /sync/v2/pull y /sync/v2/push                                                                     |
-| Legacy deprecated | POST /sync/pull, /sync/push, /sync/resolve-conflict                                                    |
-| Especies          | CRUD /species                                                                                          |
-| Animales          | CRUD /animals; GET /animals/founders, /animals/males, /animals/females, /animals/:animalId/pedigree    |
-| Cruces            | CRUD /breedings; POST /breedings/calculate-coi; GET /breedings/history/:animalId                       |
-| Salud ganadera    | CRUD /sanity; GET /sanity/upcoming                                                                     |
-| Producción        | CRUD /production; GET /production/animal/:animalId/summary/:type y /production/animal/:animalId/recent |
-| Operación         | GET /health, /ready, /live                                                                             |
+| Grupo          | Rutas / uso                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| Auth           | POST /auth/register, /auth/login, /auth/refresh, /auth/logout                                          |
+| Cuenta propia  | GET /users/me; GET/PUT/DELETE /users/:userId                                                           |
+| Sync nativo    | POST /sync/v2/pull y /sync/v2/push                                                                     |
+| Especies       | CRUD /species                                                                                          |
+| Animales       | CRUD /animals; GET /animals/founders, /animals/males, /animals/females, /animals/:animalId/pedigree    |
+| Cruces         | CRUD /breedings; POST /breedings/calculate-coi; GET /breedings/history/:animalId                       |
+| Salud ganadera | CRUD /sanity; GET /sanity/upcoming                                                                     |
+| Producción     | CRUD /production; GET /production/animal/:animalId/summary/:type y /production/animal/:animalId/recent |
+| Operación      | GET /health, /ready, /live                                                                             |
 
 CRUD significa GET/POST de colección y GET/PUT/DELETE por ID; comprobar parámetros en los archivos de rutas. `/api/health` es diagnóstico del servidor, no registros sanitarios. JWT requerido para datos/cuenta/sync; permisos por propietario.
 
@@ -62,7 +61,7 @@ npm run build
 npm run lint
 ```
 
-Última ejecución tras limpiar código muerto: **184 tests pasan, 41 casos PostgreSQL omitidos**, 15 suites pasan; build y lint correctos. Para ejecutar casos reales configurar `SYNC_TEST_DATABASE_URL` con una base aislada llamada `sync_test`, nunca producción, con migraciones aplicadas. Los tests generan y limpian datos de prueba.
+El protocolo de cola antiguo ya no se publica; sync v2 acepta únicamente schema 7. Para integración real configurar `SYNC_TEST_DATABASE_URL` con una base local aislada `sync_test` y todas las migraciones aplicadas. Sin esa variable los casos PostgreSQL se omiten. Las comprobaciones locales no equivalen a un despliegue.
 
 La implementación móvil ya está realizada, pero despliegue v2 y pruebas E2E en dispositivos siguen pendientes. La auditoría histórica de la DB conectada no acredita estado actual de producción.
 

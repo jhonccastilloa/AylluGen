@@ -201,10 +201,8 @@ export class ProductionRecordService {
       qualityScore: record.qualityScore || null,
       notes: record.notes || null,
       userId: record.userId,
-      syncStatus: record.syncStatus,
-      syncVersion: record.syncVersion,
-      clientCreatedAt: (record.clientCreatedAt ?? record.createdAt).toISOString(),
-      clientUpdatedAt: (record.clientUpdatedAt ?? record.updatedAt).toISOString(),
+      clientCreatedAt: record.clientCreatedAt.toISOString(),
+      clientUpdatedAt: record.clientUpdatedAt.toISOString(),
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

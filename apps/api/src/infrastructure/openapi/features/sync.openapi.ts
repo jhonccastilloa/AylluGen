@@ -3,13 +3,6 @@ import {
   watermelonPullSchema,
   watermelonPushSchema,
 } from "../../../modules/sync/application/schemas/watermelon.schema";
-import {
-  syncPushSchema,
-  syncPullSchema,
-  syncResultSchema,
-  syncDataSchema,
-  conflictResolutionSchema,
-} from "../../../modules/sync/application/schemas/sync.schema";
 
 export function registerSyncRoutes(
   registry: OpenAPIRegistry,
@@ -19,7 +12,7 @@ export function registerSyncRoutes(
     method: "post",
     path: "/api/sync/v2/pull",
     tags: ["Sync"],
-    summary: "Pull incremental de WatermelonDB (schema móvil 4)",
+    summary: "Pull incremental de WatermelonDB (schema móvil 7)",
     description:
       "Snapshot consistente limitado al usuario autenticado. timestamp es un contador opaco, no una fecha. Sin paginación parcial.",
     security: [{ [bearerAuth.name]: [] }],
@@ -46,7 +39,7 @@ export function registerSyncRoutes(
     tags: ["Sync"],
     summary: "Push atómico de WatermelonDB",
     description:
-      "Máximo 500 operaciones y 2 MiB. Registros completos con columnas snake_case; ownership y fechas de servidor no son editables. Ante 409, volver a synchronize().",
+      "Máximo 500 operaciones y 2 MiB. Registros completos con columnas snake_case; ownership y fechas de servidor no son editables. Las cinco entidades requieren created_at/updated_at del dispositivo, conservados en push y pull. Ante 409, volver a synchronize().",
     security: [{ [bearerAuth.name]: [] }],
     request: {
       body: {
@@ -60,112 +53,6 @@ export function registerSyncRoutes(
       403: { description: "Registro ajeno" },
       409: { description: "Conflicto; batch completamente revertido" },
       413: { description: "Payload/dataset demasiado grande" },
-    },
-  });
-  registry.registerPath({
-    method: "post",
-    path: "/api/sync/push",
-    deprecated: true,
-    tags: ["Sync"],
-    summary: "Enviar cambios al servidor",
-    description:
-      "Envía cambios desde el cliente al servidor para sincronización",
-    security: [{ [bearerAuth.name]: [] }],
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: syncPushSchema,
-          },
-        },
-      },
-    },
-    responses: {
-      200: {
-        description: "Sincronización exitosa",
-        content: {
-          "application/json": {
-            schema: syncResultSchema,
-          },
-        },
-      },
-      400: {
-        description: "Datos inválidos",
-      },
-      401: {
-        description: "No autorizado",
-      },
-      409: {
-        description: "Conflictos de sincronización",
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "post",
-    path: "/api/sync/pull",
-    deprecated: true,
-    tags: ["Sync"],
-    summary: "Obtener cambios del servidor",
-    description: "Obtiene cambios del servidor para sincronizar el cliente",
-    security: [{ [bearerAuth.name]: [] }],
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: syncPullSchema,
-          },
-        },
-      },
-    },
-    responses: {
-      200: {
-        description: "Datos de sincronización",
-        content: {
-          "application/json": {
-            schema: syncDataSchema,
-          },
-        },
-      },
-      400: {
-        description: "Datos inválidos",
-      },
-      401: {
-        description: "No autorizado",
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: "post",
-    path: "/api/sync/resolve-conflict",
-    deprecated: true,
-    tags: ["Sync"],
-    summary: "Resolver conflicto de sincronización",
-    description: "Resuelve un conflicto de sincronización específico",
-    security: [{ [bearerAuth.name]: [] }],
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: conflictResolutionSchema,
-          },
-        },
-      },
-    },
-    responses: {
-      204: {
-        description: "Conflicto resuelto",
-      },
-      400: {
-        description: "Datos inválidos",
-      },
-      401: {
-        description: "No autorizado",
-      },
-      404: {
-        description: "Conflicto no encontrado",
-      },
     },
   });
 }

@@ -5,34 +5,21 @@ import {
   OWNER,
   OTHER,
 } from '@/features/sync/services/syncTestDatabase';
-import {
-  importLegacy,
-  importRaw,
-  reconcileLegacyFirstPull,
-} from './importLegacy';
-import {
-  SYNC_TABLES,
-  type SyncChanges,
-} from '@/features/sync/services/watermelonProtocol';
+import { SYNC_TABLES } from '@/features/sync/services/watermelonProtocol';
 import { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
 import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
 import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
 import { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
 import { generateUuid } from '@/features/shared/utils/id';
-import type { AnimalModel } from './models/AnimalModel';
 import type { BreedingModel } from './models/BreedingModel';
 
-const empty = (): SyncChanges =>
-  Object.fromEntries(
-    SYNC_TABLES.map(t => [t, { created: [], updated: [], deleted: [] }]),
-  );
 const animalRaw = (id = generateUuid()) => ({
   id,
   crotal: 'A-1',
   sex: 'MALE',
   species: 'ALPACA',
-  species_id: null,
+  species_id: generateUuid(),
   birth_date: null,
   is_founder: true,
   father_id: null,
@@ -43,122 +30,6 @@ beforeEach(() => {
   jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
-
-it('imports only the owner dataset atomically, preserving timestamps and archive data', async () => {
-  const legacy = testDatabase();
-  const target = testDatabase();
-  const row = animalRaw();
-  await seed(legacy, 'animals', {
-    ...row,
-    created_at: 1234,
-    updated_at: 5678,
-    _status: 'created',
-  });
-  await seed(legacy, 'animals', { ...animalRaw(), user_id: OTHER });
-  await importLegacy(legacy, target, OWNER);
-  await importLegacy(legacy, target, OWNER);
-  const imported = await target.get<AnimalModel>('animals').find(row.id);
-  expect(imported.syncStatus).toBe('synced');
-  expect(imported.createdAt.getTime()).toBe(1234);
-  expect(imported.updatedAt.getTime()).toBe(5678);
-  expect(await target.get('animals').query().fetchCount()).toBe(1);
-  expect(await legacy.get('animals').query().fetchCount()).toBe(2);
-  expect((await legacy.get('animals').find(row.id)).syncStatus).toBe('created');
-});
-it('reconstructs native changed columns from legacy updates, not the REST cache status', () => {
-  const result = importRaw(
-    { ...animalRaw(), sync_status: 'SYNCED', _status: 'created' },
-    [
-      {
-        action: 'UPDATE',
-        payload: JSON.stringify({ crotal: 'B', clientUpdatedAt: 'yesterday' }),
-      },
-    ],
-  );
-  expect(result).toMatchObject({ _status: 'updated', _changed: 'crotal' });
-});
-it('reconstructs legacy creates and deletions and preserves unqueued pending work', () => {
-  expect(importRaw(animalRaw(), [{ action: 'CREATE' }])._status).toBe(
-    'created',
-  );
-  expect(importRaw(animalRaw(), [{ action: 'DELETE' }])._status).toBe(
-    'deleted',
-  );
-  expect(
-    importRaw({ ...animalRaw(), sync_status: 'PENDING' }, [])._status,
-  ).toBe('updated');
-});
-it('does not commit half an import or its marker when a row has an invalid ID', async () => {
-  const legacy = testDatabase();
-  const target = testDatabase();
-  await seed(legacy, 'animals', animalRaw());
-  await seed(legacy, 'animals', animalRaw('invalid'));
-  await expect(importLegacy(legacy, target, OWNER)).rejects.toThrow();
-  expect(await target.get('animals').query().fetchCount()).toBe(0);
-  expect(await target.get('app_meta').query().fetchCount()).toBe(0);
-});
-
-it('refuses to guess ownership for an orphan legacy queue entry', async () => {
-  const legacy = testDatabase();
-  const target = testDatabase();
-  await seed(legacy, 'sync_queue', {
-    table_name: 'animals',
-    record_id: generateUuid(),
-    action: 'DELETE',
-    payload: null,
-    client_version: 1,
-  });
-  await expect(importLegacy(legacy, target, OWNER)).rejects.toThrow(/cuenta/);
-  expect(await target.get('app_meta').query().fetchCount()).toBe(0);
-  expect(await legacy.get('sync_queue').query().fetchCount()).toBe(1);
-});
-
-it('allows offline edits to archived animals before their species IDs are resolved', async () => {
-  const db = testDatabase();
-  const row = animalRaw();
-  await seed(db, 'animals', row);
-  const animals = new AnimalsLocalRepository(db, OWNER);
-  expect(
-    (await animals.updateLocal(row.id, { crotal: 'OFFLINE' }))?.crotal,
-  ).toBe('OFFLINE');
-  expect((await db.get('animals').find(row.id)).syncStatus).toBe('updated');
-});
-it('binds a legacy species code to the authoritative server ID, preserving pending columns', async () => {
-  const db = testDatabase();
-  const row = animalRaw();
-  const speciesId = generateUuid();
-  const changes = empty();
-  await seed(db, 'animals', { ...row, _status: 'created', _changed: 'crotal' });
-  changes.species.created.push({
-    id: speciesId,
-    code: 'ALPACA',
-    name: 'Alpaca',
-    description: null,
-  });
-  await reconcileLegacyFirstPull(db, changes, OWNER);
-  const model = await db.get<AnimalModel>('animals').find(row.id);
-  expect(model.speciesId).toBe(speciesId);
-  expect(model.syncStatus).toBe('created');
-  expect(model._raw._changed).toBe('crotal');
-});
-it('removes stale synced cache but refuses to silently recreate a missing legacy update', async () => {
-  const db = testDatabase();
-  const row = animalRaw();
-  await seed(db, 'animals', row);
-  const changes = empty();
-  await reconcileLegacyFirstPull(db, changes, OWNER);
-  expect(changes.animals.deleted).toEqual([row.id]);
-  const other = testDatabase();
-  await seed(other, 'animals', {
-    ...row,
-    _status: 'updated',
-    _changed: 'crotal',
-  });
-  await expect(reconcileLegacyFirstPull(other, empty(), OWNER)).rejects.toThrow(
-    /antiguo/,
-  );
-  expect((await other.get('animals').find(row.id)).syncStatus).toBe('updated');
-});
 
 async function herd() {
   const db = testDatabase();
@@ -220,7 +91,9 @@ it('creates the five synchronized entities offline with UUIDs and native pending
     expect(
       await h.db.get(table).query(Q.where('_status', 'created')).fetchCount(),
     ).toBeGreaterThan(0);
-  expect(await h.db.get('sync_queue').query().fetchCount()).toBe(0);
+  expect(Object.keys(h.db.schema.tables).sort()).toEqual(
+    [...SYNC_TABLES].sort(),
+  );
   expect(h.male.speciesId).toBe(h.kind.id);
 });
 it('updates health, production and breeding records without a second queue', async () => {
@@ -311,11 +184,20 @@ it('atomically cascades animal deletes and clears parent/offspring references', 
 it('rejects invalid values, relations, duplicate codes/crotales, cycles and cross-account writes', async () => {
   const h = await herd();
   await expect(
+    h.animals.createLocal(OWNER, {
+      crotal: 'NO SPECIES',
+      sex: 'MALE',
+      species: 'ALPACA',
+      speciesId: '',
+    }),
+  ).rejects.toThrow(/especie/);
+  await expect(
     h.species.create({ code: 'ALPACA', name: 'Other' }),
   ).rejects.toThrow();
   await expect(h.species.delete(h.kind.id)).rejects.toThrow();
   await expect(
     h.animals.createLocal(OTHER, {
+      speciesId: h.kind.id,
       crotal: 'X',
       sex: 'MALE',
       species: 'ALPACA',

@@ -1,7 +1,4 @@
-import type {
-  RiskLevel,
-  SyncStatus,
-} from '@/features/shared/interfaces/common.types';
+import type { RiskLevel } from '@/features/shared/interfaces/common.types';
 
 export type { RiskLevel } from '@/features/shared/interfaces/common.types';
 
@@ -15,10 +12,6 @@ export interface Breeding {
   breedingDate: string | null;
   notes: string | null;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: string;
-  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -101,6 +101,8 @@
     "confirmPasswordPlaceholder": "Repeat your password"
   },
   "herd": {
+    "registeredAt": "Registered: {{date}}",
+    "modifiedAt": "Updated: {{date}}",
     "title": "Herd Inventory",
     "subtitle": "Herd management",
     "totalCount": "Total Herd Count",

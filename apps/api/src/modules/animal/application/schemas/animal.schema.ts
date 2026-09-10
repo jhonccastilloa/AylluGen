@@ -36,8 +36,7 @@ export const animalCreateSchema = z
     motherId: z.uuid().optional().describe("Mother animal ID"),
   })
   .refine(
-    (input) =>
-      Boolean(input.speciesId || input.speciesCode || input.species),
+    (input) => Boolean(input.speciesId || input.speciesCode || input.species),
     {
       message:
         "Debe enviar speciesId o speciesCode para enlazar la especie del animal",
@@ -142,10 +141,12 @@ export const animalResponseSchema = z
     mother: animalRelationSchema.nullable().optional(),
     children: z.array(animalRelationSchema).optional(),
     userId: z.string().uuid(),
-    syncStatus: z.enum(["SYNCED", "PENDING", "CONFLICT", "DELETED"]),
-    syncVersion: z.number(),
-    clientCreatedAt: z.iso.datetime().optional().describe("Fecha de creación en el dispositivo"),
-    clientUpdatedAt: z.iso.datetime().optional().describe("Fecha de modificación en el dispositivo"),
+    clientCreatedAt: z.iso
+      .datetime()
+      .describe("Fecha de creación en el dispositivo"),
+    clientUpdatedAt: z.iso
+      .datetime()
+      .describe("Fecha de modificación en el dispositivo"),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
     deletedAt: z.string().datetime().nullable(),
@@ -168,8 +169,8 @@ export const animalResponseSchema = z
       mother: null,
       children: [],
       userId: "123e4567-e89b-12d3-a456-426614174001",
-      syncStatus: "SYNCED",
-      syncVersion: 1,
+      clientCreatedAt: "2024-01-08T00:00:00Z",
+      clientUpdatedAt: "2024-01-10T00:00:00Z",
       createdAt: "2024-01-15T00:00:00Z",
       updatedAt: "2024-01-15T00:00:00Z",
       deletedAt: null,

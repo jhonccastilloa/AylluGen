@@ -103,10 +103,12 @@ export const healthRecordResponseSchema = z
     nextDueDate: z.iso.datetime().nullable(),
     completed: z.boolean(),
     userId: z.uuid(),
-    syncStatus: z.enum(["SYNCED", "PENDING", "CONFLICT", "DELETED"]),
-    syncVersion: z.number(),
-    clientCreatedAt: z.iso.datetime().optional().describe("Fecha de creación en el dispositivo"),
-    clientUpdatedAt: z.iso.datetime().optional().describe("Fecha de modificación en el dispositivo"),
+    clientCreatedAt: z.iso
+      .datetime()
+      .describe("Fecha de creación en el dispositivo"),
+    clientUpdatedAt: z.iso
+      .datetime()
+      .describe("Fecha de modificación en el dispositivo"),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })

@@ -56,10 +56,8 @@ model Animal {
   productionRecords ProductionRecord[]
   userId            String
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncStatus        SyncStatus         @default(SYNCED)
-  syncVersion       Int                @default(1)
-  clientCreatedAt DateTime @default(now())
-  clientUpdatedAt DateTime @default(now())
+  clientCreatedAt   DateTime           @default(now())
+  clientUpdatedAt   DateTime           @default(now())
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   deletedAt         DateTime?
@@ -80,6 +78,8 @@ model Species {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   animals     Animal[]
+  clientCreatedAt DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
@@ -102,8 +102,6 @@ model Breeding {
   notes        String?
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncStatus   SyncStatus @default(SYNCED)
-  syncVersion  Int        @default(1)
   clientCreatedAt DateTime @default(now())
   clientUpdatedAt DateTime @default(now())
   createdAt    DateTime   @default(now())
@@ -127,8 +125,6 @@ model HealthRecord {
   completed   Boolean    @default(true)
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncStatus  SyncStatus @default(SYNCED)
-  syncVersion Int        @default(1)
   clientCreatedAt DateTime @default(now())
   clientUpdatedAt DateTime @default(now())
   createdAt   DateTime   @default(now())
@@ -153,8 +149,6 @@ model ProductionRecord {
   notes        String?
   userId       String
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncStatus   SyncStatus     @default(SYNCED)
-  syncVersion  Int            @default(1)
   clientCreatedAt DateTime @default(now())
   clientUpdatedAt DateTime @default(now())
   createdAt    DateTime       @default(now())
@@ -165,21 +159,6 @@ model ProductionRecord {
   @@index([type])
   @@index([date])
   @@map("production_records")
-}
-
-model SyncLog {
-  id        String     @id @default(uuid())
-  userId    String
-  action    SyncAction
-  tableName String
-  recordId  String
-  data      Json
-  status    SyncStatus @default(PENDING)
-  createdAt DateTime   @default(now())
-
-  @@index([userId])
-  @@index([status])
-  @@map("sync_logs")
 }
 
 // Infrastructure state. Versions are assigned by PostgreSQL triggers, never clients.
@@ -244,17 +223,4 @@ enum ProductionType {
   FIBER
   MEAT
   MILK
-}
-
-enum SyncStatus {
-  SYNCED
-  PENDING
-  CONFLICT
-  DELETED
-}
-
-enum SyncAction {
-  CREATE
-  UPDATE
-  DELETE
 }

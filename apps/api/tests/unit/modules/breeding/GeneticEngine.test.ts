@@ -1,13 +1,13 @@
-import { Animal, Sex, SyncStatus } from "../../../../src/modules/animal/domain/entities/Animal";
+import {
+  Animal,
+  Sex,
+} from "../../../../src/modules/animal/domain/entities/Animal";
 import { RiskLevel } from "../../../../src/modules/breeding/domain/entities/Breeding";
 import { GeneticEngine } from "../../../../src/modules/breeding/domain/services/GeneticEngine";
 
 const baseDate = new Date("2024-01-01T00:00:00.000Z");
 
-const createAnimal = (
-  id: string,
-  overrides: Partial<Animal> = {},
-): Animal => ({
+const createAnimal = (id: string, overrides: Partial<Animal> = {}): Animal => ({
   id,
   crotal: id,
   sex: Sex.MALE,
@@ -15,8 +15,8 @@ const createAnimal = (
   species: "OVINE",
   isFounder: true,
   userId: "user-1",
-  syncStatus: SyncStatus.SYNCED,
-  syncVersion: 1,
+  clientCreatedAt: baseDate,
+  clientUpdatedAt: baseDate,
   createdAt: baseDate,
   updatedAt: baseDate,
   ...overrides,
@@ -155,4 +155,3 @@ describe("GeneticEngine (Wright COI)", () => {
     expect(result.riskLevel).toBe(RiskLevel.YELLOW);
   });
 });
-

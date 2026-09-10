@@ -12,16 +12,12 @@ import type {
   BreedingUpdateInput,
   RiskLevel,
 } from '@/features/breedings/interfaces/breedings.types';
-import type { SyncStatus } from '@/features/shared/interfaces/common.types';
 import {
   isoToTimestamp,
   nowTimestamp,
   timestampToIso,
 } from '@/features/shared/utils/date';
 import { generateUuid } from '@/features/shared/utils/id';
-
-const toIsoOrEmpty = (value?: Date | null): string =>
-  value?.toISOString() ?? new Date(0).toISOString();
 
 const toDomain = (model: BreedingModel): Breeding => ({
   id: model.id,
@@ -33,12 +29,8 @@ const toDomain = (model: BreedingModel): Breeding => ({
   breedingDate: timestampToIso(model.breedingDate),
   notes: model.notes ?? null,
   userId: model.userId,
-  syncStatus: (model.syncStatus === 'synced'
-    ? 'SYNCED'
-    : 'PENDING') as SyncStatus,
-  syncVersion: model.syncVersion,
-  createdAt: toIsoOrEmpty(model.createdAt),
-  updatedAt: toIsoOrEmpty(model.updatedAt),
+  createdAt: model.createdAt.toISOString(),
+  updatedAt: model.updatedAt.toISOString(),
 });
 
 export class BreedingsLocalRepository {
@@ -81,7 +73,6 @@ export class BreedingsLocalRepository {
       .fetch();
     return records
       .map(toDomain)
-      .filter(record => record.syncStatus !== 'DELETED')
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
@@ -90,7 +81,7 @@ export class BreedingsLocalRepository {
       const model = await this.collection.find(id);
       if (model.syncStatus === 'deleted') return null;
       const record = toDomain(model);
-      return record.syncStatus === 'DELETED' ? null : record;
+      return record;
     } catch {
       return null;
     }
@@ -120,8 +111,6 @@ export class BreedingsLocalRepository {
         record.breedingDate = isoToTimestamp(input.breedingDate) ?? timestamp;
         record.notes = input.notes ?? null;
         record.userId = userId;
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion = 1;
       });
     });
 
@@ -150,8 +139,6 @@ export class BreedingsLocalRepository {
         if (input.notes !== undefined) record.notes = input.notes;
         if (input.offspringId !== undefined)
           record.offspringId = input.offspringId;
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion += 1;
       });
     });
 
@@ -175,9 +162,7 @@ export class BreedingsLocalRepository {
     return records
       .map(toDomain)
       .filter(
-        record =>
-          record.syncStatus !== 'DELETED' &&
-          (record.maleId === animalId || record.femaleId === animalId),
+        record => record.maleId === animalId || record.femaleId === animalId,
       )
       .sort((left, right) =>
         (right.breedingDate ?? right.updatedAt).localeCompare(

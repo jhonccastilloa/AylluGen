@@ -16,6 +16,7 @@ it('reads and writes only the local repository, without a REST or queue dependen
     crotal: 'A-1',
     sex: 'FEMALE',
     species: 'SHEEP',
+    speciesId: 'species-id',
   });
   await useCases.updateAnimal('animal', { crotal: 'A-2' });
   expect(await useCases.getById('missing')).toBeNull();

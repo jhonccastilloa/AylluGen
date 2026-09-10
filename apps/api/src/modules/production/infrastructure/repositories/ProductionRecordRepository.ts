@@ -6,14 +6,9 @@ import {
   ProductionRecordUpdateInput,
   ProductionSummary,
   ProductionType,
-  SyncStatus,
 } from "../../../production/domain/entities/ProductionRecord";
 import { IProductionRecordRepository } from "../../../production/domain/repositories/IProductionRecordRepository";
-import {
-  Animal,
-  Sex,
-  SyncStatus as AnimalSyncStatus,
-} from "../../../animal/domain/entities/Animal";
+import { Animal, Sex } from "../../../animal/domain/entities/Animal";
 
 type ProductionRecordWithAnimal = any;
 
@@ -76,7 +71,10 @@ export class ProductionRecordRepository implements IProductionRecordRepository {
   ): Promise<ProductionRecord> {
     const record = await (prisma.productionRecord as any).update({
       where: { id },
-      data: { ...data, clientUpdatedAt: new Date(), syncVersion: { increment: 1 } },
+      data: {
+        ...data,
+        clientUpdatedAt: new Date(),
+      },
       include: { animal: { include: { speciesCatalog: true } } },
     });
 
@@ -120,14 +118,16 @@ export class ProductionRecordRepository implements IProductionRecordRepository {
     }
 
     const values = records.map((record) => record.value);
-    const averageValue = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const averageValue =
+      values.reduce((sum, value) => sum + value, 0) / values.length;
 
     const qualityScores = records
       .filter((record) => record.qualityScore !== null)
       .map((record) => record.qualityScore as number);
     const averageQualityScore =
       qualityScores.length > 0
-        ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
+        ? qualityScores.reduce((sum, score) => sum + score, 0) /
+          qualityScores.length
         : null;
 
     const half = Math.floor(values.length / 2);
@@ -172,10 +172,8 @@ export class ProductionRecordRepository implements IProductionRecordRepository {
       qualityScore: data.qualityScore ?? undefined,
       notes: data.notes ?? undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as SyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };
@@ -194,10 +192,8 @@ export class ProductionRecordRepository implements IProductionRecordRepository {
       fatherId: data.fatherId ?? undefined,
       motherId: data.motherId ?? undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as AnimalSyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       deletedAt: data.deletedAt ?? undefined,

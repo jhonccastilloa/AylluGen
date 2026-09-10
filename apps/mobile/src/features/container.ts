@@ -14,23 +14,14 @@ import { SyncApi } from '@/features/sync/services/SyncApi';
 import { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
 
 import authSession from '@/infrastructure/auth/AuthSession';
-import {
-  createDatabase,
-  getLegacyDatabase,
-  databaseReady,
-} from '@/infrastructure/database';
-import { importLegacy } from '@/infrastructure/database/importLegacy';
+import { createDatabase, databaseReady } from '@/infrastructure/database';
 import { uuid } from '@/features/sync/services/watermelonProtocol';
 import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
 
 function buildAccount(userId: string) {
   uuid.parse(userId); // safe, collision-free database filename
   const database = createDatabase(`ayllugen_sync_${userId}`);
-  const archive = getLegacyDatabase();
-  const ready = Promise.all([
-    databaseReady(database),
-    databaseReady(archive),
-  ]).then(() => importLegacy(archive, database, userId));
+  const ready = databaseReady(database);
   const sync = new SyncOrchestrator(
     database,
     userId,

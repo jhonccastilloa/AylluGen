@@ -4,7 +4,6 @@ import type { Subscription } from 'rxjs';
 import authSession from '@/infrastructure/auth/AuthSession';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { useSyncStore } from '@/store/useSyncStore';
-import { reconcileLegacyFirstPull } from '@/infrastructure/database/importLegacy';
 import {
   SYNC_TABLES,
   changeCounts,
@@ -148,18 +147,11 @@ export class SyncOrchestrator {
       const once = () =>
         synchronize({
           database: this.database,
-          migrationsEnabledAtVersion: 4,
           sendCreatedAsUpdated: true,
           pullChanges: async args => {
             this.assertSession();
             const result = await this.api.pull(args);
             this.assertSession();
-            if (!args.lastPulledAt)
-              await reconcileLegacyFirstPull(
-                this.database,
-                result.changes,
-                this.userId,
-              );
             console.info('sync.pull', {
               userId: this.userId,
               lastPulledAt: args.lastPulledAt ?? null,
@@ -191,10 +183,9 @@ export class SyncOrchestrator {
           conflictResolver: (_table, _local, remote, resolved) => ({
             ...resolved,
             created_at: remote.created_at,
-            updated_at: remote.updated_at,
             user_id: this.userId,
-            sync_status: 'SYNCED',
-            sync_version: 0,
+            // The native resolver retains dates of pending local edits.
+            updated_at: resolved.updated_at,
             deleted_at: null,
           }),
         });

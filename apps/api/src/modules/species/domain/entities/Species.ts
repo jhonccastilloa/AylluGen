@@ -4,6 +4,8 @@ export interface Species {
   name: string;
   description?: string;
   userId: string;
+  clientCreatedAt: Date;
+  clientUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -21,4 +23,3 @@ export interface SpeciesUpdateInput {
   name?: string;
   description?: string;
 }
-

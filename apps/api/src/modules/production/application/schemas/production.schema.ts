@@ -77,10 +77,12 @@ export const productionRecordResponseSchema = z
     qualityScore: z.number().nullable(),
     notes: z.string().nullable(),
     userId: z.uuid(),
-    syncStatus: z.enum(["SYNCED", "PENDING", "CONFLICT", "DELETED"]),
-    syncVersion: z.number(),
-    clientCreatedAt: z.iso.datetime().optional().describe("Fecha de creación en el dispositivo"),
-    clientUpdatedAt: z.iso.datetime().optional().describe("Fecha de modificación en el dispositivo"),
+    clientCreatedAt: z.iso
+      .datetime()
+      .describe("Fecha de creación en el dispositivo"),
+    clientUpdatedAt: z.iso
+      .datetime()
+      .describe("Fecha de modificación en el dispositivo"),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -119,8 +121,8 @@ export const productionRecordSummaryParamSchema = z.object({
 });
 
 export const productionReacordRecentQuerySchema = z.object({
-  limit: z
-    .coerce.number()
+  limit: z.coerce
+    .number()
     .int()
     .positive()
     .default(10)

@@ -122,12 +122,16 @@ export class HealthRecordService {
           "You do not have permission to view these health records",
         );
       }
-      const records = await this.healthRecordRepository.findByAnimalId(animalId);
+      const records =
+        await this.healthRecordRepository.findByAnimalId(animalId);
       return { records: records.map((record) => this.mapToResponse(record)) };
     }
 
     if (type) {
-      const records = await this.healthRecordRepository.findByType(userId, type);
+      const records = await this.healthRecordRepository.findByType(
+        userId,
+        type,
+      );
       return { records: records.map((record) => this.mapToResponse(record)) };
     }
 
@@ -146,7 +150,10 @@ export class HealthRecordService {
     userId: string,
     daysAhead?: number,
   ): Promise<{ tasks: UpcomingTaskResponse[] }> {
-    const tasks = await this.healthRecordRepository.findUpcoming(userId, daysAhead);
+    const tasks = await this.healthRecordRepository.findUpcoming(
+      userId,
+      daysAhead,
+    );
     return {
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -182,10 +189,8 @@ export class HealthRecordService {
       nextDueDate: record.nextDueDate?.toISOString() || null,
       completed: record.completed,
       userId: record.userId,
-      syncStatus: record.syncStatus,
-      syncVersion: record.syncVersion,
-      clientCreatedAt: (record.clientCreatedAt ?? record.createdAt).toISOString(),
-      clientUpdatedAt: (record.clientUpdatedAt ?? record.updatedAt).toISOString(),
+      clientCreatedAt: record.clientCreatedAt.toISOString(),
+      clientUpdatedAt: record.clientUpdatedAt.toISOString(),
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

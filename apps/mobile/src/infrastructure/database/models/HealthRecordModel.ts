@@ -12,8 +12,6 @@ export class HealthRecordModel extends Model {
   @field('next_due_date') nextDueDate!: number | null;
   @field('completed') completed!: boolean;
   @text('user_id') userId!: string;
-  @text('sync_status') recordSyncStatus!: string;
-  @field('sync_version') syncVersion!: number;
   @readonly @date('created_at') readonly createdAt!: Date;
   @readonly @date('updated_at') readonly updatedAt!: Date;
 }

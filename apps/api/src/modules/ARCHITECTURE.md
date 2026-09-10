@@ -15,7 +15,7 @@ Los módulos son auth, user, species, animal, breeding, health, production y syn
 - Mantener transacciones v2 locales a cada operación; no compartir cliente mutable entre requests.
 - Reutilizar AnimalRules y validadores cuando corresponda, sin invocar cadenas REST individuales por registro de un batch.
 - Usar errores de aplicación y logging sin payloads privados; no imprimir SQL con parámetros.
-- Conservar compatibilidad REST/legacy hasta verificar uso de clientes externos.
+- Mantener CRUD REST de negocio y únicamente sync v2 con schema 7. Se retiró el protocolo de cola antiguo; no reintroducir compatibilidad histórica.
 - Añadir migraciones SQL, no solo cambiar schema Prisma.
 - No purgar tombstones o recibos sin diseñar previamente expiración/rebootstrap seguro.
 - No confundir registro OpenAPI con registro de rutas o middleware.

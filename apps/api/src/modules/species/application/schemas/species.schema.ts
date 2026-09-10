@@ -71,6 +71,10 @@ export const speciesResponseSchema = z
     name: z.string().describe("Nombre visible de la especie"),
     description: z.string().nullable().describe("Descripción de la especie"),
     userId: z.string().describe("Identificador del usuario propietario"),
+    clientCreatedAt: z.iso
+      .datetime()
+      .describe("Fecha de creación en el origen"),
+    clientUpdatedAt: z.iso.datetime().describe("Fecha de edición en el origen"),
     createdAt: z.string().datetime().describe("Fecha de creación"),
     updatedAt: z.string().datetime().describe("Fecha de actualización"),
   })
@@ -83,6 +87,8 @@ export const speciesResponseSchema = z
       name: "Alpaca",
       description: "Camélido andino domesticado",
       userId: "123e4567-e89b-12d3-a456-426614174001",
+      clientCreatedAt: "2026-02-10T12:00:00.000Z",
+      clientUpdatedAt: "2026-02-10T12:00:00.000Z",
       createdAt: "2026-02-10T12:00:00.000Z",
       updatedAt: "2026-02-10T12:00:00.000Z",
     },
@@ -98,4 +104,3 @@ export const speciesIdParamSchema = z.object({
 export type SpeciesCreateInput = z.infer<typeof speciesCreateSchema>;
 export type SpeciesUpdateInput = z.infer<typeof speciesUpdateSchema>;
 export type SpeciesResponse = z.infer<typeof speciesResponseSchema>;
-

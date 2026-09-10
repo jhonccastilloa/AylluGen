@@ -4,7 +4,6 @@ import { IAnimalRepository } from "../../../../src/modules/animal/domain/reposit
 import {
   ProductionRecord,
   ProductionType,
-  SyncStatus,
 } from "../../../../src/modules/production/domain/entities/ProductionRecord";
 import {
   Animal,
@@ -36,8 +35,8 @@ describe("ProductionRecordService", () => {
     birthDate: new Date("2024-01-01"),
     isFounder: false,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };
@@ -52,8 +51,8 @@ describe("ProductionRecordService", () => {
     qualityScore: 8,
     notes: "Good quality wool",
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };

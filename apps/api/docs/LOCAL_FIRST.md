@@ -1,16 +1,6 @@
 # Local-First: diagnóstico y arquitectura implementada
 
-Revisado: 2026-09-05. La sección 1 conserva el diagnóstico histórico anterior al refactor; el resto describe el código actual. La integración móvil ya se implementó: ver [guía móvil](../../AylluGen-App/docs/LOCAL_FIRST_MOBILE.md).
-
-## 1. Arquitectura anterior
-
-Express 5 / TypeScript, módulos Clean Architecture con `presentation → application → domain/repositories → infrastructure`, Inversify singleton, Zod, Prisma 7 con adaptador `pg`, PostgreSQL y migraciones SQL. JWT de acceso y refresh tokens persistidos; bcrypt para registro/login. Winston, manejo central de errores y Swagger. No hay WebSockets/SSE, jobs, colas de background, uploads, pagos, OTP ni generación de reportes implementados.
-
-Antes del refactor móvil, WatermelonDB (schema 3) se combinaba con repositorios locales, CRUD REST y una cola `sync_queue` con protocolo propio. Esas referencias justificaron conservar endpoints para clientes antiguos. El móvil actual usa schema 4 y sync nativo; los adaptadores CRUD y la cola de ejecución fueron retirados, no los endpoints del servidor.
-
-El sync anterior recorre operaciones independientes, devuelve éxitos parciales, usa `updatedAt >= lastSyncAt`, omite tombstones para borrados físicos y tiene versiones por registro. Su controlador confiaba en `body.userId`; la resolución de conflictos no comprobaba propietario. El push admitía campos arbitrarios y podía devolver un registro ajeno ante colisión de ID. Estas brechas de ownership/columnas se cerraron también en el transporte legacy.
-
-El filtrado/paginación REST de animales se realiza en memoria después de cargar el rebaño. Salud, producción y cruzamientos tienen listados sin paginación general; el resumen de producción carga el historial. No se utiliza ese camino para el nuevo pull.
+Revisado: 2026-09-09. Un único contrato: sync v2 con schema móvil 7. Se retiró el protocolo de cola antiguo y la importación histórica del móvil. Los datos locales de desarrollo se descartan mediante una limpieza explícita antes de usar esta entrega. Ver [guía móvil](../../mobile/docs/LOCAL_FIRST_MOBILE.md) y [fechas de las entidades sincronizadas](ANIMAL_DEVICE_DATES.md).
 
 ## 2. Entidades y relaciones encontradas
 
@@ -46,13 +36,13 @@ No se añadieron dependencias, polling ni conexiones persistentes. La frecuencia
 
 ## 5. Contrato y versionado
 
-Ver [handoff para React Native](../.claude/docs/ai/watermelon-sync/api-handoff.md) y Swagger. Los endpoints requieren `Authorization: Bearer <access-token>`.
+Ver los esquemas ejecutables en `src/modules/sync/application/schemas/watermelon.schema.ts` y Swagger. Los endpoints requieren `Authorization: Bearer <access-token>`.
 
 ```http
 POST /api/sync/v2/pull
 Content-Type: application/json
 
-{"lastPulledAt":null,"schemaVersion":4,"migration":null}
+{"lastPulledAt":null,"schemaVersion":7,"migration":null}
 ```
 
 ```json
@@ -68,16 +58,16 @@ Content-Type: application/json
 }
 ```
 
-`timestamp` es un contador opaco por usuario; **no es una fecha**. `null`/`0` devuelve todos los registros vivos del scope propio. El pull normal consulta solo entradas con `version > lastPulledAt`. Devuelve la última imagen por registro, sin duplicar IDs. Una migración válida puede pedir el backfill completo de tablas/columnas permitidas; devolver más filas en ese caso es intencional. Solo se acepta schema móvil 4; cualquier futura versión debe negociarse y probarse antes de habilitarla.
+`timestamp` es un contador opaco por usuario; **no es una fecha**. `null`/`0` devuelve todos los registros vivos del scope propio. El pull normal consulta solo entradas con `version > lastPulledAt`. Devuelve la última imagen por registro, sin duplicar IDs. Solo se acepta schema móvil 7 y `migration: null`. No hay backfill de migraciones ni respuestas diferentes por versión; futuras ampliaciones requieren coordinación y pruebas.
 
 ```http
 POST /api/sync/v2/push
 Content-Type: application/json
 
-{"lastPulledAt":1,"changes":{"species":{"created":[{"id":"11223344-5566-4788-99aa-bbccddeeff00","code":"ALPACA","name":"Alpaca","description":null}],"updated":[],"deleted":[]}}}
+{"lastPulledAt":1,"changes":{"species":{"created":[{"id":"11223344-5566-4788-99aa-bbccddeeff00","code":"ALPACA","name":"Alpaca","description":null,"created_at":1788256800123,"updated_at":1788429600123}],"updated":[],"deleted":[]}}}
 ```
 
-Éxito: HTTP 204 sin cuerpo. Cada registro enviado es completo, no un PATCH. Se pueden omitir colecciones sin cambios. Fechas de eventos en milisegundos; columnas snake_case. No enviar `user_id`, `sync_status`, `sync_version` ni `deleted_at`. `created_at`/`updated_at`, `_status`/`_changed` se admiten para roundtrip pero se ignoran al escribir.
+Éxito: HTTP 204 sin cuerpo. Cada registro enviado es completo, no un PATCH. Se pueden omitir colecciones sin cambios. Fechas de eventos en milisegundos; columnas snake_case. No enviar `user_id`, `sync_status`, `sync_version` ni `deleted_at`. En las cinco entidades, `created_at`/`updated_at` son obligatorios y se guardan en `clientCreatedAt`/`clientUpdatedAt`; el pull devuelve esas mismas fechas. Los alias `client_created_at`/`client_updated_at` se rechazan. `createdAt`/`updatedAt` de Prisma son exclusivamente auditoría del servidor. La fecha de creación del cliente es inmutable al actualizar. `_status`/`_changed` nunca se persisten en PostgreSQL.
 
 ## 6. Checkpoint, concurrencia e idempotencia
 
@@ -93,10 +83,12 @@ El mutex es por usuario, no global. REST puede adquirir bloqueos de filas en otr
 
 ## 7. Base de datos y deletes
 
-Migraciones aditivas:
+Migraciones SQL conservadas (incluyen triggers indispensables):
 
 - `20260905010000_watermelon_sync`: crea `sync_clocks`, `sync_records`, `sync_receipts`; backfill de registros existentes a versión 1; triggers de altas/cambios/bajas y usuarios; FK de padres diferibles; índices.
 - `20260905020000_sync_ownership`: preflight de relaciones y constraint triggers diferidos que validan el estado final del batch para cada usuario. Aborta ante datos heredados inválidos sin transferir ownership ni borrar historia.
+
+La migración `20260909000000_remove_legacy_sync` elimina únicamente `sync_logs` y el enum `SyncAction` del protocolo retirado. No elimina clocks, records, receipts ni triggers. Debe aplicarse con el nuevo backend; no requiere vaciar las tablas de negocio.
 
 `sync_records` guarda una imagen JSON del último estado vivo, versión de creación, versión actual y fecha de cambio de DB. Al borrar, conserva ID, owner y versiones, y limpia el payload. Es una tabla de seguimiento/tombstones, **no un historial de auditoría de todas las revisiones**.
 
@@ -110,7 +102,7 @@ Las imágenes, triggers, índices parciales JSON, funciones y propiedades DEFERR
 
 Ownership siempre sale del JWT; el cuerpo v2 rechaza ownership/tablas/columnas no permitidas. Se validan IDs, tipos, enums, valores, referencias propias y activas, especie y sexo de padres, ciclos y estado final del batch. Los campos del servidor no son asignables. La colisión simultánea de un ID entre dos usuarios tampoco puede cambiar la imagen del ganador.
 
-Los datos devueltos pasan por un mapa explícito de columnas: nunca se serializan directamente objetos Prisma ni snapshots completos. SQL usa parámetros para valores y solo identificadores de una whitelist estática. Los constraints de relaciones protegen también entradas REST/legacy. Se corrigió el acceso arbitrario a `/users/:userId`: ahora exige que sea la cuenta autenticada.
+Los datos devueltos pasan por un mapa explícito de columnas: nunca se serializan directamente objetos Prisma ni snapshots completos. SQL usa parámetros para valores y solo identificadores de una whitelist estática. Los constraints de relaciones protegen también entradas REST. Se corrigió el acceso arbitrario a `/users/:userId`: ahora exige que sea la cuenta autenticada.
 
 `projected_coi` y `risk_level` siguen representando el resultado/estimación registrado, tal como en el CRUD anterior; no son una certificación calculada durante push. `/breedings/calculate-coi` sigue disponible para obtener el cálculo del motor del servidor. No se utiliza ese valor para permisos.
 
@@ -139,20 +131,17 @@ Para explotaciones mayores, diseñar un scope estable por unidad productiva/anim
 | GET /health, /ready, /live; /api-docs                                                                                                         | Se mantienen: operación/documentación                                           |
 | CRUD /animals, /species, /breedings, /sanity, /production                                                                                     | Compatibilidad; redundantes para las nuevas escrituras sincronizadas            |
 | /animals/founders, /males, /females, /:animalId/pedigree; /breedings/history/:animalId; /sanity/upcoming; /production/animal/:animalId/recent | Compatibilidad y consultas remotas; el nuevo móvil puede derivar vistas locales |
-| POST /sync/pull, /sync/push, /sync/resolve-conflict                                                                                           | Legacy deprecated, conservados con encabezado Deprecation/Link                  |
 
-No se eliminó ningún endpoint. No hay fecha automática de sunset. El CRUD no se marca globalmente deprecated porque otros clientes todavía lo necesitan. Sus escrituras aparecen en sync v2 gracias a los triggers. Las garantías Watermelon de atomicidad/conflictos son del contrato **v2**, no se atribuyen al protocolo legacy.
+Se eliminaron `/sync/pull`, `/sync/push` y `/sync/resolve-conflict`, su código, bindings y documentación OpenAPI. Devuelven 404 para peticiones autenticadas. Los CRUD REST de negocio permanecen; sus escrituras aparecen en sync v2 gracias a los triggers.
 
-## 11. Estrategia de despliegue y compatibilidad
+## 11. Instalación de desarrollo
 
-1. Respaldar y repetir `node scripts/audit-sync.cjs` contra el destino. El script es de solo lectura y muestra conteos, nunca credenciales ni payloads.
-2. Ejecutar las migraciones SQL con `npx prisma migrate deploy` usando el rol de migraciones. El backfill bloquea escrituras mientras instala el seguimiento: programar ventana según volumen. No usar `db push`.
-3. Solo después de que **ambas** migraciones terminen, desplegar el backend compilado y regenerar Prisma durante build. Si el preflight de la segunda falla, no habilitar v2; corregir datos con revisión, no marcar la migración como aplicada artificialmente.
-4. Distribuir el móvil con schema 4, migraciones y un SyncManager único. No reutilizar `lastSyncAt` ni versiones legacy como `lastPulledAt` nuevo.
-5. Conservar/exportar operaciones locales pendientes, mapearlas a los IDs conservados y hacer primer sync nativo; no resetear una base con cambios pendientes sin preservarlos. Mantener el protocolo anterior para las versiones móviles antiguas.
-6. Medir adopción, errores y volumen. Retirar el legacy solo después de verificar uso externo y versiones mínimas; no basta con quitar referencias de este repositorio.
+1. Aplicar las migraciones SQL existentes a un destino autorizado con `prisma migrate deploy`, regenerar Prisma y desplegar el backend. No sustituir SQL por `db push`.
+2. Limpiar una vez los datos locales de la app de desarrollo o reinstalar sin restaurar datos. Esto descarta pendientes locales y sesiones; no es un comportamiento automático de la app.
+3. Instalar el móvil actual con schema 7. No importar archivos ni checkpoints anteriores. Iniciar sesión y hacer el primer pull.
+4. Probar modo avión, reinicio, conflictos, reintentos y aislamiento por cuenta antes de distribuir.
 
-No se desplegó el backend ni se aplicaron estas migraciones sobre la base en ejecución. Se ejecutaron sobre PostgreSQL aislado y schemas de prueba con datos heredados, además de auditar el destino en modo lectura. Los cambios previos del usuario en Dockerfile, docker-compose, tsconfig y el índice OpenAPI se conservaron.
+La limpieza de código no despliega el backend ni borra bases externas. No se necesita vaciar PostgreSQL para retirar compatibilidad. Conservar las migraciones SQL y sus pruebas; consolidar el historial completo de Prisma sería una tarea diferente.
 
 ## 12. Observabilidad, verificación y pendientes
 
@@ -162,8 +151,8 @@ Se añadieron pruebas Jest contra PostgreSQL real y HTTP: first pull, incrementa
 
 Verificación histórica al implementar backend: 15 suites / 225 tests pasaron (51 casos nuevos, incluyendo PostgreSQL real, HTTP y migraciones), sin omitidos al definir la URL de integración. Typecheck, ESLint, build y aplicación limpia de siete migraciones pasaron. La auditoría de dependencias de esa instalación reportó 32 vulnerabilidades heredadas; ese número no es una auditoría vigente y no se actualizaron paquetes masivamente.
 
-Última comprobación, tras limpiar código muerto: 184 tests pasan y 41 casos PostgreSQL se omiten sin URL de integración; build y lint pasan. Se retiraron tres archivos sin importadores y dos métodos de repositorio sin consumidores, no rutas ni persistencia. No se repitió el despliegue ni la integración real en esa limpieza.
+Comprobación histórica previa a retirar compatibilidad: 184 tests pasan y 41 casos PostgreSQL se omiten sin URL de integración; build y lint pasan. Se retiraron tres archivos sin importadores y dos métodos de repositorio sin consumidores, no rutas ni persistencia. No se repitió el despliegue ni la integración real en esa limpieza.
 
 Para repetir integración: usar una base local aislada llamada `sync_test`, aplicar migraciones y definir `SYNC_TEST_DATABASE_URL` antes de `npm test -- --runInBand`. Sin esa variable se omiten explícitamente los casos que requieren PostgreSQL; las pruebas puras siguen ejecutándose. Los tests limpian exclusivamente usuarios y schemas creados por ellos.
 
-Implementado en móvil: migración 3→4, catálogo local, UUID, flujo único local, importación preservando pendientes, aislamiento por cuenta y backoff/errores visibles. No hay resolución automática de duplicados semánticos ni recuperación asistida completa desde UI. Pendientes: pruebas E2E de actualización/offline/conflictos, firma release, iOS y despliegue de migraciones/backend. Evaluar scopes para cuentas grandes y definir expiración antes de cualquier purga.
+Implementado en móvil: instalación limpia schema 7, catálogo local, UUID, flujo único local, aislamiento por cuenta y backoff/errores visibles. No hay resolución automática de duplicados semánticos ni recuperación asistida completa desde UI. Pendientes: pruebas E2E de actualización/offline/conflictos, firma release, iOS y despliegue de migraciones/backend. Evaluar scopes para cuentas grandes y definir expiración antes de cualquier purga.

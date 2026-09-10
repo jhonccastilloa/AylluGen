@@ -10,7 +10,14 @@ const empty = (): SyncChanges =>
   Object.fromEntries(
     SYNC_TABLES.map(t => [t, { created: [], updated: [], deleted: [] }]),
   );
-const species = { id, code: 'ALPACA', name: 'Alpaca', description: null };
+const species = {
+  id,
+  code: 'ALPACA',
+  name: 'Alpaca',
+  description: null,
+  created_at: 3,
+  updated_at: 4,
+};
 
 it('whitelists tables and columns without mutating Watermelon snapshots', () => {
   const changes = {
@@ -43,6 +50,37 @@ it('whitelists tables and columns without mutating Watermelon snapshots', () => 
 });
 it('supports empty sync', () => {
   expect(projectPush({})).toEqual(empty());
+});
+it('sends native animal dates only and restores exactly those dates on pull', () => {
+  const changes = empty();
+  const animal = {
+    id,
+    crotal: 'A',
+    sex: 'MALE',
+    species_id: id,
+    birth_date: null,
+    is_founder: true,
+    father_id: null,
+    mother_id: null,
+    created_at: 1700000000123,
+    updated_at: 1700000060456,
+  };
+  changes.animals.created.push({
+    ...animal,
+    client_created_at: 1,
+    client_updated_at: 2,
+    user_id: 'untrusted',
+    _status: 'created',
+    _changed: '',
+  });
+  const projected = projectPush(changes);
+  expect(projected.animals.created).toEqual([animal]);
+  const pulled = parsePull({ changes: projected, timestamp: 9 }, 'owner', null);
+  expect(pulled.changes.animals.created[0]).toEqual({
+    ...animal,
+    user_id: 'owner',
+    deleted_at: null,
+  });
 });
 it('rejects non-UUID IDs', () => {
   const c = empty();

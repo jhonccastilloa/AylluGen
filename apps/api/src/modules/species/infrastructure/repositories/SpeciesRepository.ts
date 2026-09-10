@@ -55,6 +55,8 @@ export class SpeciesRepository implements ISpeciesRepository {
       where: { id },
       data: {
         ...input,
+        // This REST mutation originates on the server, unlike mobile sync writes.
+        clientUpdatedAt: new Date(),
       },
     });
     return this.mapToEntity(species);
@@ -83,6 +85,8 @@ export class SpeciesRepository implements ISpeciesRepository {
       name: data.name,
       description: data.description ?? undefined,
       userId: data.userId,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       deletedAt: data.deletedAt ?? undefined,

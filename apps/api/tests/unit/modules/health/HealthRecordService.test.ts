@@ -4,7 +4,6 @@ import { IAnimalRepository } from "../../../../src/modules/animal/domain/reposit
 import {
   HealthRecord,
   HealthType,
-  SyncStatus,
 } from "../../../../src/modules/health/domain/entities/HealthRecord";
 import {
   Animal,
@@ -36,8 +35,8 @@ describe("HealthRecordService", () => {
     birthDate: new Date("2024-01-01"),
     isFounder: false,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };
@@ -51,8 +50,8 @@ describe("HealthRecordService", () => {
     nextDueDate: new Date("2025-01-01"),
     completed: true,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };

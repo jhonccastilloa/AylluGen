@@ -240,6 +240,17 @@ const HerdDashboardScreen = () => {
         )}
       </View>
 
+      <Text style={styles.animalMeta}>
+        {t('herd.registeredAt', {
+          date: new Date(item.createdAt).toLocaleString(),
+        })}
+      </Text>
+      <Text style={styles.animalMeta}>
+        {t('herd.modifiedAt', {
+          date: new Date(item.updatedAt).toLocaleString(),
+        })}
+      </Text>
+
       <View style={styles.cardActions}>
         <Pressable
           style={styles.cardActionButton}

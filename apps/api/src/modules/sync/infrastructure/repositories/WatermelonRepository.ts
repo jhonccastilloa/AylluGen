@@ -39,13 +39,10 @@ class PostgresSyncSession implements SyncSession {
     return rows[0].version;
   }
 
-  async changesSince(
-    checkpoint: bigint,
-    fullTables: SyncTable[],
-  ): Promise<TrackedRecord[]> {
+  async changesSince(checkpoint: bigint): Promise<TrackedRecord[]> {
     return this.tx.$queryRaw<TrackedRecord[]>`
       SELECT * FROM sync_records WHERE "userId" = ${this.userId}
-      AND (version > ${checkpoint} OR (NOT deleted AND "tableName" = ANY(${fullTables}::text[])))
+      AND version > ${checkpoint}
       AND (${checkpoint} <> 0 OR NOT deleted)
       ORDER BY version, "tableName", "recordId" LIMIT ${SYNC_LIMITS.pullRecords + 1}`;
   }
@@ -96,16 +93,14 @@ class PostgresSyncSession implements SyncSession {
       // Identifiers originate exclusively in the static server whitelist. Payloads are $1 values.
       const columns = ["id", "userId", ...Object.values(fields[table])];
       const quoted = columns.map((column) => `"${column}"`).join(", ");
-      const updates =
-        Object.values(fields[table])
-          .map((column) => `"${column}" = EXCLUDED."${column}"`)
-          .join(", ") +
-        (table === "species"
-          ? ""
-          : `, "syncVersion" = "${table}"."syncVersion" + 1, "syncStatus" = 'SYNCED', "clientUpdatedAt" = CURRENT_TIMESTAMP`);
+      const selected = quoted;
+      const updates = Object.values(fields[table])
+        .filter((column) => column !== "clientCreatedAt")
+        .map((column) => `"${column}" = EXCLUDED."${column}"`)
+        .join(", ");
       await this.tx.$executeRawUnsafe(
         `INSERT INTO "${table}" (${quoted}, "updatedAt")
-         SELECT ${quoted}, CURRENT_TIMESTAMP FROM jsonb_populate_recordset(NULL::"${table}", $1::jsonb)
+         SELECT ${selected}, CURRENT_TIMESTAMP FROM jsonb_populate_recordset(NULL::"${table}", $1::jsonb)
          ON CONFLICT (id) DO UPDATE SET ${updates} WHERE "${table}"."userId" = EXCLUDED."userId"`,
         JSON.stringify(records),
       );
@@ -116,7 +111,7 @@ class PostgresSyncSession implements SyncSession {
     if (!ids.length) return;
     if (table === "animals") {
       await this.tx
-        .$executeRaw`UPDATE animals SET "deletedAt" = clock_timestamp(), "syncStatus" = 'DELETED'
+        .$executeRaw`UPDATE animals SET "deletedAt" = clock_timestamp()
         WHERE "userId" = ${this.userId} AND id = ANY(${ids}::text[]) AND "deletedAt" IS NULL`;
     } else if (table === "species") {
       await this.tx
@@ -145,6 +140,7 @@ export class WatermelonRepository implements IWatermelonRepository {
     try {
       return await prisma.$transaction(
         async (tx) => {
+          await tx.$executeRaw`SET LOCAL TIME ZONE 'UTC'`;
           // Pull's counter and rows share one MVCC snapshot, without blocking writers.
           const session = new PostgresSyncSession(tx, userId);
           return work(session);

@@ -92,10 +92,12 @@ export const breedingResponseSchema = z
     breedingDate: z.string().datetime().nullable(),
     notes: z.string().nullable(),
     userId: z.string().uuid(),
-    syncStatus: z.enum(["SYNCED", "PENDING", "CONFLICT", "DELETED"]),
-    syncVersion: z.number(),
-    clientCreatedAt: z.iso.datetime().optional().describe("Fecha de creación en el dispositivo"),
-    clientUpdatedAt: z.iso.datetime().optional().describe("Fecha de modificación en el dispositivo"),
+    clientCreatedAt: z.iso
+      .datetime()
+      .describe("Fecha de creación en el dispositivo"),
+    clientUpdatedAt: z.iso
+      .datetime()
+      .describe("Fecha de modificación en el dispositivo"),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
@@ -113,9 +115,9 @@ export const breedingResponseSchema = z
       breedingDate: "2024-01-20T00:00:00Z",
       notes: "Good genetic match",
       userId: "123e4567-e89b-12d3-a456-426614174001",
-      syncStatus: "SYNCED",
-      syncVersion: 1,
       createdAt: "2024-01-20T00:00:00Z",
+      clientCreatedAt: "2024-01-13T00:00:00Z",
+      clientUpdatedAt: "2024-01-15T00:00:00Z",
       updatedAt: "2024-01-20T00:00:00Z",
     },
   });

@@ -71,22 +71,13 @@ export class WatermelonService {
         const timestamp = await session.checkpoint();
         const since = BigInt(input.lastPulledAt ?? 0);
         this.validateCheckpoint(since, timestamp);
-        const fullTables = [
-          ...new Set([
-            ...(input.migration?.tables ?? []),
-            ...(input.migration?.columns.map((item) => item.table) ?? []),
-          ]),
-        ];
-        const rows = await session.changesSince(since, fullTables);
+        const rows = await session.changesSince(since);
         if (rows.length > SYNC_LIMITS.pullRecords) throw new SyncScopeError();
         const changes = emptyChanges();
         for (const row of rows) {
           if (row.deleted) changes[row.tableName].deleted.push(row.recordId);
           else if (row.data) {
-            const created =
-              since === 0n ||
-              row.createdVersion > since ||
-              (input.migration?.tables.includes(row.tableName) ?? false);
+            const created = since === 0n || row.createdVersion > since;
             changes[row.tableName][created ? "created" : "updated"].push(
               toRaw(row.tableName, row.data),
             );
@@ -172,12 +163,11 @@ export class WatermelonService {
     for (const table of SYNC_TABLES) {
       const inputChanges = input.changes[table];
       if (!inputChanges) continue;
-      // Strip server dates and Watermelon internals before both hashing and persistence.
+      // Native device dates participate in persistence and idempotency for every table.
       for (const operation of ["created", "updated"] as const) {
         changes[table][operation] = inputChanges[operation]
           .map((value) => {
-            const { _status, _changed, created_at, updated_at, ...record } =
-              value;
+            const { _status, _changed, ...record } = value;
             return record as RawRecord;
           })
           .sort((a, b) => a.id.localeCompare(b.id));

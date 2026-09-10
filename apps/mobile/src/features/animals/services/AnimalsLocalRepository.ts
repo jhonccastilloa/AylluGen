@@ -9,7 +9,6 @@ import type {
   Sex,
   Species,
 } from '@/features/animals/interfaces/animals.types';
-import type { SyncStatus } from '@/features/shared/interfaces/common.types';
 import { isoToTimestamp, timestampToIso } from '@/features/shared/utils/date';
 import { generateUuid } from '@/features/shared/utils/id';
 import {
@@ -18,9 +17,6 @@ import {
 } from '@/infrastructure/database/localRules';
 import type { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
 import type { BreedingModel } from '@/infrastructure/database/models/BreedingModel';
-
-const toIsoOrEmpty = (value?: Date | null): string =>
-  value?.toISOString() ?? new Date(0).toISOString();
 
 const toDomain = (model: AnimalModel): Animal => ({
   id: model.id,
@@ -34,12 +30,8 @@ const toDomain = (model: AnimalModel): Animal => ({
   fatherId: model.fatherId ?? null,
   motherId: model.motherId ?? null,
   userId: model.userId,
-  syncStatus: (model.syncStatus === 'synced'
-    ? 'SYNCED'
-    : 'PENDING') as SyncStatus,
-  syncVersion: model.syncVersion,
-  createdAt: toIsoOrEmpty(model.createdAt),
-  updatedAt: toIsoOrEmpty(model.updatedAt),
+  createdAt: model.createdAt.toISOString(),
+  updatedAt: model.updatedAt.toISOString(),
   deletedAt: timestampToIso(model.deletedAt),
 });
 
@@ -76,7 +68,7 @@ export class AnimalsLocalRepository {
     let animals = records
       .map(row => {
         const item = toDomain(row);
-        const kind = species.get(row.speciesId ?? '');
+        const kind = species.get(row.speciesId);
         return {
           ...item,
           species: kind?.code ?? item.species,
@@ -114,14 +106,12 @@ export class AnimalsLocalRepository {
       const model = await this.collection.find(id);
       if (model.syncStatus === 'deleted') return null;
       const animal = toDomain(model);
-      const kind = model.speciesId
-        ? (
-            await this.database
-              .get<SpeciesModel>('species')
-              .query(Q.where('id', model.speciesId))
-              .fetch()
-          )[0]
-        : undefined;
+      const kind = (
+        await this.database
+          .get<SpeciesModel>('species')
+          .query(Q.where('id', model.speciesId))
+          .fetch()
+      )[0];
       if (kind) {
         animal.species = kind.code;
         animal.speciesName = kind.name;
@@ -142,11 +132,7 @@ export class AnimalsLocalRepository {
       const species = (
         await this.database
           .get<SpeciesModel>('species')
-          .query(
-            input.speciesId
-              ? Q.where('id', input.speciesId)
-              : Q.where('code', input.speciesCode ?? input.species),
-          )
+          .query(Q.where('id', input.speciesId))
           .fetch()
       )[0];
       if (!species)
@@ -166,15 +152,13 @@ export class AnimalsLocalRepository {
         (record._raw as { id: string }).id = id;
         record.crotal = input.crotal;
         record.sex = input.sex;
-        record.species = (input.speciesCode ?? input.species) as Species;
-        record.speciesId = input.speciesId ?? null;
+        record.species = species.code;
+        record.speciesId = species.id;
         record.birthDate = birthDate;
         record.isFounder = input.isFounder ?? false;
         record.fatherId = input.fatherId ?? null;
         record.motherId = input.motherId ?? null;
         record.userId = userId;
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion = 1;
         record.deletedAt = null;
       });
     });
@@ -218,8 +202,6 @@ export class AnimalsLocalRepository {
         if (input.motherId !== undefined) {
           record.motherId = input.motherId ?? null;
         }
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion += 1;
       });
     });
 

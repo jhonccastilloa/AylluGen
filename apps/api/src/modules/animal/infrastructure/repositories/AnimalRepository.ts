@@ -6,7 +6,6 @@ import {
   AnimalUpdateDTO,
   Sex,
   SpeciesCode,
-  SyncStatus,
 } from "../../../animal/domain/entities/Animal";
 import { IAnimalRepository } from "../../../animal/domain/repositories/IAnimalRepository";
 
@@ -58,7 +57,6 @@ export class AnimalRepository implements IAnimalRepository {
       data: {
         ...data,
         clientUpdatedAt: new Date(),
-        syncVersion: { increment: 1 },
       },
       include: { speciesCatalog: true },
     });
@@ -71,8 +69,6 @@ export class AnimalRepository implements IAnimalRepository {
       where: { id },
       data: {
         deletedAt: new Date(),
-        syncStatus: "DELETED",
-        syncVersion: { increment: 1 },
       },
     });
   }
@@ -179,10 +175,8 @@ export class AnimalRepository implements IAnimalRepository {
       mother: data.mother ? this.mapToEntity(data.mother) : undefined,
       children: undefined,
       userId: data.userId,
-      syncStatus: data.syncStatus as SyncStatus,
-      syncVersion: data.syncVersion,
-      clientCreatedAt: data.clientCreatedAt ?? data.createdAt,
-      clientUpdatedAt: data.clientUpdatedAt ?? data.updatedAt,
+      clientCreatedAt: data.clientCreatedAt,
+      clientUpdatedAt: data.clientUpdatedAt,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       deletedAt: data.deletedAt ?? undefined,

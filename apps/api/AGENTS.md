@@ -92,7 +92,7 @@ Current modules: user, auth, species, animal, breeding, health, production, sync
 - Use InversifyJS for DI
 - All services/controllers: add `@injectable()` decorator
 - Inject dependencies: `@inject(TYPE_IUserRepository) private userRepository: IUserRepository`
-- Match existing DI bindings: legacy modules use `TYPES` from shared/di; Watermelon uses `TYPE_IWatermelonRepository` plus class bindings. Do not invent a different token for an existing binding.
+- Match existing DI bindings: business modules use `TYPES` from shared/di; Watermelon uses `TYPE_IWatermelonRepository` plus class bindings. Do not invent a different token for an existing binding.
 
 ## Zod Schemas (No DTOs)
 
@@ -168,11 +168,11 @@ Wrap route handlers: `router.post('/register', validate(registerSchema), asyncHa
 
 ## Sync and compatibility
 
-- Only schema 4 is currently accepted by POST /api/sync/v2/pull; push is atomic and returns 204.
+- POST /api/sync/v2/pull accepts only schema 7 and migration null. Push is atomic and returns 204. All five entities' native created_at/updated_at are required and map directly to Prisma clientCreatedAt/clientUpdatedAt both ways. No old date aliases or fallback to server time. Server audit/checkpoints remain independent.
 - Checkpoints are monotonic per-owner counters, not wall-clock timestamps. Pull uses a consistent snapshot.
 - Derive owner from JWT; whitelist tables/columns and validate final relationships and conflicts.
-- Preserve REST and deprecated queue endpoints until external client usage is checked.
+- Business REST endpoints remain. The old queue endpoints, service, repository, schemas and SyncLog are removed. Do not restore legacy compatibility. None of the five synchronized business entities stores syncStatus/syncVersion; tracking belongs only to Watermelon internals and server clocks/records/receipts.
 - Never purge tombstones/receipts without a checkpoint expiry and safe rebootstrap protocol.
 - General rate limiting is not currently mounted; authLimiter is mounted for register/login/logout. Do not document blanket rate limiting.
 - OpenAPI does not yet register species. Route registration does not automatically update Swagger.
-- Integration cases need SYNC_TEST_DATABASE_URL pointing to isolated sync_test, never production. Latest cleanup run: 184 pass, 41 DB cases skipped; build/lint pass.
+- Integration cases need SYNC_TEST_DATABASE_URL pointing to isolated sync_test, never production. SQL migrations install required triggers/constraints; retain that history even though mobile historical migrations are removed.

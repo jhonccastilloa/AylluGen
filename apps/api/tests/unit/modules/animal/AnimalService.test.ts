@@ -3,7 +3,6 @@ import { IAnimalRepository } from "../../../../src/modules/animal/domain/reposit
 import {
   Animal,
   Sex,
-  SyncStatus,
 } from "../../../../src/modules/animal/domain/entities/Animal";
 import {
   ConflictError,
@@ -36,8 +35,8 @@ describe("AnimalService", () => {
     fatherId,
     motherId,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2024-01-01"),
+    clientUpdatedAt: new Date("2024-01-01"),
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
   };
@@ -51,8 +50,8 @@ describe("AnimalService", () => {
     birthDate: new Date("2023-01-01"),
     isFounder: true,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2023-01-01"),
+    clientUpdatedAt: new Date("2023-01-01"),
     createdAt: new Date("2023-01-01"),
     updatedAt: new Date("2023-01-01"),
   };
@@ -66,8 +65,8 @@ describe("AnimalService", () => {
     birthDate: new Date("2023-01-01"),
     isFounder: true,
     userId,
-    syncStatus: SyncStatus.SYNCED,
-    syncVersion: 1,
+    clientCreatedAt: new Date("2023-01-01"),
+    clientUpdatedAt: new Date("2023-01-01"),
     createdAt: new Date("2023-01-01"),
     updatedAt: new Date("2023-01-01"),
   };
@@ -75,13 +74,11 @@ describe("AnimalService", () => {
   beforeEach(() => {
     container = new Container({ autobind: true });
     container.bind<SpeciesService>(TYPES.SpeciesService).toConstantValue({
-      resolveSpeciesForAnimal: jest
-        .fn()
-        .mockResolvedValue({
-          speciesId: "species-sheep",
-          speciesCode: "SHEEP",
-          speciesName: "Sheep",
-        }),
+      resolveSpeciesForAnimal: jest.fn().mockResolvedValue({
+        speciesId: "species-sheep",
+        speciesCode: "SHEEP",
+        speciesName: "Sheep",
+      }),
     } as unknown as SpeciesService);
     animalRepository = {
       findById: jest.fn(),

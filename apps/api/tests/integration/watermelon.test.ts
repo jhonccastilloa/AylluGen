@@ -14,6 +14,7 @@ import {
 } from "../../src/modules/sync/application/schemas/watermelon.schema";
 import {
   Changes,
+  SYNC_TABLES,
   RawRecord,
   SyncTable,
 } from "../../src/modules/sync/domain/entities/Watermelon";
@@ -48,6 +49,8 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
     code: "ALPACA",
     name: "Alpaca",
     description: null,
+    created_at: 1700000000000,
+    updated_at: 1700000060000,
   });
   const animal = (
     speciesId: string,
@@ -62,6 +65,8 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       is_founder: true,
       father_id: null,
       mother_id: null,
+      created_at: 1700000000000,
+      updated_at: 1700000060000,
       ...extra,
     }) as RawRecord;
   const health = (animalId: string): RawRecord => ({
@@ -72,6 +77,8 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
     notes: null,
     next_due_date: null,
     completed: true,
+    created_at: 1700000000000,
+    updated_at: 1700000060000,
   });
   const change = (
     created: RawRecord[] = [],
@@ -81,7 +88,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
   const pull = (since: number | null = null, owner = userId) =>
     service.pull(
       owner,
-      watermelonPullSchema.parse({ lastPulledAt: since, schemaVersion: 4 }),
+      watermelonPullSchema.parse({ lastPulledAt: since, schemaVersion: 7 }),
     );
   const push = (changes: Partial<Changes>, since: number, owner = userId) =>
     service.push(
@@ -151,6 +158,130 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       ),
     ).toBe(true);
   });
+  it.each(SYNC_TABLES)(
+    "%s round-trips device dates independently of server audit, retries and clock skew",
+    async (table) => {
+      const createdAt = Date.parse("2026-09-01T10:00:00.123Z");
+      const updatedAt = createdAt + 2 * 86400000;
+      const dates = { created_at: createdAt, updated_at: updatedAt };
+      const kind = { ...species(), ...dates };
+      const male = animal(kind.id, { sex: "MALE", ...dates });
+      const female = animal(kind.id, dates);
+      const records: Record<SyncTable, RawRecord> = {
+        species: kind,
+        animals: male,
+        breedings: {
+          id: randomUUID(),
+          male_id: male.id,
+          female_id: female.id,
+          projected_coi: 0,
+          risk_level: "GREEN",
+          offspring_id: null,
+          breeding_date: 1600000000000,
+          notes: null,
+          ...dates,
+        },
+        health_records: { ...health(male.id), ...dates },
+        production_records: {
+          id: randomUUID(),
+          animal_id: male.id,
+          type: "WEIGHT",
+          date: 1600000000000,
+          value: 50,
+          unit: "kg",
+          quality_score: null,
+          notes: null,
+          ...dates,
+        },
+      };
+      const changes = Object.fromEntries(
+        SYNC_TABLES.map((t) => [t, change([records[t]])]),
+      );
+      changes.animals.created.push(female);
+      await push(changes, 1);
+      const firstPull = await pull();
+      const original = records[table];
+      expect(
+        firstPull.changes[table].created.find((r) => r.id === original.id),
+      ).toEqual(original);
+      const read = async () =>
+        (
+          await prisma.$queryRawUnsafe<
+            {
+              clientCreatedAt: Date;
+              clientUpdatedAt: Date;
+              createdAt: Date;
+              updatedAt: Date;
+            }[]
+          >(`SELECT * FROM "${table}" WHERE id = $1`, original.id)
+        )[0];
+      const firstRow = await read();
+      expect(firstRow.clientCreatedAt.getTime()).toBe(createdAt);
+      expect(firstRow.clientUpdatedAt.getTime()).toBe(updatedAt);
+      expect(firstRow.createdAt.getTime()).toBeGreaterThan(updatedAt);
+      expect(firstRow).not.toHaveProperty("syncStatus");
+      expect(firstRow).not.toHaveProperty("syncVersion");
+      // A lost response must not restamp dates or move the checkpoint when retried.
+      await push(changes, 1);
+      expect(await read()).toEqual(firstRow);
+      expect((await pull()).timestamp).toBe(firstPull.timestamp);
+      const columns: Record<SyncTable, string> = {
+        species: "name",
+        animals: "crotal",
+        breedings: "notes",
+        health_records: "notes",
+        production_records: "notes",
+      };
+      const edited = {
+        ...original,
+        [columns[table]]: "Edited",
+        created_at: createdAt + 1,
+        updated_at: 0,
+      };
+      await push({ [table]: change([], [edited]) }, firstPull.timestamp);
+      const delta = await pull(firstPull.timestamp);
+      expect(delta.changes[table].updated).toEqual([
+        { ...edited, created_at: createdAt },
+      ]);
+      expect(delta.timestamp).toBeGreaterThan(firstPull.timestamp);
+      const row = await read();
+      expect(row.clientCreatedAt).toEqual(firstRow.clientCreatedAt);
+      expect(row.clientUpdatedAt.getTime()).toBe(0);
+      expect(row.createdAt).toEqual(firstRow.createdAt);
+      expect(row.updatedAt.getTime()).toBeGreaterThan(
+        firstRow.updatedAt.getTime(),
+      );
+      expect(
+        (await pull()).changes[table].created.find((r) => r.id === original.id),
+      ).toEqual({ ...edited, created_at: createdAt });
+      expect((await pull(delta.timestamp)).changes[table]).toEqual(change());
+      for (const field of ["created_at", "updated_at"]) {
+        const missing = { ...original };
+        delete missing[field];
+        expect(
+          watermelonPushSchema.safeParse({
+            lastPulledAt: 1,
+            changes: { [table]: change([missing]) },
+          }).success,
+        ).toBe(false);
+      }
+      for (const field of [
+        "client_created_at",
+        "client_updated_at",
+        "sync_status",
+        "sync_version",
+        "createdAt",
+        "updatedAt",
+      ]) {
+        expect(
+          watermelonPushSchema.safeParse({
+            lastPulledAt: 1,
+            changes: { [table]: change([{ ...original, [field]: 1 }]) },
+          }).success,
+        ).toBe(false);
+      }
+    },
+  );
   it("first pull returns only the owned initial dataset", async () => {
     const { s, a, h } = await seed();
     const result = await pull(0);
@@ -357,10 +488,75 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
   it("does not use forged client timestamps for ordering", async () => {
     const s = { ...species(), created_at: 1, updated_at: 1 };
     await push({ species: change([s]) }, 1);
-    expect(
-      (await pull()).changes.species.created[0].created_at,
-    ).toBeGreaterThan(1);
+    expect((await pull()).changes.species.created[0].created_at).toBe(1);
+    expect((await pull()).timestamp).toBeGreaterThan(1);
   });
+
+  it("round-trips native animal dates through client timestamps, independently of server audit", async () => {
+    const s = species();
+    const created = Date.parse("2026-09-01T10:00:00.123Z");
+    const updated = created + 2 * 86400000;
+    const a = animal(s.id, { created_at: created, updated_at: updated });
+    const currentPull = (since: number | null = null) =>
+      service.pull(
+        userId,
+        watermelonPullSchema.parse({ lastPulledAt: since, schemaVersion: 7 }),
+      );
+    await push({ species: change([s]), animals: change([a]) }, 1);
+    const first = await currentPull();
+    const remote = first.changes.animals.created[0];
+    expect(remote).toMatchObject(a);
+    expect(remote).not.toHaveProperty("client_created_at");
+    expect(remote).not.toHaveProperty("client_updated_at");
+    const stored = await prisma.animal.findUniqueOrThrow({
+      where: { id: a.id },
+    });
+    expect(stored.clientCreatedAt.getTime()).toBe(created);
+    expect(stored.clientUpdatedAt.getTime()).toBe(updated);
+    expect(stored.createdAt.getTime()).not.toBe(created);
+    expect(stored.updatedAt.getTime()).not.toBe(updated);
+    // A device clock can move backwards. Only the checkpoint determines the delta.
+    const nextUpdated = updated - 3600000;
+    const edits = {
+      animals: change(
+        [],
+        [
+          {
+            ...a,
+            crotal: "NATIVE EDIT",
+            created_at: updated,
+            updated_at: nextUpdated,
+          },
+        ],
+      ),
+    };
+    await push(edits, first.timestamp);
+    const afterEdit = await prisma.animal.findUniqueOrThrow({
+      where: { id: a.id },
+    });
+    await push(edits, first.timestamp); // exact retry must not restamp either clock
+    expect(
+      await prisma.animal.findUniqueOrThrow({ where: { id: a.id } }),
+    ).toEqual(afterEdit);
+    const second = await currentPull(first.timestamp);
+    expect(second.timestamp).toBeGreaterThan(first.timestamp);
+    expect(second.changes.animals.updated[0]).toMatchObject({
+      created_at: created,
+      updated_at: nextUpdated,
+    });
+    expect(afterEdit.createdAt).toEqual(stored.createdAt);
+    expect(afterEdit.updatedAt.getTime()).toBeGreaterThanOrEqual(
+      stored.updatedAt.getTime(),
+    );
+    expect((await currentPull(second.timestamp)).changes.animals).toEqual(
+      change(),
+    );
+    expect((await currentPull()).changes.animals.created[0]).toMatchObject({
+      created_at: created,
+      updated_at: nextUpdated,
+    });
+  });
+
   it("soft deleting an animal emits dependent tombstones and detaches pedigree links", async () => {
     const { s, a, h, checkpoint } = await seed();
     const child = animal(s.id, { mother_id: a.id });
@@ -396,23 +592,6 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
     await expect(
       push({ species: change([s]), animals: change([a, b]) }, 1),
     ).rejects.toMatchObject({ statusCode: 400 });
-  });
-  it("backfills whitelisted migration tables and columns even below checkpoint", async () => {
-    const { s, checkpoint } = await seed();
-    const result = await service.pull(
-      userId,
-      watermelonPullSchema.parse({
-        lastPulledAt: checkpoint,
-        schemaVersion: 4,
-        migration: {
-          from: 3,
-          tables: ["species"],
-          columns: [{ table: "animals", columns: ["species_id"] }],
-        },
-      }),
-    );
-    expect(result.changes.species.created[0].id).toBe(s.id);
-    expect(result.changes.animals.updated).toHaveLength(1);
   });
   it("conflicting concurrent pushes allow exactly one writer", async () => {
     const { s, checkpoint } = await seed();
@@ -456,9 +635,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
         where: { id: s.id },
         data: { name: "between queries" },
       });
-      expect(await session.changesSince(BigInt(checkpoint), [])).toHaveLength(
-        0,
-      );
+      expect(await session.changesSince(BigInt(checkpoint))).toHaveLength(0);
     });
     expect((await pull(checkpoint)).changes.species.updated[0].name).toBe(
       "between queries",
@@ -509,7 +686,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       (
         await call(
           "/sync/v2/pull",
-          { lastPulledAt: null, schemaVersion: 4 },
+          { lastPulledAt: null, schemaVersion: 7 },
           false,
         )
       ).status,
@@ -518,7 +695,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       (
         await call("/sync/v2/pull", {
           lastPulledAt: null,
-          schemaVersion: 4,
+          schemaVersion: 7,
           userId: randomUUID(),
         })
       ).status,
@@ -534,7 +711,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
     ).toBe(204);
     const result = await call("/sync/v2/pull", {
       lastPulledAt: null,
-      schemaVersion: 4,
+      schemaVersion: 7,
     });
     expect(result.status).toBe(200);
     expect(
@@ -546,25 +723,21 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       403,
     );
   });
-  it("legacy pull derives owner from JWT even when the body claims another account", async () => {
-    const { a } = await seed();
-    const other = await newUser();
-    const response = await fetch(`${baseUrl}/sync/pull`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${generateAccessToken({ userId: other, dni: "test" })}`,
-      },
-      body: JSON.stringify({ userId, deviceId: "legacy", tables: ["animals"] }),
-    });
-    expect(response.status).toBe(200);
-    expect(response.headers.has("deprecation")).toBe(true);
-    expect(
-      ((await response.json()) as { animals: RawRecord[] }).animals.some(
-        (record) => record.id === a.id,
-      ),
-    ).toBe(false);
-  });
+  it.each(["/sync/pull", "/sync/push", "/sync/resolve-conflict"])(
+    "does not expose the old queue endpoint %s",
+    async (path) => {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+        },
+        body: JSON.stringify({}),
+      });
+      expect(response.status).toBe(404);
+      expect(response.headers.has("deprecation")).toBe(false);
+    },
+  );
   it("HTTP rejects oversized payloads without logging or applying their contents", async () => {
     const response = await fetch(`${baseUrl}/sync/v2/push`, {
       method: "POST",
@@ -588,7 +761,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
         "content-type": "application/json",
         authorization: "Bearer invalid.token",
       },
-      body: JSON.stringify({ lastPulledAt: null, schemaVersion: 4 }),
+      body: JSON.stringify({ lastPulledAt: null, schemaVersion: 7 }),
     });
     expect(invalidToken.status).toBe(401);
     const invalidJson = await fetch(`${baseUrl}/sync/v2/push`, {
@@ -615,6 +788,8 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
               offspring_id: null,
               breeding_date: null,
               notes: null,
+              created_at: 1700000000000,
+              updated_at: 1700000060000,
             }
           : {
               id: randomUUID(),
@@ -625,6 +800,8 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
               unit: "kg",
               quality_score: null,
               notes: null,
+              created_at: 1700000000000,
+              updated_at: 1700000060000,
             };
       let since = (await pull()).timestamp;
       await push({ [table]: change([record]) }, since);
@@ -645,6 +822,43 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
 });
 
 describe("Watermelon request whitelist", () => {
+  it("validates animal device timestamps without accepting legacy row tracking", () => {
+    const a = {
+      id: randomUUID(),
+      crotal: "A",
+      sex: "MALE",
+      species_id: randomUUID(),
+      birth_date: null,
+      is_founder: true,
+      father_id: null,
+      mother_id: null,
+      created_at: 1700000000000,
+      updated_at: 1700000060000,
+    };
+    const input = (record: object) => ({
+      lastPulledAt: 1,
+      changes: {
+        animals: { created: [record], updated: [], deleted: [] },
+      },
+    });
+    expect(watermelonPushSchema.safeParse(input(a)).success).toBe(true);
+    for (const record of [
+      { ...a, created_at: undefined },
+      { ...a, updated_at: undefined },
+      { ...a, client_created_at: a.created_at },
+      { ...a, client_updated_at: a.updated_at },
+    ])
+      expect(watermelonPushSchema.safeParse(input(record)).success).toBe(false);
+    for (const invalid of ["yesterday", null, 1.5, Number.MAX_SAFE_INTEGER])
+      expect(
+        watermelonPushSchema.safeParse(input({ ...a, updated_at: invalid }))
+          .success,
+      ).toBe(false);
+    expect(
+      watermelonPushSchema.safeParse(input({ ...a, syncStatus: "SYNCED" }))
+        .success,
+    ).toBe(false);
+  });
   it.each([
     { lastPulledAt: -1, changes: {} },
     { lastPulledAt: 1.5, changes: {} },
@@ -694,10 +908,19 @@ describe("Watermelon request whitelist", () => {
     ).toBe(false);
   });
   it("rejects forbidden migration columns and schema versions", () => {
+    for (const schemaVersion of [1, 2, 3, 4, 5, 6, 8])
+      expect(
+        watermelonPullSchema.safeParse({ lastPulledAt: null, schemaVersion })
+          .success,
+      ).toBe(false);
+    expect(
+      watermelonPullSchema.safeParse({ lastPulledAt: null, schemaVersion: 7 })
+        .success,
+    ).toBe(true);
     expect(
       watermelonPullSchema.safeParse({
         lastPulledAt: 1,
-        schemaVersion: 4,
+        schemaVersion: 7,
         migration: {
           from: 3,
           tables: [],
@@ -767,6 +990,102 @@ suite("Watermelon migrations on persisted legacy rows", () => {
         "utf8",
       ),
     );
+  it("unifies persisted snapshots without resetting counters, receipts or tombstones", async () => {
+    const owner = randomUUID();
+    const kind = randomUUID();
+    const male = randomUUID();
+    const female = randomUUID();
+    await client.query(
+      "INSERT INTO users (id,dni,password,\"updatedAt\") VALUES ($1,$1,'test',now())",
+      [owner],
+    );
+    await client.query(
+      "INSERT INTO species (id,code,name,\"userId\",\"updatedAt\") VALUES ($1,'ALPACA','Alpaca',$2,now())",
+      [kind, owner],
+    );
+    await client.query(
+      "INSERT INTO animals (id,crotal,sex,\"speciesId\",\"userId\",\"updatedAt\") VALUES ($1,'M','MALE',$3,$4,now()),($2,'F','FEMALE',$3,$4,now())",
+      [male, female, kind, owner],
+    );
+    await client.query(
+      'INSERT INTO breedings (id,"maleId","femaleId","projectedCOI","riskLevel","userId","updatedAt") VALUES ($1,$2,$3,0,\'GREEN\',$4,now())',
+      [randomUUID(), male, female, owner],
+    );
+    await client.query(
+      'INSERT INTO health_records (id,"animalId",type,date,"userId","updatedAt") VALUES ($1,$2,\'CHECKUP\',now(),$3,now())',
+      [randomUUID(), male, owner],
+    );
+    const production = randomUUID();
+    await client.query(
+      'INSERT INTO production_records (id,"animalId",type,date,value,unit,"userId","updatedAt") VALUES ($1,$2,\'WEIGHT\',now(),50,\'kg\',$3,now())',
+      [production, male, owner],
+    );
+    for (const name of [
+      "20260905010000_watermelon_sync",
+      "20260905020000_sync_ownership",
+      "20260908000000_animal_device_dates",
+      "20260909000000_remove_legacy_sync",
+    ])
+      await migrate(name);
+    await client.query("DELETE FROM production_records WHERE id=$1", [
+      production,
+    ]);
+    await client.query(
+      "INSERT INTO sync_receipts (\"userId\",hash) VALUES ($1,'confirmed')",
+      [owner],
+    );
+    const snapshotQuery =
+      'SELECT * FROM sync_records ORDER BY "tableName", "recordId"';
+    const before = (await client.query(snapshotQuery)).rows;
+    const clocks = (await client.query("SELECT * FROM sync_clocks")).rows;
+    const receipts = (await client.query("SELECT * FROM sync_receipts")).rows;
+    await migrate("20260910000000_unify_device_timestamps");
+    const after = (await client.query(snapshotQuery)).rows;
+    for (const [index, row] of after.entries()) {
+      expect({ ...row, data: null }).toEqual({ ...before[index], data: null });
+      if (row.data) {
+        const {
+          syncStatus: _status,
+          syncVersion: _version,
+          ...data
+        } = before[index].data;
+        expect(row.data).toMatchObject(data);
+        expect(row.data).not.toHaveProperty("syncStatus");
+        expect(row.data).not.toHaveProperty("syncVersion");
+        expect(row.data.clientCreatedAt).toBeDefined();
+        expect(row.data.clientUpdatedAt).toBeDefined();
+      } else expect(row.recordId).toBe(production);
+    }
+    expect((await client.query("SELECT * FROM sync_clocks")).rows).toEqual(
+      clocks,
+    );
+    expect((await client.query("SELECT * FROM sync_receipts")).rows).toEqual(
+      receipts,
+    );
+    expect(
+      (
+        await client.query(
+          'SELECT data FROM sync_records WHERE "recordId"=$1',
+          [kind],
+        )
+      ).rows[0].data,
+    ).toEqual(
+      (
+        await client.query(
+          "SELECT to_jsonb(s) AS data FROM species s WHERE id=$1",
+          [kind],
+        )
+      ).rows[0].data,
+    );
+    expect(
+      (
+        await client.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND column_name IN ('syncStatus','syncVersion')",
+          [schema],
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
   it("backfills versions and tombstones without changing IDs or original business rows", async () => {
     const owner = randomUUID();
     const speciesId = randomUUID();
@@ -820,6 +1139,58 @@ suite("Watermelon migrations on persisted legacy rows", () => {
         )
       ).rows[0].version,
     ).toBe("2");
+    const beforeCleanup = (
+      await client.query("SELECT * FROM animals ORDER BY id")
+    ).rows;
+    const trackingBefore = (
+      await client.query(
+        'SELECT * FROM sync_records ORDER BY "tableName", "recordId"',
+      )
+    ).rows;
+    await client.query(
+      'INSERT INTO sync_receipts ("userId", hash) VALUES ($1, $2)',
+      [owner, "confirmed-batch"],
+    );
+    await migrate("20260908000000_animal_device_dates");
+    expect(
+      (await client.query("SELECT * FROM animals ORDER BY id")).rows,
+    ).toEqual(
+      beforeCleanup.map(
+        ({ syncStatus: _status, syncVersion: _version, ...animal }) => animal,
+      ),
+    );
+    expect(
+      (
+        await client.query(
+          'SELECT * FROM sync_records ORDER BY "tableName", "recordId"',
+        )
+      ).rows,
+    ).toEqual(
+      trackingBefore.map((row) => {
+        if (row.tableName !== "animals" || !row.data) return row;
+        const {
+          syncStatus: _status,
+          syncVersion: _version,
+          ...data
+        } = row.data;
+        return { ...row, data };
+      }),
+    );
+    expect(
+      (
+        await client.query(
+          'SELECT version FROM sync_clocks WHERE "userId"=$1',
+          [owner],
+        )
+      ).rows[0].version,
+    ).toBe("2");
+    expect(
+      (
+        await client.query('SELECT hash FROM sync_receipts WHERE "userId"=$1', [
+          owner,
+        ])
+      ).rows,
+    ).toEqual([{ hash: "confirmed-batch" }]);
   });
   it("fails the ownership preflight without modifying corrupt legacy data", async () => {
     const owner = randomUUID();
@@ -867,7 +1238,7 @@ describe("Pull resource limits", () => {
     await expect(
       service.pull(
         randomUUID(),
-        watermelonPullSchema.parse({ lastPulledAt: null, schemaVersion: 4 }),
+        watermelonPullSchema.parse({ lastPulledAt: null, schemaVersion: 7 }),
       ),
     ).rejects.toMatchObject({ statusCode: 413, code: "SYNC_SCOPE_TOO_LARGE" });
   });

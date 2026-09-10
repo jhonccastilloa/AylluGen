@@ -1,7 +1,4 @@
-import type {
-  ProductionType,
-  SyncStatus,
-} from '@/features/shared/interfaces/common.types';
+import type { ProductionType } from '@/features/shared/interfaces/common.types';
 
 export type { ProductionType } from '@/features/shared/interfaces/common.types';
 
@@ -15,10 +12,6 @@ export interface ProductionRecord {
   qualityScore: number | null;
   notes: string | null;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: string;
-  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

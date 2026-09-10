@@ -3,10 +3,7 @@ import { Mutation, SyncTable, TrackedRecord } from "../entities/Watermelon";
 export const TYPE_IWatermelonRepository = Symbol("IWatermelonRepository");
 export interface SyncSession {
   checkpoint(lock?: boolean): Promise<bigint>;
-  changesSince(
-    checkpoint: bigint,
-    fullTables: SyncTable[],
-  ): Promise<TrackedRecord[]>;
+  changesSince(checkpoint: bigint): Promise<TrackedRecord[]>;
   recordsByIds(ids: string[]): Promise<TrackedRecord[]>;
   graph(): Promise<TrackedRecord[]>;
   dependents(animalIds: string[]): Promise<TrackedRecord[]>;

@@ -6,7 +6,7 @@ import type {
   SpeciesUpdateInput,
 } from '../interfaces/species.types';
 import { generateUuid } from '@/features/shared/utils/id';
-import { wireSchemas } from '@/features/sync/services/watermelonProtocol';
+import { businessSchemas } from '@/features/sync/services/watermelonProtocol';
 
 const toDomain = (row: SpeciesModel): Species => ({
   id: row.id,
@@ -34,7 +34,7 @@ export class SpeciesLocalRepository {
   }
 
   async create(input: SpeciesCreateInput): Promise<Species> {
-    const data = wireSchemas.species.parse({
+    const data = businessSchemas.species.parse({
       ...input,
       id: generateUuid(),
       description: input.description ?? null,
@@ -56,7 +56,7 @@ export class SpeciesLocalRepository {
     return this.database.write(async () => {
       const row = (await this.collection.query(Q.where('id', id)).fetch())[0];
       if (!row) throw new Error('La especie no existe en esta cuenta.');
-      const data = wireSchemas.species.parse({
+      const data = businessSchemas.species.parse({
         ...toDomain(row),
         ...Object.fromEntries(
           Object.entries(input).filter(([, value]) => value !== undefined),

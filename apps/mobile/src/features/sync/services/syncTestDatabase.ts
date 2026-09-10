@@ -2,14 +2,11 @@ import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import type { DirtyRaw } from '@nozbe/watermelondb/RawRecord';
 import { databaseSchema } from '@/infrastructure/database/schema';
-import { databaseMigrations } from '@/infrastructure/database/migrations';
 import {
   AnimalModel,
   BreedingModel,
   HealthRecordModel,
   ProductionRecordModel,
-  SyncQueueModel,
-  AppMetaModel,
 } from '@/infrastructure/database/models';
 import { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
 import { generateUuid } from '@/features/shared/utils/id';
@@ -20,7 +17,6 @@ export function testDatabase() {
   return new Database({
     adapter: new LokiJSAdapter({
       schema: databaseSchema,
-      migrations: databaseMigrations,
       dbName: generateUuid(),
       useWebWorker: false,
       useIncrementalIndexedDB: true,
@@ -32,8 +28,6 @@ export function testDatabase() {
       BreedingModel,
       HealthRecordModel,
       ProductionRecordModel,
-      SyncQueueModel,
-      AppMetaModel,
     ],
   });
 }
@@ -47,8 +41,6 @@ export async function seed(db: Database, table: string, raw: DirtyRaw) {
         updated_at: 1000,
         _status: 'synced',
         _changed: '',
-        sync_status: 'SYNCED',
-        sync_version: 1,
         ...raw,
       }),
     ),

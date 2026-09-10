@@ -1,7 +1,4 @@
-import type {
-  HealthType,
-  SyncStatus,
-} from '@/features/shared/interfaces/common.types';
+import type { HealthType } from '@/features/shared/interfaces/common.types';
 
 export type { HealthType } from '@/features/shared/interfaces/common.types';
 
@@ -14,10 +11,6 @@ export interface HealthRecord {
   nextDueDate: string | null;
   completed: boolean;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: string;
-  clientUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

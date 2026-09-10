@@ -8,13 +8,6 @@ export enum HealthType {
   TREATMENT = "TREATMENT",
 }
 
-export enum SyncStatus {
-  SYNCED = "SYNCED",
-  PENDING = "PENDING",
-  CONFLICT = "CONFLICT",
-  DELETED = "DELETED",
-}
-
 export interface HealthRecord {
   id: string;
   animalId: string;
@@ -25,10 +18,8 @@ export interface HealthRecord {
   nextDueDate?: Date;
   completed: boolean;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: Date;
-  clientUpdatedAt?: Date;
+  clientCreatedAt: Date;
+  clientUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

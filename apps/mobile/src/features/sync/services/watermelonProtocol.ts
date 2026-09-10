@@ -15,9 +15,10 @@ export const uuid = z
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 const date = z.number().int().min(-62135596800000).max(253402300799999);
 const notes = z.string().max(10000).nullable();
-export const wireSchemas = {
+const syncMetadata = { id: uuid };
+export const businessSchemas = {
   species: z.object({
-    id: uuid,
+    ...syncMetadata,
     code: z
       .string()
       .min(2)
@@ -27,7 +28,7 @@ export const wireSchemas = {
     description: z.string().max(200).nullable(),
   }),
   animals: z.object({
-    id: uuid,
+    ...syncMetadata,
     crotal: z.string().min(1).max(50),
     sex: z.enum(['MALE', 'FEMALE']),
     species_id: uuid,
@@ -37,7 +38,7 @@ export const wireSchemas = {
     mother_id: uuid.nullable(),
   }),
   breedings: z.object({
-    id: uuid,
+    ...syncMetadata,
     male_id: uuid,
     female_id: uuid,
     projected_coi: z.number().min(0).max(1),
@@ -47,7 +48,7 @@ export const wireSchemas = {
     notes,
   }),
   health_records: z.object({
-    id: uuid,
+    ...syncMetadata,
     animal_id: uuid,
     type: z.enum([
       'VACCINATION',
@@ -62,7 +63,7 @@ export const wireSchemas = {
     completed: z.boolean(),
   }),
   production_records: z.object({
-    id: uuid,
+    ...syncMetadata,
     animal_id: uuid,
     type: z.enum(['WEIGHT', 'WOOL', 'FIBER', 'MEAT', 'MILK']),
     date,
@@ -71,6 +72,15 @@ export const wireSchemas = {
     quality_score: z.number().int().min(1).max(10).nullable(),
     notes,
   }),
+};
+
+const deviceDates = { created_at: date, updated_at: date };
+export const wireSchemas = {
+  species: businessSchemas.species.extend(deviceDates),
+  animals: businessSchemas.animals.extend(deviceDates),
+  breedings: businessSchemas.breedings.extend(deviceDates),
+  health_records: businessSchemas.health_records.extend(deviceDates),
+  production_records: businessSchemas.production_records.extend(deviceDates),
 };
 
 export class SyncValidationError extends Error {
@@ -140,10 +150,7 @@ export function parsePull(
   const changes: SyncChanges = {};
   let count = 0;
   for (const table of SYNC_TABLES) {
-    const schema = wireSchemas[table].extend({
-      created_at: date,
-      updated_at: date,
-    });
+    const schema = wireSchemas[table];
     const change = z
       .object({
         created: z.array(schema),
@@ -162,8 +169,6 @@ export function parsePull(
     const local = (r: Record<string, unknown>) => ({
       ...r,
       user_id: userId,
-      sync_status: 'SYNCED',
-      sync_version: 0,
       deleted_at: null,
     });
     changes[table] = {

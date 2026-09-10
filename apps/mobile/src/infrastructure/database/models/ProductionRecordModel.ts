@@ -13,8 +13,6 @@ export class ProductionRecordModel extends Model {
   @field('quality_score') qualityScore!: number | null;
   @field('notes') notes!: string | null;
   @text('user_id') userId!: string;
-  @text('sync_status') recordSyncStatus!: string;
-  @field('sync_version') syncVersion!: number;
   @readonly @date('created_at') readonly createdAt!: Date;
   @readonly @date('updated_at') readonly updatedAt!: Date;
 }

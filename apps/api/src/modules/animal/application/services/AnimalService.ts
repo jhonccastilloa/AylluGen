@@ -235,14 +235,8 @@ export class AnimalService {
       children:
         animal.children?.map((child) => this.mapToResponse(child)) || [],
       userId: animal.userId,
-      syncStatus: animal.syncStatus,
-      syncVersion: animal.syncVersion,
-      clientCreatedAt: (
-        animal.clientCreatedAt ?? animal.createdAt
-      ).toISOString(),
-      clientUpdatedAt: (
-        animal.clientUpdatedAt ?? animal.updatedAt
-      ).toISOString(),
+      clientCreatedAt: animal.clientCreatedAt.toISOString(),
+      clientUpdatedAt: animal.clientUpdatedAt.toISOString(),
       createdAt: animal.createdAt.toISOString(),
       updatedAt: animal.updatedAt.toISOString(),
       deletedAt: animal.deletedAt?.toISOString() || null,

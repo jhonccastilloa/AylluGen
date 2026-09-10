@@ -12,7 +12,6 @@ import type {
   HealthRecordUpdateInput,
   HealthType,
 } from '@/features/health/interfaces/health.types';
-import type { SyncStatus } from '@/features/shared/interfaces/common.types';
 import {
   isoToTimestamp,
   nowTimestamp,
@@ -23,9 +22,6 @@ import { generateUuid } from '@/features/shared/utils/id';
 const toIsoOrEmpty = (value?: number | null): string =>
   timestampToIso(value) ?? new Date(0).toISOString();
 
-const toTimestampIsoOrEmpty = (value?: Date | null): string =>
-  value?.toISOString() ?? new Date(0).toISOString();
-
 const toDomain = (model: HealthRecordModel): HealthRecord => ({
   id: model.id,
   animalId: model.animalId,
@@ -35,12 +31,8 @@ const toDomain = (model: HealthRecordModel): HealthRecord => ({
   nextDueDate: timestampToIso(model.nextDueDate),
   completed: model.completed,
   userId: model.userId,
-  syncStatus: (model.syncStatus === 'synced'
-    ? 'SYNCED'
-    : 'PENDING') as SyncStatus,
-  syncVersion: model.syncVersion,
-  createdAt: toTimestampIsoOrEmpty(model.createdAt),
-  updatedAt: toTimestampIsoOrEmpty(model.updatedAt),
+  createdAt: model.createdAt.toISOString(),
+  updatedAt: model.updatedAt.toISOString(),
 });
 
 export class HealthLocalRepository {
@@ -60,7 +52,6 @@ export class HealthLocalRepository {
       .fetch();
     return records
       .map(toDomain)
-      .filter(record => record.syncStatus !== 'DELETED')
       .sort((left, right) => right.date.localeCompare(left.date));
   }
 
@@ -87,8 +78,6 @@ export class HealthLocalRepository {
         record.nextDueDate = isoToTimestamp(input.nextDueDate);
         record.completed = input.completed ?? true;
         record.userId = userId;
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion = 1;
       });
     });
 
@@ -105,7 +94,7 @@ export class HealthLocalRepository {
       const model = await this.collection.find(id);
       if (model.syncStatus === 'deleted') return null;
       const record = toDomain(model);
-      return record.syncStatus === 'DELETED' ? null : record;
+      return record;
     } catch {
       return null;
     }
@@ -134,8 +123,6 @@ export class HealthLocalRepository {
           record.nextDueDate = isoToTimestamp(input.nextDueDate);
         }
         if (input.completed !== undefined) record.completed = input.completed;
-        record.recordSyncStatus = 'PENDING';
-        record.syncVersion += 1;
       });
     });
     return this.getById(id);
@@ -160,7 +147,7 @@ export class HealthLocalRepository {
 
     return records
       .filter(record => {
-        if (record.syncStatus === 'DELETED' || record.completed) return false;
+        if (record.completed) return false;
         if (!record.nextDueDate) return false;
 
         const dueTimestamp = Date.parse(record.nextDueDate);

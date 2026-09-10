@@ -8,13 +8,6 @@ export enum ProductionType {
   MILK = "MILK",
 }
 
-export enum SyncStatus {
-  SYNCED = "SYNCED",
-  PENDING = "PENDING",
-  CONFLICT = "CONFLICT",
-  DELETED = "DELETED",
-}
-
 export interface ProductionRecord {
   id: string;
   animalId: string;
@@ -26,10 +19,8 @@ export interface ProductionRecord {
   qualityScore?: number;
   notes?: string;
   userId: string;
-  syncStatus: SyncStatus;
-  syncVersion: number;
-  clientCreatedAt?: Date;
-  clientUpdatedAt?: Date;
+  clientCreatedAt: Date;
+  clientUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,7 +51,7 @@ export interface ProductionSummary {
   type: ProductionType;
   totalRecords: number;
   averageValue: number;
-  averageQualityScore?: number|null;
+  averageQualityScore?: number | null;
   lastRecord: Date;
   trend: "improving" | "stable" | "declining";
 }
