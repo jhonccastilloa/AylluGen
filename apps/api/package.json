@@ -4,6 +4,11 @@
   "description": "Backend API with Clean Architecture, TypeScript, Express, Prisma, Swagger, Zod",
   "main": "dist/server.js",
   "scripts": {
+    "prebuild": "pnpm --workspace-root build:shared",
+    "predev": "pnpm --workspace-root build:shared",
+    "pretest": "pnpm --workspace-root build:shared",
+    "pretest:unit": "pnpm --workspace-root build:shared",
+    "pretest:integration": "pnpm --workspace-root build:shared",
     "build": "tsc && tsc-alias",
     "dev": "nodemon",
     "start": "node dist",
@@ -30,6 +35,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@ayllugen/core": "workspace:*",
+    "@ayllugen/contracts": "workspace:*",
     "@asteasolutions/zod-to-openapi": "^8.4.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",

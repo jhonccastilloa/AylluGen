@@ -30,6 +30,7 @@ export const TYPES = {
 
   // Repositorios de Dominio - Species Module
   ISpeciesRepository: Symbol("ISpeciesRepository"),
+  SpeciesUseCasesFactory: Symbol("SpeciesUseCasesFactory"),
 
   // Servicios de Aplicación - Animal Module
   AnimalService: Symbol("AnimalService"),

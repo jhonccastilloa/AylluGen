@@ -1,90 +1,66 @@
 import { injectable, inject } from "inversify";
+import { SpeciesError } from "@ayllugen/core/species/errors";
+import { normalizeSpeciesCode } from "@ayllugen/core/species/rules";
 import { TYPES } from "../../../../shared/di/types";
-import { ISpeciesRepository } from "../../domain/repositories/ISpeciesRepository";
-import {
+import type {
   SpeciesCreateInput,
   SpeciesResponse,
   SpeciesUpdateInput,
 } from "../schemas/species.schema";
-import {
-  ConflictError,
-  NotFoundError,
-  ValidationError,
-} from "../../../../shared/errors/AppError";
-import { Species } from "../../domain/entities/Species";
+import type { SpeciesRecord } from "../SpeciesRecord";
+import { rethrowSpeciesError } from "../speciesErrors";
+import type { SpeciesUseCasesFactory } from "../ports/SpeciesUseCasesFactory";
 
-interface DefaultSpecies {
-  code: string;
-  name: string;
-  description?: string;
-}
-
-const DEFAULT_SPECIES: DefaultSpecies[] = [
+const DEFAULT_SPECIES = [
   { code: "ALPACA", name: "Alpaca" },
   { code: "SHEEP", name: "Sheep" },
   { code: "LLAMA", name: "Llama" },
   { code: "VICUGNA", name: "Vicugna" },
 ];
 
-const normalizeSpeciesCode = (value: string): string =>
-  value
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_")
-    .replace(/[^A-Z0-9_]/g, "");
-
+/** API facade: HTTP projection and explicit server-only catalog initialization. */
 @injectable()
 export class SpeciesService {
   constructor(
-    @inject(TYPES.ISpeciesRepository)
-    private speciesRepository: ISpeciesRepository,
+    @inject(TYPES.SpeciesUseCasesFactory)
+    private readonly commands: SpeciesUseCasesFactory,
   ) {}
 
+  private async run<T>(work: () => Promise<T>): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      return rethrowSpeciesError(error);
+    }
+  }
+
   async getAll(userId: string): Promise<SpeciesResponse[]> {
-    await this.ensureDefaultSpecies(userId);
-    const species = await this.speciesRepository.findAllByUserId(userId);
-    return species.map((item) => this.mapToResponse(item));
+    return this.run(async () => {
+      await this.ensureDefaultSpecies(userId);
+      return (await this.commands(userId).listSpecies.execute()).map((item) =>
+        this.mapToResponse(item),
+      );
+    });
   }
 
   async getById(speciesId: string, userId: string): Promise<SpeciesResponse> {
-    await this.ensureDefaultSpecies(userId);
-    const species = await this.speciesRepository.findById(speciesId);
-    if (!species || species.userId !== userId) {
-      throw new NotFoundError("Especie no encontrada");
-    }
-    return this.mapToResponse(species);
+    return this.run(async () => {
+      await this.ensureDefaultSpecies(userId);
+      return this.mapToResponse(
+        await this.commands(userId).getSpecies.execute(speciesId),
+      );
+    });
   }
 
   async create(
     userId: string,
     payload: SpeciesCreateInput,
   ): Promise<SpeciesResponse> {
-    const code = normalizeSpeciesCode(payload.code);
-    if (!code) {
-      throw new ValidationError("El código de especie no es válido");
-    }
-
-    const [existingByCode, existingByName] = await Promise.all([
-      this.speciesRepository.findByCode(userId, code),
-      this.speciesRepository.findByName(userId, payload.name.trim()),
-    ]);
-
-    if (existingByCode) {
-      throw new ConflictError("Ya existe una especie con ese código");
-    }
-
-    if (existingByName) {
-      throw new ConflictError("Ya existe una especie con ese nombre");
-    }
-
-    const created = await this.speciesRepository.create({
-      userId,
-      code,
-      name: payload.name.trim(),
-      description: payload.description?.trim() || undefined,
-    });
-
-    return this.mapToResponse(created);
+    return this.run(async () =>
+      this.mapToResponse(
+        await this.commands(userId).createSpecies.execute(payload),
+      ),
+    );
   }
 
   async update(
@@ -92,147 +68,60 @@ export class SpeciesService {
     userId: string,
     payload: SpeciesUpdateInput,
   ): Promise<SpeciesResponse> {
-    const existing = await this.speciesRepository.findById(speciesId);
-    if (!existing || existing.userId !== userId) {
-      throw new NotFoundError("Especie no encontrada");
-    }
-
-    const nextCode = payload.code
-      ? normalizeSpeciesCode(payload.code)
-      : undefined;
-    if (payload.code && !nextCode) {
-      throw new ValidationError("El código de especie no es válido");
-    }
-
-    if (nextCode && nextCode !== existing.code) {
-      const duplicateCode = await this.speciesRepository.findByCode(
-        userId,
-        nextCode,
-      );
-      if (duplicateCode) {
-        throw new ConflictError("Ya existe una especie con ese código");
-      }
-    }
-
-    const nextName = payload.name?.trim();
-    if (nextName && nextName !== existing.name) {
-      const duplicateName = await this.speciesRepository.findByName(
-        userId,
-        nextName,
-      );
-      if (duplicateName) {
-        throw new ConflictError("Ya existe una especie con ese nombre");
-      }
-    }
-
-    const updated = await this.speciesRepository.update(speciesId, {
-      code: nextCode,
-      name: nextName,
-      description:
-        payload.description !== undefined
-          ? payload.description.trim() || undefined
-          : undefined,
-    });
-
-    return this.mapToResponse(updated);
+    return this.run(async () =>
+      this.mapToResponse(
+        await this.commands(userId).updateSpecies.execute(speciesId, payload),
+      ),
+    );
   }
 
   async delete(speciesId: string, userId: string): Promise<void> {
-    const species = await this.speciesRepository.findById(speciesId);
-    if (!species || species.userId !== userId) {
-      throw new NotFoundError("Especie no encontrada");
-    }
-
-    const linkedAnimalsCount =
-      await this.speciesRepository.countAnimalsBySpeciesId(userId, speciesId);
-    if (linkedAnimalsCount > 0) {
-      throw new ValidationError(
-        "No se puede eliminar la especie porque está asociada a uno o más animales",
-      );
-    }
-
-    await this.speciesRepository.delete(speciesId);
+    return this.run(() =>
+      this.commands(userId).deleteSpecies.execute(speciesId),
+    );
   }
 
   async resolveSpeciesForAnimal(
     userId: string,
     input: { speciesId?: string; speciesCode?: string; species?: string },
   ): Promise<{ speciesId: string; speciesCode: string; speciesName: string }> {
-    await this.ensureDefaultSpecies(userId);
-
-    if (input.speciesId) {
-      const speciesById = await this.speciesRepository.findById(
-        input.speciesId,
-      );
-      if (!speciesById || speciesById.userId !== userId) {
-        throw new ValidationError("La especie seleccionada no existe");
+    return this.run(async () => {
+      await this.ensureDefaultSpecies(userId);
+      const commands = this.commands(userId);
+      let result: SpeciesRecord;
+      if (input.speciesId) {
+        result = await commands.getSpecies.execute(input.speciesId);
+      } else {
+        const rawCode = input.speciesCode ?? input.species;
+        if (!rawCode)
+          throw new SpeciesError(
+            "SPECIES_INVALID",
+            "Debe enviar speciesId o speciesCode para crear un animal",
+          );
+        const code = normalizeSpeciesCode(rawCode);
+        result = await commands.resolveSpecies.execute({ code, name: code });
       }
-
       return {
-        speciesId: speciesById.id,
-        speciesCode: speciesById.code,
-        speciesName: speciesById.name,
+        speciesId: result.id,
+        speciesCode: result.code,
+        speciesName: result.name,
       };
-    }
-
-    const rawCode = input.speciesCode ?? input.species;
-    if (!rawCode) {
-      throw new ValidationError(
-        "Debe enviar speciesId o speciesCode para crear un animal",
-      );
-    }
-
-    const normalizedCode = normalizeSpeciesCode(rawCode);
-    if (!normalizedCode) {
-      throw new ValidationError("El código de especie no es válido");
-    }
-
-    const speciesByCode = await this.speciesRepository.findByCode(
-      userId,
-      normalizedCode,
-    );
-    if (speciesByCode) {
-      return {
-        speciesId: speciesByCode.id,
-        speciesCode: speciesByCode.code,
-        speciesName: speciesByCode.name,
-      };
-    }
-
-    const autoCreated = await this.speciesRepository.create({
-      userId,
-      code: normalizedCode,
-      name: normalizedCode,
     });
-
-    return {
-      speciesId: autoCreated.id,
-      speciesCode: autoCreated.code,
-      speciesName: autoCreated.name,
-    };
   }
 
   async ensureDefaultSpecies(userId: string): Promise<void> {
-    const currentSpecies = await this.speciesRepository.findAllByUserId(userId);
-    if (currentSpecies.length > 0) return;
-
-    for (const item of DEFAULT_SPECIES) {
-      await this.speciesRepository.create({
-        userId,
-        code: item.code,
-        name: item.name,
-        description: item.description,
-      });
-    }
+    return this.run(() =>
+      this.commands(userId).initializeCatalog.execute(DEFAULT_SPECIES),
+    );
   }
 
-  private mapToResponse(species: Species): SpeciesResponse {
+  private mapToResponse(species: SpeciesRecord): SpeciesResponse {
     return {
       id: species.id,
+      userId: species.userId,
       code: species.code,
       name: species.name,
-      description: species.description ?? null,
-      userId: species.userId,
+      description: species.description,
       clientCreatedAt: species.clientCreatedAt.toISOString(),
       clientUpdatedAt: species.clientUpdatedAt.toISOString(),
       createdAt: species.createdAt.toISOString(),

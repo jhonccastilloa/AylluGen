@@ -4,7 +4,7 @@ Revisado: 2026-09-09. Baseline de desarrollo de instalación limpia: schema 7, c
 
 ## Resultado y alcance
 
-La app utiliza React Native 0.83, WatermelonDB 0.28 y SQLite, sin dependencias nuevas. Se conservan las capas `pages → UseCases → LocalRepository`. El CRUD de especies, animales, cruces, salud y producción siempre escribe localmente. Las pantallas observan cambios confirmados en WatermelonDB; no descargan entidades por REST para sustituir la base local.
+La app utiliza React Native 0.83, WatermelonDB 0.28 y SQLite. Species usa el paquete compartido `@ayllugen/core` mediante entradas directas como `@ayllugen/core/species/create`, sin barrels: `pages → casos de uso compartidos → puertos → adaptador Watermelon`, ensamblado por cuenta en `features/species/bootstrap.ts`. Los demás módulos conservan `pages → UseCases → LocalRepository`. El CRUD de especies, animales, cruces, salud y producción siempre escribe localmente. Las pantallas observan cambios confirmados en WatermelonDB; no descargan entidades por REST para sustituir la base local.
 
 Antes había una base compartida, lecturas REST con upserts manuales, una tabla `sync_queue`, push antes de pull y un intervalo de 45 segundos. Ahora `SyncOrchestrator` es el SyncManager central y utiliza `synchronize()` de WatermelonDB: pull incremental, reconciliación, push y confirmación nativa de cambios. No hay cola paralela ni elección de camino según la conexión.
 

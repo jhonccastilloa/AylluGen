@@ -1,5 +1,7 @@
 import { inject, injectable } from "inversify";
 import { createHash } from "node:crypto";
+import { assertSpeciesUnused } from "@ayllugen/core/species/rules";
+import { rethrowSpeciesError } from "../../../species/application/speciesErrors";
 import {
   TYPE_IWatermelonRepository,
   IWatermelonRepository,
@@ -257,10 +259,11 @@ export class WatermelonService {
     for (const [recordKey, data] of graph) {
       if (!recordKey.startsWith("animals:") || deletingAnimals.has(data.id))
         continue;
-      if (deletingSpecies.has(data.speciesId as string))
-        throw new ValidationError(
-          "No se puede eliminar una especie con animales asociados",
-        );
+      try {
+        assertSpeciesUnused(deletingSpecies.has(data.speciesId as string));
+      } catch (error) {
+        rethrowSpeciesError(error);
+      }
       const fatherId = deletingAnimals.has(data.fatherId as string)
         ? null
         : (data.fatherId as string | null);

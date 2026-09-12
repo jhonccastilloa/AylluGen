@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { speciesFieldsSchema } from '@ayllugen/contracts/species';
 import type { SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 export type SyncChanges = Record<string, SyncTableChangeSet>;
 
@@ -19,13 +20,7 @@ const syncMetadata = { id: uuid };
 export const businessSchemas = {
   species: z.object({
     ...syncMetadata,
-    code: z
-      .string()
-      .min(2)
-      .max(30)
-      .regex(/^[A-Z0-9_]+$/),
-    name: z.string().min(2).max(80),
-    description: z.string().max(200).nullable(),
+    ...speciesFieldsSchema.shape,
   }),
   animals: z.object({
     ...syncMetadata,

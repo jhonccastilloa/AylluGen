@@ -21,7 +21,7 @@ import { useSyncStore } from '@/store/useSyncStore';
 import type { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
 import { generateUuid } from '@/features/shared/utils/id';
 import { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
-import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
+import { createSpeciesModule } from '@/features/species/bootstrap';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
 import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
 import { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
@@ -108,7 +108,7 @@ it.each(SYNC_TABLES)(
     const createdAt = Date.parse('2026-09-01T10:00:00.123Z');
     const clock = jest.spyOn(Date, 'now').mockReturnValue(createdAt);
     useNetworkStore.getState().markOffline();
-    const kinds = new SpeciesLocalRepository(f.db, OWNER);
+    const kinds = createSpeciesModule(f.db, OWNER);
     const animals = new AnimalsLocalRepository(f.db, OWNER);
     const breedings = new BreedingsLocalRepository(f.db, OWNER);
     const health = new HealthLocalRepository(f.db, OWNER);

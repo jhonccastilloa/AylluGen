@@ -158,6 +158,93 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       ),
     ).toBe(true);
   });
+  it("Species REST uses the shared commands and round-trips their origin dates through sync", async () => {
+    const headers = {
+      "content-type": "application/json",
+      authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+    };
+    const created = await fetch(`${baseUrl}/species`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        code: " alpaca ",
+        name: " Alpaca ",
+        description: " Andina ",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const first = (await created.json()) as {
+      id: string;
+      code: string;
+      clientCreatedAt: string;
+      createdAt: string;
+    };
+    expect(first.code).toBe("ALPACA");
+    const updated = await fetch(`${baseUrl}/species/${first.id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ description: "" }),
+    });
+    expect(updated.status).toBe(200);
+    const second = (await updated.json()) as {
+      description: string | null;
+      clientCreatedAt: string;
+      clientUpdatedAt: string;
+      createdAt: string;
+    };
+    expect(second.description).toBeNull();
+    expect(second.clientCreatedAt).toBe(first.clientCreatedAt);
+    expect(second.createdAt).toBe(first.createdAt);
+    const result = await pull();
+    const raw = result.changes.species.created.find(
+      (row) => row.id === first.id,
+    )!;
+    expect(raw.created_at).toBe(Date.parse(first.clientCreatedAt));
+    expect(raw.updated_at).toBe(Date.parse(second.clientUpdatedAt));
+    const duplicates = await Promise.all(
+      [1, 2].map(() =>
+        fetch(`${baseUrl}/species`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: "LLAMA", name: "Llama" }),
+        }),
+      ),
+    );
+    expect(duplicates.map((response) => response.status).sort()).toEqual([
+      201, 409,
+    ]);
+  });
+
+  it("Species deletion shares the rule for REST and final-state sync batches", async () => {
+    const { s, a, h, checkpoint } = await seed();
+    const headers = {
+      authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+    };
+    const denied = await fetch(`${baseUrl}/species/${s.id}`, {
+      method: "DELETE",
+      headers,
+    });
+    expect(denied.status).toBe(400);
+    await expect(
+      push({ species: change([], [], [s.id]) }, checkpoint),
+    ).rejects.toThrow();
+    // Removing the animal in the same batch makes the final catalog state valid.
+    await push(
+      {
+        species: change([], [], [s.id]),
+        animals: change([], [], [a.id]),
+        health_records: change([], [], [h.id]),
+      },
+      checkpoint,
+    );
+    expect((await pull(checkpoint)).changes.species.deleted).toContain(s.id);
+    const reserved = await fetch(`${baseUrl}/species`, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ code: "ALPACA", name: "Alpaca" }),
+    });
+    expect(reserved.status).toBe(409);
+  });
   it.each(SYNC_TABLES)(
     "%s round-trips device dates independently of server audit, retries and clock skew",
     async (table) => {

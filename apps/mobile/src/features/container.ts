@@ -9,14 +9,13 @@ import { ProductionLocalRepository } from '@/features/production/services/Produc
 import { ProductionUseCases } from '@/features/production/hooks/ProductionUseCases';
 import { UsersApi } from '@/features/users/services/UsersApi';
 import { UsersUseCases } from '@/features/users/hooks/UsersUseCases';
-import { SpeciesUseCases } from '@/features/species/hooks/SpeciesUseCases';
+import { createSpeciesModule } from '@/features/species/bootstrap';
 import { SyncApi } from '@/features/sync/services/SyncApi';
 import { SyncOrchestrator } from '@/features/sync/hooks/SyncOrchestrator';
 
 import authSession from '@/infrastructure/auth/AuthSession';
 import { createDatabase, databaseReady } from '@/infrastructure/database';
 import { uuid } from '@/features/sync/services/watermelonProtocol';
-import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
 
 function buildAccount(userId: string) {
   uuid.parse(userId); // safe, collision-free database filename
@@ -42,7 +41,7 @@ function buildAccount(userId: string) {
     production: new ProductionUseCases(
       new ProductionLocalRepository(database, userId),
     ),
-    species: new SpeciesUseCases(new SpeciesLocalRepository(database, userId)),
+    species: createSpeciesModule(database, userId),
   };
 }
 export type AccountContainer = ReturnType<typeof buildAccount>;

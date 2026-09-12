@@ -7,7 +7,7 @@ import {
 } from '@/features/sync/services/syncTestDatabase';
 import { SYNC_TABLES } from '@/features/sync/services/watermelonProtocol';
 import { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
-import { SpeciesLocalRepository } from '@/features/species/services/SpeciesLocalRepository';
+import { createSpeciesModule } from '@/features/species/bootstrap';
 import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
 import { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
@@ -33,7 +33,7 @@ afterEach(() => jest.restoreAllMocks());
 
 async function herd() {
   const db = testDatabase();
-  const species = new SpeciesLocalRepository(db, OWNER);
+  const species = createSpeciesModule(db, OWNER);
   const kind = await species.create({ code: 'ALPACA', name: 'Alpaca' });
   const animals = new AnimalsLocalRepository(db, OWNER);
   const male = await animals.createLocal(OWNER, {

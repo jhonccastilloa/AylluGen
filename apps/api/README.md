@@ -6,12 +6,17 @@ Estado revisado: 2026-09-05. API ganadera en Node.js/TypeScript, Express 5, Pris
 
 Ocho módulos: `auth`, `user`, `species`, `animal`, `breeding`, `health`, `production`, `sync`. Cada módulo separa rutas/controladores, servicios, contratos y repositorios.
 
+Species comparte entidad, casos de uso y puertos con mobile mediante entradas directas como `@ayllugen/core/species/create` y `@ayllugen/core/species/repository`, sin barrels; solo sus adaptadores y presentación pertenecen a cada app. Ver [arquitectura Species](../../packages/core/src/species/README.md).
+
 El móvil guarda especies, animales, cruces, salud y producción en WatermelonDB y sincroniza por v2. REST se conserva para acciones originadas en el servidor; el móvil actual usa exclusivamente CRUD local y sync v2. No hay polling, sockets, pagos, OTP, uploads ni jobs implementados.
 
 ## Preparación
 
 ```sh
-npm ci
+cd ../..
+pnpm install --frozen-lockfile
+pnpm build:shared
+cd apps/api
 npm run prisma:generate
 ```
 
@@ -31,6 +36,8 @@ npm start
 `npm start` ejecuta `node dist` (entrada compilada de `src/index.ts`). `npm run dev` usa nodemon. No crear otra migración init para instalar el repositorio.
 
 **No sustituir migraciones por `prisma db push`**: sync necesita triggers, índices y constraints SQL que el schema Prisma no expresa completamente. El Dockerfile actual ejecuta migrate deploy al arrancar; eso sí modifica la DB y exige revisión operativa.
+
+Docker usa ahora el contexto del monorepo (`docker build -f apps/api/Dockerfile .` desde la raíz) para incluir `@ayllugen/core`; Compose ya referencia ese contexto. La imagen conserva el árbol pnpm y la CLI Prisma necesaria para migraciones. Construir la imagen no autoriza arrancarla contra una base de datos real.
 
 ## Rutas actuales
 

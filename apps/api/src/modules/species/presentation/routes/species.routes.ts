@@ -15,4 +15,3 @@ router.put("/:speciesId", speciesController.update);
 router.delete("/:speciesId", speciesController.delete);
 
 export default router;
-

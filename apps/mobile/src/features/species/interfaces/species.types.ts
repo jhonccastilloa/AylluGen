@@ -8,15 +8,4 @@ export interface Species {
   updatedAt: string;
 }
 
-export interface SpeciesCreateInput {
-  code: string;
-  name: string;
-  description?: string;
-}
-
-export interface SpeciesUpdateInput {
-  code?: string;
-  name?: string;
-  description?: string;
-}
-
+export type { CreateSpeciesInput as SpeciesCreateInput, UpdateSpeciesInput as SpeciesUpdateInput } from '@ayllugen/core/species/inputs';

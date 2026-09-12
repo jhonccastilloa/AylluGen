@@ -11,7 +11,9 @@ import { AnimalRepository } from "../../modules/animal/infrastructure/repositori
 import { BreedingRepository } from "../../modules/breeding/infrastructure/repositories/BreedingRepository";
 import { HealthRecordRepository } from "../../modules/health/infrastructure/repositories/HealthRecordRepository";
 import { ProductionRecordRepository } from "../../modules/production/infrastructure/repositories/ProductionRecordRepository";
-import { SpeciesRepository } from "../../modules/species/infrastructure/repositories/SpeciesRepository";
+import { PrismaSpeciesUnitOfWork } from "../../modules/species/infrastructure/PrismaSpeciesUnitOfWork";
+import { createSpeciesUseCases } from "../../modules/species/bootstrap";
+import type { SpeciesUseCasesFactory } from "../../modules/species/application/ports/SpeciesUseCasesFactory";
 
 // Importar servicios existentes
 import { AuthService } from "../../modules/auth/application/services/AuthService";
@@ -66,8 +68,14 @@ container
   .bind<ProductionRecordRepository>(TYPES.IProductionRecordRepository)
   .to(ProductionRecordRepository);
 container
-  .bind<SpeciesRepository>(TYPES.ISpeciesRepository)
-  .to(SpeciesRepository);
+  .bind<PrismaSpeciesUnitOfWork>(TYPES.ISpeciesRepository)
+  .to(PrismaSpeciesUnitOfWork);
+container
+  .bind<SpeciesUseCasesFactory>(TYPES.SpeciesUseCasesFactory)
+  .toDynamicValue((context) => {
+    const unit = context.get<PrismaSpeciesUnitOfWork>(TYPES.ISpeciesRepository);
+    return (ownerId) => createSpeciesUseCases(unit, ownerId);
+  });
 
 // ============ BINDEOS DE SERVICIOS ============
 container.bind<AuthService>(TYPES.AuthService).to(AuthService);

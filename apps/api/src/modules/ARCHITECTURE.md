@@ -8,6 +8,8 @@ Los módulos agrupan domain, application, infrastructure y presentation. Zod val
 
 Los módulos son auth, user, species, animal, breeding, health, production y sync. No existe un catálogo global de todas las entidades para exponer automáticamente por CRUD.
 
+Species es la primera migración hexagonal compartida: entidad y casos de uso individuales en `packages/core/src/species`, con puertos de repositorio, uso por animales y unidad de trabajo. `species/bootstrap.ts` ensambla los adaptadores Prisma. Su fachada API proyecta auditoría/errores HTTP; mobile usa los mismos casos con Watermelon. No mover normalización o reglas a los adaptadores. Ver [Species](../../../../packages/core/src/species/README.md).
+
 ## Reglas de mantenimiento
 
 - Derivar owner de JWT y limitar consultas/relaciones a esa cuenta.

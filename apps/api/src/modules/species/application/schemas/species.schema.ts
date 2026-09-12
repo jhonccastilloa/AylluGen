@@ -1,68 +1,29 @@
 import { z } from "zod";
+import {
+  createSpeciesInputSchema,
+  updateSpeciesInputSchema,
+} from "@ayllugen/contracts/species";
 
-const speciesCodeSchema = z
-  .string()
-  .min(2, "El código debe tener al menos 2 caracteres")
-  .max(30, "El código no puede exceder 30 caracteres")
-  .regex(
-    /^[A-Z0-9_]+$/,
-    "El código solo puede contener letras mayúsculas, números y guion bajo",
-  );
+export const speciesCreateSchema = createSpeciesInputSchema.openapi({
+  title: "SpeciesCreateInput",
+  description:
+    "Crear especie; código y textos se normalizan antes de validar el negocio.",
+  example: {
+    code: "ALPACA",
+    name: "Alpaca",
+    description: "Camélido andino domesticado",
+  },
+});
 
-export const speciesCreateSchema = z
-  .object({
-    code: speciesCodeSchema.describe("Código único de especie"),
-    name: z
-      .string()
-      .min(2, "El nombre debe tener al menos 2 caracteres")
-      .max(80, "El nombre no puede exceder 80 caracteres")
-      .describe("Nombre visible de la especie"),
-    description: z
-      .string()
-      .max(200, "La descripción no puede exceder 200 caracteres")
-      .optional()
-      .describe("Descripción opcional de la especie"),
-  })
-  .openapi({
-    title: "SpeciesCreateInput",
-    description: "Schema para crear una especie",
-    example: {
-      code: "ALPACA",
-      name: "Alpaca",
-      description: "Camélido andino domesticado",
-    },
-  });
-
-export const speciesUpdateSchema = z
-  .object({
-    code: speciesCodeSchema.optional().describe("Código único de especie"),
-    name: z
-      .string()
-      .min(2, "El nombre debe tener al menos 2 caracteres")
-      .max(80, "El nombre no puede exceder 80 caracteres")
-      .optional()
-      .describe("Nombre visible de la especie"),
-    description: z
-      .string()
-      .max(200, "La descripción no puede exceder 200 caracteres")
-      .optional()
-      .describe("Descripción opcional de la especie"),
-  })
-  .refine(
-    (data) =>
-      data.code !== undefined ||
-      data.name !== undefined ||
-      data.description !== undefined,
-    { message: "Debe enviar al menos un campo para actualizar" },
-  )
-  .openapi({
-    title: "SpeciesUpdateInput",
-    description: "Schema para actualizar una especie",
-    example: {
-      name: "Alpaca Huacaya",
-      description: "Variedad de alpaca de fibra esponjosa",
-    },
-  });
+export const speciesUpdateSchema = updateSpeciesInputSchema.openapi({
+  title: "SpeciesUpdateInput",
+  description:
+    "Actualizar especie; descripción omitida conserva el valor, null o texto vacío lo limpia.",
+  example: {
+    name: "Alpaca Huacaya",
+    description: "Variedad de alpaca de fibra esponjosa",
+  },
+});
 
 export const speciesResponseSchema = z
   .object({

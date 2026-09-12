@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "prestart": "pnpm --workspace-root build:shared",
+    "preandroid": "pnpm --workspace-root build:shared",
+    "preios": "pnpm --workspace-root build:shared",
+    "pretest": "pnpm --workspace-root build:shared",
     "android": "react-native run-android --mode=developmentRelease --appId=com.ayllugen.dev",
     "ios": "react-native run-ios",
     "lint": "eslint .",
@@ -10,6 +14,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@ayllugen/core": "workspace:*",
+    "@ayllugen/contracts": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-community/datetimepicker": "^8.6.0",

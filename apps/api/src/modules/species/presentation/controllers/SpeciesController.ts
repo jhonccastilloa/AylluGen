@@ -51,4 +51,3 @@ export class SpeciesController {
     res.status(204).send();
   });
 }
-

@@ -33,6 +33,12 @@ Reviewed 2026-09-05 against the current code. See [README](README.md) and [Local
 
 ## Modular Clean Architecture
 
+Species is the first shared hexagonal module: `packages/core/src/species` owns Domain and individual Application use cases/ports. API owns Prisma adapters, HTTP projection and `modules/species/bootstrap.ts`. Shared code must not import apps, Prisma, Watermelon, Express or Inversify. See `../../packages/core/src/species/README.md`; existing DI infrastructure remains outside that core.
+
+Install workspace dependencies with pnpm from the monorepo root. Run `pnpm build:shared` before direct typecheck/test commands. Species sync uses shared canonical rules, not one CRUD command per pushed row.
+
+Import concrete public entries such as `@ayllugen/core/species/create`, `/entity`, `/errors`, `/repository`, `/unit-of-work`, `/types`, and `/inputs`; use `import type` for ports and data types. Pure rules use `/rules` and schemas use `@ayllugen/contracts/species`. Do not import `@ayllugen/core/species`, package roots or internal `dist` paths. Core/contracts have no barrels or re-export facades; module internals import concrete files.
+
 This project uses **Modular Clean Architecture** where each feature is a self-contained module with all layers:
 
 ```

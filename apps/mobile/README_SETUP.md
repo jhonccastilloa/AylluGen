@@ -4,7 +4,7 @@ Revisado: 2026-09-05. Los comandos se ejecutan desde la raíz de AylluGen-App sa
 
 ## Dependencias y configuración
 
-- Node.js >=20 según [package.json](package.json); instalar con `npm ci`.
+- Node.js >=20 según [package.json](package.json); instalar con pnpm desde la raíz del monorepo. Species usa entradas directas del paquete `@ayllugen/core`, como `@ayllugen/core/species/create`, sin barrels ni copias locales de sus reglas.
 - Android: JDK 17, Android SDK y herramientas definidos en [build.gradle](android/build.gradle) (compile SDK/build tools 36).
 - iOS: macOS, Xcode y CocoaPods mediante el [Gemfile](Gemfile). No se puede compilar iOS desde Windows.
 - [env.ts](src/core/config/env.ts) configura API/timeout. No existe un selector de staging operativo: `__DEV__` cambia el nombre del entorno, pero ambas ramas usan la misma URL.
@@ -13,7 +13,10 @@ Revisado: 2026-09-05. Los comandos se ejecutan desde la raíz de AylluGen-App sa
 ## Android
 
 ```sh
-npm ci
+cd ../..
+pnpm install --frozen-lockfile
+pnpm build:shared
+cd apps/mobile
 npm start
 ```
 

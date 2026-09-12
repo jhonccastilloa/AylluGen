@@ -16,7 +16,9 @@ services:
     networks:
       - ayllu_gen_network
   backend:
-    build: .
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
     restart: always
     container_name: AlluGen-bk
     ports:
