@@ -9,12 +9,13 @@ packages/core/src/species/
   domain/
     entities/Species.ts
     errors/SpeciesError.ts
-    services/SpeciesRules.ts
-    types/Species.ts
-  application/
+    policies/SpeciesDeletionPolicy.ts
     ports/SpeciesRepository.ts
     ports/SpeciesUsage.ts
     ports/SpeciesUnitOfWork.ts
+    types/Species.ts
+    value-objects/{SpeciesCode,SpeciesName,SpeciesDescription}.ts
+  application/
     use-cases/CreateSpecies.ts
     use-cases/UpdateSpecies.ts
     use-cases/DeleteSpecies.ts
@@ -29,8 +30,8 @@ Los contratos Zod viven en `packages/contracts/src/species.ts`, publicados como
 
 Las apps consumen archivos concretos mediante subrutas públicas:
 `@ayllugen/core/species/entity`, `/create`, `/update`, `/repository`, `/types`, etc.
-Las reglas puras se consumen desde `@ayllugen/core/species/rules`, sin cargar casos
-de uso. No hay barrels ni fachadas de reexports en core/contracts. Domain y
+Los Value Objects y las políticas se consumen desde subrutas directas, sin cargar
+casos de uso. No hay barrels ni fachadas de reexports en core/contracts. Domain y
 Application mantienen imports relativos entre archivos concretos. Los consumidores
 usan `import type` para puertos, datos e inputs. Ver todas las
 [entradas públicas](../../../README.md#entradas-públicas-sin-barrels).
@@ -39,12 +40,13 @@ Domain y Application no importan Prisma, Watermelon, React, Express, Inversify,
 Zod ni archivos de las apps. Contracts adapta las mismas validaciones puras a
 Zod para HTTP/sync; no es una dependencia del núcleo.
 
-`Species.create()` normaliza y valida. `changeDetails()` protege las mismas
-invariantes durante una edición. `restore()` reconstruye datos persistidos de
-confianza, sin normalización ni efectos; nunca sustituye la validación de una
-entrada HTTP/push. La entidad contiene identidad y campos de negocio. Las fechas
-del origen viajan en `SpeciesData`, una proyección de persistencia; la auditoría
-del servidor es una extensión exclusiva del adaptador API.
+`SpeciesCode`, `SpeciesName` y `SpeciesDescription` son Value Objects: cada uno
+normaliza y garantiza sus propias invariantes al crear o editar. `changeDetails()`
+valida solo los campos enviados y conserva exactamente los valores omitidos.
+`restore()` valida identidad y campos persistidos sin normalizarlos ni generar efectos;
+nunca sustituye la validación de una entrada HTTP/push. La entidad contiene identidad
+y campos de negocio. Las fechas del origen viajan en `SpeciesData`, una proyección de
+persistencia; la auditoría del servidor es una extensión exclusiva del adaptador API.
 
 ## Adaptadores y ensamblado
 

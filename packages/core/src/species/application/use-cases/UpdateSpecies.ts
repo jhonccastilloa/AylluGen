@@ -1,6 +1,6 @@
 import { Species } from "../../domain/entities/Species";
 import type { SpeciesData } from "../../domain/types/Species";
-import type { SpeciesUnitOfWork } from "../ports/SpeciesUnitOfWork";
+import type { SpeciesUnitOfWork } from "../../domain/ports/SpeciesUnitOfWork";
 import type { UpdateSpeciesInput } from "./inputs";
 import { assertUnique, requireSpecies } from "./requireSpecies";
 

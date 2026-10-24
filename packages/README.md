@@ -16,7 +16,7 @@ packages/
     tsconfig.json               # Hereda base; define src/dist
     src/
       species/
-        domain/{entities,errors,services,types}/
+        domain/{entities,errors,policies,types,value-objects}/
         application/{ports,use-cases}/
     tests/
   contracts/
@@ -65,9 +65,10 @@ Esta reorganización no ejecuta Docker, migraciones ni despliegues.
 ```ts
 import { CreateSpecies } from '@ayllugen/core/species/create';
 import { Species } from '@ayllugen/core/species/entity';
+import { SpeciesCode } from '@ayllugen/core/species/code';
 import type { SpeciesRepository } from '@ayllugen/core/species/repository';
 import type { SpeciesData } from '@ayllugen/core/species/types';
-import { speciesCodeIssue } from '@ayllugen/core/species/rules';
+import { assertSpeciesUnused } from '@ayllugen/core/species/deletion-policy';
 import { speciesFieldsSchema } from '@ayllugen/contracts/species';
 ```
 
@@ -76,9 +77,9 @@ import { speciesFieldsSchema } from '@ayllugen/contracts/species';
   define la entidad, caso de uso, regla o tipo, sin una fachada de reexports.
 - No importar `@ayllugen/core`, `@ayllugen/core/species` ni `@ayllugen/contracts`:
   esas entradas no están expuestas. Los tipos se consumen mediante `import type`.
-- Las reglas puras tienen una subruta que apunta directamente a `SpeciesRules`.
-  Contracts y el validador de eliminación de sync no cargan casos de uso para
-  utilizar esas reglas. Contracts expone su archivo de schemas directamente.
+- Los Value Objects y la política de eliminación tienen subrutas que apuntan a
+  sus archivos concretos. Contracts y el validador de eliminación de sync no
+  cargan casos de uso. Contracts expone su archivo de schemas directamente.
 - Dentro del módulo, usar imports relativos al archivo concreto. No añadir
   índices ni archivos con otro nombre que reexporten piezas de otros archivos.
 - `exports` delimita las subrutas públicas. `typesVersions` declara las mismas
@@ -90,7 +91,8 @@ import { speciesFieldsSchema } from '@ayllugen/contracts/species';
 
 Subrutas de core bajo `@ayllugen/core/species/`:
 
-- Dominio: `entity`, `errors`, `types`, `rules`.
+- Dominio: `entity`, `code`, `name`, `description`, `deletion-policy`, `errors`,
+  `types`.
 - Puertos: `repository`, `usage`, `unit-of-work`.
 - Entradas de comandos: `inputs`.
 - Casos de uso: `create`, `update`, `delete`, `list`, `get`, `resolve-by-code`,

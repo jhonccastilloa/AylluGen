@@ -3,7 +3,7 @@ import type { SpeciesData } from "../../domain/types/Species";
 import type {
   SpeciesUnitOfWork,
   SpeciesIdGenerator,
-} from "../ports/SpeciesUnitOfWork";
+} from "../../domain/ports/SpeciesUnitOfWork";
 import type { CreateSpeciesInput } from "./inputs";
 import { assertUnique } from "./requireSpecies";
 

@@ -1,4 +1,4 @@
-import type { SpeciesFields } from "../types/Species";
+import type { SpeciesProps } from "../types/Species";
 
 export type SpeciesErrorCode =
   | "SPECIES_INVALID"
@@ -10,7 +10,7 @@ export class SpeciesError extends Error {
   constructor(
     public readonly code: SpeciesErrorCode,
     message: string,
-    public readonly field?: keyof SpeciesFields,
+    public readonly field?: keyof SpeciesProps,
   ) {
     super(message);
     this.name = "SpeciesError";

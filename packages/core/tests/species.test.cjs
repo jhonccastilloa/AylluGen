@@ -11,7 +11,9 @@ const { ListSpecies } = require("@ayllugen/core/species/list");
 const { GetSpecies } = require("@ayllugen/core/species/get");
 const { ResolveSpeciesByCode } = require("@ayllugen/core/species/resolve-by-code");
 const { InitializeSpeciesCatalog } = require("@ayllugen/core/species/initialize-catalog");
-const { assertSpeciesUnused } = require("@ayllugen/core/species/rules");
+const {
+  assertSpeciesUnused,
+} = require("@ayllugen/core/species/deletion-policy");
 
 function fixture() {
   const rows = new Map();
@@ -119,6 +121,14 @@ test("entity normalizes commands and protects its identity from primitive mutati
   species.changeDetails({ description: " Hola " });
   assert.equal(species.description, "Hola");
   assert.equal(species.id, "a");
+  assert.throws(
+    () => Species.create({ ...valid, id: "b", userId: "owner", code: "!" }),
+    (error) => errorCode("SPECIES_INVALID")(error) && error.field === "code",
+  );
+  assert.throws(
+    () => Species.create({ ...valid, id: "c", userId: "owner", name: " " }),
+    (error) => errorCode("SPECIES_INVALID")(error) && error.field === "name",
+  );
 });
 
 test("restore neither normalizes historical strings nor copies audit data into entity", () => {
@@ -131,6 +141,48 @@ test("restore neither normalizes historical strings nor copies audit data into e
   });
   assert.equal(species.name, " Alpaca ");
   assert.equal("updatedAt" in species.toPrimitives(), false);
+});
+
+test("partial edits preserve the exact stored values of omitted fields", () => {
+  const species = Species.restore({
+    ...valid,
+    id: "a",
+    userId: "owner",
+    name: " Alpaca ",
+    description: " Andina ",
+  });
+  species.changeDetails({ code: "llama" });
+  assert.deepEqual(species.toPrimitives(), {
+    id: "a",
+    userId: "owner",
+    code: "LLAMA",
+    name: " Alpaca ",
+    description: " Andina ",
+  });
+  species.changeDetails({ name: " Vicuña " });
+  assert.equal(species.name, "Vicuña");
+  assert.equal(species.description, " Andina ");
+});
+
+test("create and restore reject invalid identity or stored values", () => {
+  for (const method of [Species.create, Species.restore]) {
+    for (const [field, value] of [["id", "  "], ["userId", ""]]) {
+      assert.throws(
+        () => method({ ...valid, id: "a", userId: "owner", [field]: value }),
+        (error) => errorCode("SPECIES_INVALID")(error) && error.field === field,
+      );
+    }
+  }
+  for (const [field, value] of [
+    ["code", "alpaca"],
+    ["name", "  "],
+    ["description", "x".repeat(201)],
+  ]) {
+    assert.throws(
+      () => Species.restore({ ...valid, id: "a", userId: "owner", [field]: value }),
+      (error) => errorCode("SPECIES_INVALID")(error) && error.field === field,
+    );
+  }
 });
 
 test("list is read-only and does not seed defaults", async () => {

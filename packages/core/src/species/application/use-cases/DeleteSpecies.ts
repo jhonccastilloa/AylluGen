@@ -1,6 +1,6 @@
-import { assertSpeciesUnused } from "../../domain/services/SpeciesRules";
+import { assertSpeciesUnused } from "../../domain/policies/SpeciesDeletionPolicy";
 import type { SpeciesData } from "../../domain/types/Species";
-import type { SpeciesUnitOfWork } from "../ports/SpeciesUnitOfWork";
+import type { SpeciesUnitOfWork } from "../../domain/ports/SpeciesUnitOfWork";
 import { requireSpecies } from "./requireSpecies";
 
 export class DeleteSpecies<T extends SpeciesData = SpeciesData> {

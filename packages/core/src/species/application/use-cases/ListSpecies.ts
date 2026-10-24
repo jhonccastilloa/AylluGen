@@ -1,5 +1,5 @@
 import type { SpeciesData } from "../../domain/types/Species";
-import type { SpeciesUnitOfWork } from "../ports/SpeciesUnitOfWork";
+import type { SpeciesUnitOfWork } from "../../domain/ports/SpeciesUnitOfWork";
 
 export class ListSpecies<T extends SpeciesData = SpeciesData> {
   constructor(

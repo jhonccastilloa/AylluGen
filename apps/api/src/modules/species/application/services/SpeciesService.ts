@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
+import { SpeciesCode } from "@ayllugen/core/species/code";
 import { SpeciesError } from "@ayllugen/core/species/errors";
-import { normalizeSpeciesCode } from "@ayllugen/core/species/rules";
 import { TYPES } from "../../../../shared/di/types";
 import type {
   SpeciesCreateInput,
@@ -98,7 +98,7 @@ export class SpeciesService {
             "SPECIES_INVALID",
             "Debe enviar speciesId o speciesCode para crear un animal",
           );
-        const code = normalizeSpeciesCode(rawCode);
+        const code = SpeciesCode.normalize(rawCode);
         result = await commands.resolveSpecies.execute({ code, name: code });
       }
       return {

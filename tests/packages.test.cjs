@@ -71,7 +71,9 @@ test('apps and contracts resolve the same concrete public files', () => {
     entity: 'Species', errors: 'SpeciesError', create: 'CreateSpecies',
     update: 'UpdateSpecies', delete: 'DeleteSpecies', list: 'ListSpecies',
     get: 'GetSpecies', 'resolve-by-code': 'ResolveSpeciesByCode',
-    'initialize-catalog': 'InitializeSpeciesCatalog', rules: 'speciesCodeIssue',
+    'initialize-catalog': 'InitializeSpeciesCatalog', code: 'SpeciesCode',
+    name: 'SpeciesName', description: 'SpeciesDescription',
+    'deletion-policy': 'assertSpeciesUnused',
   };
   for (const consumer of [api, mobile, contracts]) {
     for (const [entry, name] of Object.entries(runtimeEntries)) {
@@ -84,7 +86,6 @@ test('apps and contracts resolve the same concrete public files', () => {
   assert.equal(api('@ayllugen/core/species/entity').Species, mobile('@ayllugen/core/species/entity').Species);
   for (const consumer of [api, mobile]) {
     assert.equal(typeof consumer('@ayllugen/contracts/species').speciesFieldsSchema.parse, 'function');
-    assert.equal(typeof consumer('@ayllugen/core/species/rules').speciesCodeIssue, 'function');
     for (const specifier of ['@ayllugen/core', '@ayllugen/contracts', '@ayllugen/core/species',
       '@ayllugen/core/dist/species/domain/entities/Species',
       '@ayllugen/core/species/domain/entities/Species', '@ayllugen/contracts/dist/species']) {
@@ -98,7 +99,7 @@ test('apps and contracts resolve the same concrete public files', () => {
 
 test('subpath exports and TypeScript declarations agree for both app resolvers', () => {
   for (const [name, entries] of [
-    ['core', ['entity', 'errors', 'types', 'rules', 'repository', 'usage', 'unit-of-work',
+    ['core', ['entity', 'code', 'name', 'description', 'deletion-policy', 'errors', 'types', 'repository', 'usage', 'unit-of-work',
       'inputs', 'create', 'update', 'delete', 'list', 'get', 'resolve-by-code',
       'initialize-catalog'].map(entry => `./species/${entry}`)],
     ['contracts', ['./species']],
@@ -158,10 +159,15 @@ const loadedCoreModules = specifier => JSON.parse(execFileSync(process.execPath,
     .filter(file => file.startsWith('packages/core/dist/'))));
 `, specifier], { cwd: root, encoding: 'utf8' }));
 
-test('rules and contracts load no Species barrel or application use cases', () => {
-  for (const specifier of ['@ayllugen/core/species/rules', '@ayllugen/contracts/species']) {
+test('domain values, policies and contracts load no application use cases', () => {
+  for (const specifier of [
+    '@ayllugen/core/species/code',
+    '@ayllugen/core/species/name',
+    '@ayllugen/core/species/description',
+    '@ayllugen/core/species/deletion-policy',
+    '@ayllugen/contracts/species',
+  ]) {
     const loaded = loadedCoreModules(specifier);
-    assert.ok(loaded.includes('packages/core/dist/species/domain/services/SpeciesRules.js'));
     assert.ok(loaded.every(file => file.startsWith('packages/core/dist/species/domain/')), loaded.join('\n'));
   }
 });

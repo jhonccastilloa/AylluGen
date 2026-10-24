@@ -21,6 +21,7 @@ test('canonical validation covers shared field limits and types', () => {
   for (const fields of [
     { ...valid, code: 'A' }, { ...valid, code: 'A'.repeat(31) },
     { ...valid, name: 'A' }, { ...valid, name: 'A'.repeat(81) },
+    { ...valid, name: '  ' }, { ...valid, name: ' A ' },
     { ...valid, description: 'A'.repeat(201) }, { ...valid, description: 42 },
   ]) assert.equal(speciesFieldsSchema.safeParse(fields).success, false);
   assert.equal(speciesFieldsSchema.safeParse(valid).success, true);

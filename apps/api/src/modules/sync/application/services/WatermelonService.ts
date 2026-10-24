@@ -1,6 +1,6 @@
 import { inject, injectable } from "inversify";
 import { createHash } from "node:crypto";
-import { assertSpeciesUnused } from "@ayllugen/core/species/rules";
+import { assertSpeciesUnused } from "@ayllugen/core/species/deletion-policy";
 import { rethrowSpeciesError } from "../../../species/application/speciesErrors";
 import {
   TYPE_IWatermelonRepository,

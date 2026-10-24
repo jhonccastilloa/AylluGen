@@ -1,4 +1,4 @@
-import type { SpeciesData } from "../../domain/types/Species";
+import type { SpeciesData } from "../types/Species";
 import type { SpeciesRepository } from "./SpeciesRepository";
 import type { SpeciesUsage } from "./SpeciesUsage";
 

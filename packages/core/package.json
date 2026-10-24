@@ -7,6 +7,22 @@
       "types": "./dist/species/domain/entities/Species.d.ts",
       "default": "./dist/species/domain/entities/Species.js"
     },
+    "./species/code": {
+      "types": "./dist/species/domain/value-objects/SpeciesCode.d.ts",
+      "default": "./dist/species/domain/value-objects/SpeciesCode.js"
+    },
+    "./species/name": {
+      "types": "./dist/species/domain/value-objects/SpeciesName.d.ts",
+      "default": "./dist/species/domain/value-objects/SpeciesName.js"
+    },
+    "./species/description": {
+      "types": "./dist/species/domain/value-objects/SpeciesDescription.d.ts",
+      "default": "./dist/species/domain/value-objects/SpeciesDescription.js"
+    },
+    "./species/deletion-policy": {
+      "types": "./dist/species/domain/policies/SpeciesDeletionPolicy.d.ts",
+      "default": "./dist/species/domain/policies/SpeciesDeletionPolicy.js"
+    },
     "./species/errors": {
       "types": "./dist/species/domain/errors/SpeciesError.d.ts",
       "default": "./dist/species/domain/errors/SpeciesError.js"
@@ -15,21 +31,17 @@
       "types": "./dist/species/domain/types/Species.d.ts",
       "default": "./dist/species/domain/types/Species.js"
     },
-    "./species/rules": {
-      "types": "./dist/species/domain/services/SpeciesRules.d.ts",
-      "default": "./dist/species/domain/services/SpeciesRules.js"
-    },
     "./species/repository": {
-      "types": "./dist/species/application/ports/SpeciesRepository.d.ts",
-      "default": "./dist/species/application/ports/SpeciesRepository.js"
+      "types": "./dist/species/domain/ports/SpeciesRepository.d.ts",
+      "default": "./dist/species/domain/ports/SpeciesRepository.js"
     },
     "./species/usage": {
-      "types": "./dist/species/application/ports/SpeciesUsage.d.ts",
-      "default": "./dist/species/application/ports/SpeciesUsage.js"
+      "types": "./dist/species/domain/ports/SpeciesUsage.d.ts",
+      "default": "./dist/species/domain/ports/SpeciesUsage.js"
     },
     "./species/unit-of-work": {
-      "types": "./dist/species/application/ports/SpeciesUnitOfWork.d.ts",
-      "default": "./dist/species/application/ports/SpeciesUnitOfWork.js"
+      "types": "./dist/species/domain/ports/SpeciesUnitOfWork.d.ts",
+      "default": "./dist/species/domain/ports/SpeciesUnitOfWork.js"
     },
     "./species/inputs": {
       "types": "./dist/species/application/use-cases/inputs.d.ts",
@@ -69,23 +81,32 @@
       "species/entity": [
         "dist/species/domain/entities/Species.d.ts"
       ],
+      "species/code": [
+        "dist/species/domain/value-objects/SpeciesCode.d.ts"
+      ],
+      "species/name": [
+        "dist/species/domain/value-objects/SpeciesName.d.ts"
+      ],
+      "species/description": [
+        "dist/species/domain/value-objects/SpeciesDescription.d.ts"
+      ],
+      "species/deletion-policy": [
+        "dist/species/domain/policies/SpeciesDeletionPolicy.d.ts"
+      ],
       "species/errors": [
         "dist/species/domain/errors/SpeciesError.d.ts"
       ],
       "species/types": [
         "dist/species/domain/types/Species.d.ts"
       ],
-      "species/rules": [
-        "dist/species/domain/services/SpeciesRules.d.ts"
-      ],
       "species/repository": [
-        "dist/species/application/ports/SpeciesRepository.d.ts"
+        "dist/species/domain/ports/SpeciesRepository.d.ts"
       ],
       "species/usage": [
-        "dist/species/application/ports/SpeciesUsage.d.ts"
+        "dist/species/domain/ports/SpeciesUsage.d.ts"
       ],
       "species/unit-of-work": [
-        "dist/species/application/ports/SpeciesUnitOfWork.d.ts"
+        "dist/species/domain/ports/SpeciesUnitOfWork.d.ts"
       ],
       "species/inputs": [
         "dist/species/application/use-cases/inputs.d.ts"

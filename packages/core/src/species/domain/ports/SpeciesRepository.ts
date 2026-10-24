@@ -1,4 +1,4 @@
-import type { SpeciesData, SpeciesFields } from "../../domain/types/Species";
+import type { SpeciesData, SpeciesFields } from "../types/Species";
 
 /** One owner per repository instance. Queries exclude deleted records. */
 export interface SpeciesRepository<T extends SpeciesData = SpeciesData> {

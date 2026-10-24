@@ -1,6 +1,6 @@
 import { SpeciesError } from "../../domain/errors/SpeciesError";
 import type { SpeciesData, SpeciesFields } from "../../domain/types/Species";
-import type { SpeciesRepository } from "../ports/SpeciesRepository";
+import type { SpeciesRepository } from "../../domain/ports/SpeciesRepository";
 
 export async function requireSpecies<T extends SpeciesData>(
   repository: SpeciesRepository<T>,

@@ -1,24 +1,22 @@
 import { z } from "zod";
-import {
-  speciesCodeIssue,
-  speciesNameIssue,
-  speciesDescriptionIssue,
-} from "@ayllugen/core/species/rules";
+import { SpeciesCode } from "@ayllugen/core/species/code";
+import { SpeciesDescription } from "@ayllugen/core/species/description";
+import { SpeciesName } from "@ayllugen/core/species/name";
 
 // Canonical persisted/wire values: no transformations during push or pull.
 export const speciesCodeSchema = z.string().superRefine((value, ctx) => {
-  const message = speciesCodeIssue(value);
+  const message = SpeciesCode.issue(value);
   if (message) ctx.addIssue({ code: "custom", message });
 });
 export const speciesNameSchema = z.string().superRefine((value, ctx) => {
-  const message = speciesNameIssue(value);
+  const message = SpeciesName.issue(value);
   if (message) ctx.addIssue({ code: "custom", message });
 });
 export const speciesDescriptionSchema = z
   .string()
   .nullable()
   .superRefine((value, ctx) => {
-    const message = speciesDescriptionIssue(value);
+    const message = SpeciesDescription.issue(value);
     if (message) ctx.addIssue({ code: "custom", message });
   });
 export const speciesFieldsSchema = z.object({
