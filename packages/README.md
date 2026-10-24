@@ -16,8 +16,8 @@ packages/
     tsconfig.json               # Hereda base; define src/dist
     src/
       species/
-        domain/{entities,errors,policies,types,value-objects}/
-        application/{ports,use-cases}/
+        domain/{entities,errors,policies,ports,types,value-objects}/
+        application/use-cases/
     tests/
   contracts/
     package.json                # @ayllugen/contracts: core + Zod
@@ -34,7 +34,7 @@ no incorpora Animals ni cambia las reglas de Species.
 
 Core contiene entidades, reglas, casos de uso individuales y puertos. No depende
 de contracts, apps, Zod, Prisma, Watermelon, React Native, Express ni Inversify.
-Contracts adapta las validaciones del dominio a Zod; los adaptadores de
+Contracts valida el formato wire con Zod; los adaptadores de
 persistencia, la inyección de dependencias y los bootstraps permanecen en las apps.
 
 ## Comandos desde el root
@@ -77,7 +77,7 @@ import { speciesFieldsSchema } from '@ayllugen/contracts/species';
   define la entidad, caso de uso, regla o tipo, sin una fachada de reexports.
 - No importar `@ayllugen/core`, `@ayllugen/core/species` ni `@ayllugen/contracts`:
   esas entradas no están expuestas. Los tipos se consumen mediante `import type`.
-- Los Value Objects y la política de eliminación tienen subrutas que apuntan a
+- El Value Object y la política de eliminación tienen subrutas que apuntan a
   sus archivos concretos. Contracts y el validador de eliminación de sync no
   cargan casos de uso. Contracts expone su archivo de schemas directamente.
 - Dentro del módulo, usar imports relativos al archivo concreto. No añadir
@@ -91,9 +91,9 @@ import { speciesFieldsSchema } from '@ayllugen/contracts/species';
 
 Subrutas de core bajo `@ayllugen/core/species/`:
 
-- Dominio: `entity`, `code`, `name`, `description`, `deletion-policy`, `errors`,
+- Dominio: `entity`, `code`, `deletion-policy`, `errors`,
   `types`.
-- Puertos: `repository`, `usage`, `unit-of-work`.
+- Puerto: `repository`.
 - Entradas de comandos: `inputs`.
 - Casos de uso: `create`, `update`, `delete`, `list`, `get`, `resolve-by-code`,
   `initialize-catalog`.

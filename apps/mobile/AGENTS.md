@@ -44,7 +44,7 @@ iOS native deps (first clone or native dependency updates):
 
 - Species follows shared hexagonal architecture in `packages/core/src/species`: entity, individual use cases and ports. Its per-account `features/species/bootstrap.ts` supplies Watermelon adapters and UI projections. Do not reintroduce Species business rules in repositories or screens. See `../../packages/core/src/species/README.md`.
 - Install from the monorepo root with pnpm and run `pnpm build:shared` before direct CLI/typecheck/native commands. After shared edits rebuild or run `pnpm watch:shared` from the root; Metro consumes compiled core and contracts.
-- Use concrete public entries such as `@ayllugen/core/species/create`, `/entity`, `/repository`, `/unit-of-work`, `/types`, and `/inputs`; use `import type` for ports and data types. Pure rules use `/rules` and schemas use `@ayllugen/contracts/species`. `@ayllugen/core/species`, package roots and internal `dist` paths are not public entries. Do not add barrels or re-export facades to core/contracts.
+- Use concrete public entries such as `@ayllugen/core/species/create`, `/entity`, `/repository`, `/types`, and `/inputs`; use `import type` for ports and data types. Pure rules use `/deletion-policy` and schemas use `@ayllugen/contracts/species`. `@ayllugen/core/species`, package roots and internal `dist` paths are not public entries. Do not add barrels or re-export facades to core/contracts.
 
 - Species, animals, breedings, health and production use WatermelonDB only for UI CRUD. Do not restore REST CRUD adapters or a manual sync queue.
 - SyncOrchestrator owns synchronize(), single-flight, event triggers and backoff; no periodic polling.

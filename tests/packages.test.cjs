@@ -72,7 +72,6 @@ test('apps and contracts resolve the same concrete public files', () => {
     update: 'UpdateSpecies', delete: 'DeleteSpecies', list: 'ListSpecies',
     get: 'GetSpecies', 'resolve-by-code': 'ResolveSpeciesByCode',
     'initialize-catalog': 'InitializeSpeciesCatalog', code: 'SpeciesCode',
-    name: 'SpeciesName', description: 'SpeciesDescription',
     'deletion-policy': 'assertSpeciesUnused',
   };
   for (const consumer of [api, mobile, contracts]) {
@@ -87,6 +86,9 @@ test('apps and contracts resolve the same concrete public files', () => {
   for (const consumer of [api, mobile]) {
     assert.equal(typeof consumer('@ayllugen/contracts/species').speciesFieldsSchema.parse, 'function');
     for (const specifier of ['@ayllugen/core', '@ayllugen/contracts', '@ayllugen/core/species',
+      '@ayllugen/core/species/name', '@ayllugen/core/species/description',
+      '@ayllugen/core/species/rules',
+      '@ayllugen/core/species/usage', '@ayllugen/core/species/unit-of-work',
       '@ayllugen/core/dist/species/domain/entities/Species',
       '@ayllugen/core/species/domain/entities/Species', '@ayllugen/contracts/dist/species']) {
       assert.throws(() => consumer(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
@@ -99,7 +101,7 @@ test('apps and contracts resolve the same concrete public files', () => {
 
 test('subpath exports and TypeScript declarations agree for both app resolvers', () => {
   for (const [name, entries] of [
-    ['core', ['entity', 'code', 'name', 'description', 'deletion-policy', 'errors', 'types', 'repository', 'usage', 'unit-of-work',
+    ['core', ['entity', 'code', 'deletion-policy', 'errors', 'types', 'repository',
       'inputs', 'create', 'update', 'delete', 'list', 'get', 'resolve-by-code',
       'initialize-catalog'].map(entry => `./species/${entry}`)],
     ['contracts', ['./species']],
@@ -162,13 +164,13 @@ const loadedCoreModules = specifier => JSON.parse(execFileSync(process.execPath,
 test('domain values, policies and contracts load no application use cases', () => {
   for (const specifier of [
     '@ayllugen/core/species/code',
-    '@ayllugen/core/species/name',
-    '@ayllugen/core/species/description',
     '@ayllugen/core/species/deletion-policy',
     '@ayllugen/contracts/species',
   ]) {
     const loaded = loadedCoreModules(specifier);
     assert.ok(loaded.every(file => file.startsWith('packages/core/dist/species/domain/')), loaded.join('\n'));
+    if (specifier === '@ayllugen/contracts/species')
+      assert.deepEqual(loaded, [], 'Zod contracts must not load core at runtime');
   }
 });
 
@@ -188,11 +190,9 @@ test('type-only consumers emit no runtime imports', () => {
     import type { SpeciesData, SpeciesFields, SpeciesProps } from '@ayllugen/core/species/types';
     import type { SpeciesErrorCode } from '@ayllugen/core/species/errors';
     import type { SpeciesRepository } from '@ayllugen/core/species/repository';
-    import type { SpeciesUsage } from '@ayllugen/core/species/usage';
-    import type { SpeciesUnitOfWork, SpeciesSession, SpeciesIdGenerator } from '@ayllugen/core/species/unit-of-work';
-    import type { CreateSpeciesInput, UpdateSpeciesInput } from '@ayllugen/core/species/inputs';
+    import type { CreateSpeciesInput, UpdateSpeciesInput, SpeciesIdGenerator } from '@ayllugen/core/species/inputs';
     export type Contract = [SpeciesData, SpeciesFields, SpeciesProps, SpeciesErrorCode,
-      SpeciesRepository, SpeciesUsage, SpeciesUnitOfWork, SpeciesSession, SpeciesIdGenerator,
+      SpeciesRepository, SpeciesIdGenerator,
       CreateSpeciesInput, UpdateSpeciesInput];
   `;
   const result = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });

@@ -4,6 +4,7 @@ export type SpeciesErrorCode =
   | "SPECIES_INVALID"
   | "SPECIES_NOT_FOUND"
   | "SPECIES_DUPLICATE"
+  | "SPECIES_CONFLICT"
   | "SPECIES_IN_USE";
 
 export class SpeciesError extends Error {

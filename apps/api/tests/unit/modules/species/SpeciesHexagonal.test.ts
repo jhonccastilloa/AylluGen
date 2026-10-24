@@ -1,7 +1,7 @@
 import { SpeciesError } from "@ayllugen/core/species/errors";
 import { CreateSpecies } from "@ayllugen/core/species/create";
 import { prisma } from "../../../../src/infrastructure/database/prisma/client";
-import { PrismaSpeciesUnitOfWork } from "../../../../src/modules/species/infrastructure/PrismaSpeciesUnitOfWork";
+import { PrismaSpeciesRepository } from "../../../../src/modules/species/infrastructure/repositories/PrismaSpeciesRepository";
 import { SpeciesService } from "../../../../src/modules/species/application/services/SpeciesService";
 import { createSpeciesUseCases } from "../../../../src/modules/species/bootstrap";
 import { speciesCreateSchema } from "../../../../src/modules/species/application/schemas/species.schema";
@@ -41,9 +41,12 @@ function fixture() {
   (prisma.$transaction as jest.Mock).mockImplementation(async (work) =>
     work(tx),
   );
-  const unit = new PrismaSpeciesUnitOfWork();
-  const api = new SpeciesService((owner) => createSpeciesUseCases(unit, owner));
-  return { tx, api, unit };
+  Object.assign(prisma, { species: tx.species, animal: tx.animal });
+  const repository = new PrismaSpeciesRepository(OWNER);
+  const api = new SpeciesService((owner) =>
+    createSpeciesUseCases(new PrismaSpeciesRepository(owner)),
+  );
+  return { tx, api, repository };
 }
 
 beforeEach(() => jest.clearAllMocks());
@@ -62,7 +65,7 @@ it("normalizes a REST command through the shared entity, in an owner-locked tran
     description: null,
   });
   expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
-    tx.species.findMany.mock.invocationCallOrder[0],
+    tx.species.create.mock.invocationCallOrder[0],
   );
   expect(tx.species.create).toHaveBeenCalledWith({
     data: expect.objectContaining({ userId: OWNER, code: "ALPACA" }),
@@ -100,6 +103,17 @@ it("omitting description retains it and updates only the intended record/owner",
       clientUpdatedAt: expect.any(Date),
     },
   });
+});
+
+it("rejects an update when the stored species changed after it was read", async () => {
+  const { tx, api } = fixture();
+  tx.species.findFirst
+    .mockResolvedValueOnce(record)
+    .mockResolvedValueOnce({ ...record, name: "Changed" });
+  await expect(api.update(record.id, OWNER, { description: "Nueva" })).rejects.toMatchObject({
+    statusCode: 409,
+  });
+  expect(tx.species.update).not.toHaveBeenCalled();
 });
 
 it("maps duplicate errors to 409 and checks reserved keys without changing the database policy", async () => {
@@ -152,8 +166,8 @@ it("does not swallow infrastructure failures and translates SQL uniqueness confl
 });
 
 it("keeps the core error free of HTTP status codes", async () => {
-  const { unit } = fixture();
-  const useCase = new CreateSpecies(unit, OWNER, () => record.id);
+  const { repository } = fixture();
+  const useCase = new CreateSpecies(repository, () => record.id);
   try {
     await useCase.execute({ code: "!!", name: "Alpaca" });
     throw new Error("expected validation failure");

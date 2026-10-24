@@ -9,7 +9,7 @@ export function rethrowSpeciesError(error: unknown): never {
   if (error instanceof SpeciesError) {
     if (error.code === "SPECIES_NOT_FOUND")
       throw new NotFoundError(error.message);
-    if (error.code === "SPECIES_DUPLICATE")
+    if (error.code === "SPECIES_DUPLICATE" || error.code === "SPECIES_CONFLICT")
       throw new ConflictError(error.message);
     throw new ValidationError(error.message);
   }

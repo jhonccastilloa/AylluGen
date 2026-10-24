@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { speciesFieldsSchema, createSpeciesInputSchema, updateSpeciesInputSchema } = require('@ayllugen/contracts/species');
 const { Species } = require('@ayllugen/core/species/entity');
+const { SpeciesCode } = require('@ayllugen/core/species/code');
 const valid = { code: 'ALPACA', name: 'Alpaca', description: null };
 
 test('wire validation does not normalize stored text', () => {
@@ -25,4 +26,16 @@ test('canonical validation covers shared field limits and types', () => {
     { ...valid, description: 'A'.repeat(201) }, { ...valid, description: 42 },
   ]) assert.equal(speciesFieldsSchema.safeParse(fields).success, false);
   assert.equal(speciesFieldsSchema.safeParse(valid).success, true);
+});
+
+test('wire code validation agrees with the domain code value object', () => {
+  for (const code of ['A', 'A'.repeat(30), 'A'.repeat(31), 'alpaca', 'ALPACA_']) {
+    let domainAccepts = true;
+    try {
+      SpeciesCode.restore(code);
+    } catch {
+      domainAccepts = false;
+    }
+    assert.equal(speciesFieldsSchema.safeParse({ ...valid, code }).success, domainAccepts, code);
+  }
 });

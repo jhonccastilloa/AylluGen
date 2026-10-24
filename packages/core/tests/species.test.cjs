@@ -22,11 +22,16 @@ function fixture() {
   let writes = 0;
   let timestamp = 1000;
   let tail = Promise.resolve();
-  const session = (owner) => {
+  const write = (work) => {
+    const result = tail.then(work);
+    tail = result.catch(() => {});
+    return result;
+  };
+  const repository = (owner) => {
     const owned = () =>
       [...rows.values()].filter((row) => row.userId === owner);
-    return {
-      species: {
+    const store = {
+        ownerId: owner,
         list: async () => owned().sort((a, b) => a.name.localeCompare(b.name)),
         findById: async (id) => owned().find((row) => row.id === id) ?? null,
         findByCode: async (code) =>
@@ -36,7 +41,9 @@ function fixture() {
           if (others.some((row) => row.code === fields.code)) return "code";
           return others.some((row) => row.name === fields.name) ? "name" : null;
         },
-        insert: async (id, fields) => {
+        insert: (id, fields) => write(async () => {
+          const conflict = await store.findConflict(fields);
+          if (conflict) throw new SpeciesError("SPECIES_DUPLICATE", "Duplicada", conflict);
           const row = {
             ...fields,
             id,
@@ -47,8 +54,27 @@ function fixture() {
           rows.set(id, row);
           writes++;
           return row;
-        },
-        update: async (id, fields) => {
+        }),
+        findOrInsertByCode: (id, fields) => write(async () => {
+          const existing = await store.findByCode(fields.code);
+          if (existing) return existing;
+          const conflict = await store.findConflict(fields);
+          if (conflict) throw new SpeciesError("SPECIES_DUPLICATE", "Duplicada", conflict);
+          const row = {
+            ...fields, id, userId: owner,
+            clientCreatedAt: new Date(timestamp),
+            clientUpdatedAt: new Date(timestamp++),
+          };
+          rows.set(id, row);
+          writes++;
+          return row;
+        }),
+        update: (id, fields, previous) => write(async () => {
+          const current = rows.get(id);
+          if (current.code !== previous.code || current.name !== previous.name || current.description !== previous.description)
+            throw new SpeciesError("SPECIES_CONFLICT", "Cambió durante la edición");
+          const conflict = await store.findConflict(fields, id);
+          if (conflict) throw new SpeciesError("SPECIES_DUPLICATE", "Duplicada", conflict);
           const row = {
             ...rows.get(id),
             ...fields,
@@ -57,36 +83,29 @@ function fixture() {
           rows.set(id, row);
           writes++;
           return row;
-        },
-        delete: async (id) => {
+        }),
+        delete: (id) => write(async () => {
+          if (await store.hasAnimals(id)) throw new SpeciesError("SPECIES_IN_USE", "En uso");
           rows.delete(id);
           writes++;
-        },
-      },
-      usage: { hasAnimals: async (id) => used.has(id) },
+        }),
+        hasAnimals: async (id) => used.has(id),
     };
-  };
-  const unit = {
-    read: async (owner, work) => work(session(owner)),
-    write: (owner, work) => {
-      const result = tail.then(() => work(session(owner)));
-      tail = result.catch(() => {});
-      return result;
-    },
+    return store;
   };
   const commands = (owner) => {
-    const list = new ListSpecies(unit, owner);
+    const store = repository(owner);
+    const list = new ListSpecies(store);
     const resolve = new ResolveSpeciesByCode(
-      unit,
-      owner,
+      store,
       () => `id-${++nextId}`,
     );
     return {
-      create: new CreateSpecies(unit, owner, () => `id-${++nextId}`),
-      update: new UpdateSpecies(unit, owner),
-      delete: new DeleteSpecies(unit, owner),
+      create: new CreateSpecies(store, () => `id-${++nextId}`),
+      update: new UpdateSpecies(store),
+      delete: new DeleteSpecies(store),
       list,
-      get: new GetSpecies(unit, owner),
+      get: new GetSpecies(store),
       resolve,
       initialize: new InitializeSpeciesCatalog(list, resolve),
     };
@@ -143,28 +162,33 @@ test("restore neither normalizes historical strings nor copies audit data into e
   assert.equal("updatedAt" in species.toPrimitives(), false);
 });
 
-test("partial edits preserve the exact stored values of omitted fields", () => {
+test("partial edits preserve even legacy text in omitted fields", () => {
   const species = Species.restore({
     ...valid,
     id: "a",
     userId: "owner",
-    name: " Alpaca ",
-    description: " Andina ",
+    name: " A ",
+    description: "x".repeat(201),
   });
   species.changeDetails({ code: "llama" });
   assert.deepEqual(species.toPrimitives(), {
     id: "a",
     userId: "owner",
     code: "LLAMA",
-    name: " Alpaca ",
-    description: " Andina ",
+    name: " A ",
+    description: "x".repeat(201),
   });
   species.changeDetails({ name: " Vicuña " });
   assert.equal(species.name, "Vicuña");
-  assert.equal(species.description, " Andina ");
+  assert.equal(species.description, "x".repeat(201));
+  assert.throws(
+    () => species.changeDetails({ description: "y".repeat(201) }),
+    (error) => errorCode("SPECIES_INVALID")(error) && error.field === "description",
+  );
+  assert.equal(species.description, "x".repeat(201));
 });
 
-test("create and restore reject invalid identity or stored values", () => {
+test("create and restore reject invalid identity; restore requires a valid code", () => {
   for (const method of [Species.create, Species.restore]) {
     for (const [field, value] of [["id", "  "], ["userId", ""]]) {
       assert.throws(
@@ -173,16 +197,10 @@ test("create and restore reject invalid identity or stored values", () => {
       );
     }
   }
-  for (const [field, value] of [
-    ["code", "alpaca"],
-    ["name", "  "],
-    ["description", "x".repeat(201)],
-  ]) {
-    assert.throws(
-      () => Species.restore({ ...valid, id: "a", userId: "owner", [field]: value }),
-      (error) => errorCode("SPECIES_INVALID")(error) && error.field === field,
-    );
-  }
+  assert.throws(
+    () => Species.restore({ ...valid, id: "a", userId: "owner", code: "alpaca" }),
+    (error) => errorCode("SPECIES_INVALID")(error) && error.field === "code",
+  );
 });
 
 test("list is read-only and does not seed defaults", async () => {
@@ -269,7 +287,7 @@ test("update excludes itself but cannot collide with another species", async () 
   );
 });
 
-test("concurrent creates validate within the unit of work", async () => {
+test("concurrent creates are rechecked by the repository", async () => {
   const f = fixture();
   const commands = f.commands("a");
   const results = await Promise.allSettled([
@@ -281,6 +299,17 @@ test("concurrent creates validate within the unit of work", async () => {
     1,
   );
   assert.equal(f.writes, 1);
+});
+
+test("concurrent updates reject a stale snapshot", async () => {
+  const commands = fixture().commands("a");
+  const created = await commands.create.execute(valid);
+  const results = await Promise.allSettled([
+    commands.update.execute(created.id, { name: "Llama" }),
+    commands.update.execute(created.id, { description: "Otra" }),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(results.find((result) => result.status === "rejected").reason.code, "SPECIES_CONFLICT");
 });
 
 test("linked animals prevent delete; unused species can be removed", async () => {

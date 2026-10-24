@@ -1,12 +1,11 @@
 import type { SpeciesData } from "../../domain/types/Species";
-import type { SpeciesUnitOfWork } from "../../domain/ports/SpeciesUnitOfWork";
+import type { SpeciesRepository } from "../../domain/ports/SpeciesRepository";
 
 export class ListSpecies<T extends SpeciesData = SpeciesData> {
   constructor(
-    private readonly unit: SpeciesUnitOfWork<T>,
-    private readonly ownerId: string,
+    private readonly repository: SpeciesRepository<T>,
   ) {}
   execute(): Promise<T[]> {
-    return this.unit.read(this.ownerId, ({ species }) => species.list());
+    return this.repository.list();
   }
 }

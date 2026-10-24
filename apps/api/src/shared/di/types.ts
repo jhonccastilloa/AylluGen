@@ -29,7 +29,6 @@ export const TYPES = {
   // Repositorios de Dominio - Sync Module
 
   // Repositorios de Dominio - Species Module
-  ISpeciesRepository: Symbol("ISpeciesRepository"),
   SpeciesUseCasesFactory: Symbol("SpeciesUseCasesFactory"),
 
   // Servicios de Aplicación - Animal Module

@@ -1,6 +1,6 @@
 import { CreateSpecies } from '@ayllugen/core/species/create';
 import { createSpeciesModule } from '../bootstrap';
-import { WatermelonSpeciesUnitOfWork } from './WatermelonSpeciesUnitOfWork';
+import { WatermelonSpeciesRepository } from './WatermelonSpeciesRepository';
 import {
   testDatabase,
   OWNER,
@@ -78,7 +78,7 @@ it('protects linked species and uses native deletion for an unused synced specie
   expect(await catalog.list()).toHaveLength(1);
 });
 
-it('isolates accounts and rejects a unit used with another owner', async () => {
+it('isolates accounts with owner-scoped repositories', async () => {
   const db = testDatabase();
   const catalog = createSpeciesModule(db, OWNER);
   const otherId = generateUuid();
@@ -94,14 +94,11 @@ it('isolates accounts and rejects a unit used with another owner', async () => {
     catalog.update(otherId, { name: 'Other' }),
   ).rejects.toMatchObject({ code: 'SPECIES_NOT_FOUND' });
   await catalog.create(valid);
-  const wrongAccount = new CreateSpecies(
-    new WatermelonSpeciesUnitOfWork(db, OWNER),
-    OTHER,
-    generateUuid,
-  );
-  await expect(wrongAccount.execute(valid)).rejects.toThrow(
-    'Cuenta local inválida',
-  );
+  const otherRepository = new WatermelonSpeciesRepository(db, OTHER);
+  const otherCreate = new CreateSpecies(otherRepository, generateUuid);
+  const createdForOther = await otherCreate.execute({ code: 'LLAMA', name: 'Llama' });
+  expect(createdForOther.userId).toBe(OTHER);
+  expect(await catalog.list()).toHaveLength(1);
 });
 
 it('reading pulled data preserves device dates and does not enqueue an update', async () => {

@@ -11,14 +11,6 @@
       "types": "./dist/species/domain/value-objects/SpeciesCode.d.ts",
       "default": "./dist/species/domain/value-objects/SpeciesCode.js"
     },
-    "./species/name": {
-      "types": "./dist/species/domain/value-objects/SpeciesName.d.ts",
-      "default": "./dist/species/domain/value-objects/SpeciesName.js"
-    },
-    "./species/description": {
-      "types": "./dist/species/domain/value-objects/SpeciesDescription.d.ts",
-      "default": "./dist/species/domain/value-objects/SpeciesDescription.js"
-    },
     "./species/deletion-policy": {
       "types": "./dist/species/domain/policies/SpeciesDeletionPolicy.d.ts",
       "default": "./dist/species/domain/policies/SpeciesDeletionPolicy.js"
@@ -34,14 +26,6 @@
     "./species/repository": {
       "types": "./dist/species/domain/ports/SpeciesRepository.d.ts",
       "default": "./dist/species/domain/ports/SpeciesRepository.js"
-    },
-    "./species/usage": {
-      "types": "./dist/species/domain/ports/SpeciesUsage.d.ts",
-      "default": "./dist/species/domain/ports/SpeciesUsage.js"
-    },
-    "./species/unit-of-work": {
-      "types": "./dist/species/domain/ports/SpeciesUnitOfWork.d.ts",
-      "default": "./dist/species/domain/ports/SpeciesUnitOfWork.js"
     },
     "./species/inputs": {
       "types": "./dist/species/application/use-cases/inputs.d.ts",
@@ -84,12 +68,6 @@
       "species/code": [
         "dist/species/domain/value-objects/SpeciesCode.d.ts"
       ],
-      "species/name": [
-        "dist/species/domain/value-objects/SpeciesName.d.ts"
-      ],
-      "species/description": [
-        "dist/species/domain/value-objects/SpeciesDescription.d.ts"
-      ],
       "species/deletion-policy": [
         "dist/species/domain/policies/SpeciesDeletionPolicy.d.ts"
       ],
@@ -101,12 +79,6 @@
       ],
       "species/repository": [
         "dist/species/domain/ports/SpeciesRepository.d.ts"
-      ],
-      "species/usage": [
-        "dist/species/domain/ports/SpeciesUsage.d.ts"
-      ],
-      "species/unit-of-work": [
-        "dist/species/domain/ports/SpeciesUnitOfWork.d.ts"
       ],
       "species/inputs": [
         "dist/species/application/use-cases/inputs.d.ts"

@@ -1,24 +1,21 @@
 import { z } from "zod";
-import { SpeciesCode } from "@ayllugen/core/species/code";
-import { SpeciesDescription } from "@ayllugen/core/species/description";
-import { SpeciesName } from "@ayllugen/core/species/name";
 
-// Canonical persisted/wire values: no transformations during push or pull.
-export const speciesCodeSchema = z.string().superRefine((value, ctx) => {
-  const message = SpeciesCode.issue(value);
-  if (message) ctx.addIssue({ code: "custom", message });
-});
-export const speciesNameSchema = z.string().superRefine((value, ctx) => {
-  const message = SpeciesName.issue(value);
-  if (message) ctx.addIssue({ code: "custom", message });
-});
+// Persisted/wire values are checked without transforming them during push or pull.
+export const speciesCodeSchema = z.string().refine(
+  (value) => value.length >= 2 && value.length <= 30 && /^[A-Z0-9_]+$/.test(value),
+  "El código debe tener entre 2 y 30 caracteres: mayúsculas, números o guion bajo.",
+);
+export const speciesNameSchema = z.string().refine(
+  (value) => value.trim().length >= 2 && value.length <= 80,
+  "El nombre debe tener entre 2 y 80 caracteres.",
+);
 export const speciesDescriptionSchema = z
   .string()
   .nullable()
-  .superRefine((value, ctx) => {
-    const message = SpeciesDescription.issue(value);
-    if (message) ctx.addIssue({ code: "custom", message });
-  });
+  .refine(
+    (value) => value === null || value.length <= 200,
+    "La descripción no puede exceder 200 caracteres.",
+  );
 export const speciesFieldsSchema = z.object({
   code: speciesCodeSchema,
   name: speciesNameSchema,

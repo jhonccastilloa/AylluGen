@@ -11,10 +11,8 @@ packages/core/src/species/
     errors/SpeciesError.ts
     policies/SpeciesDeletionPolicy.ts
     ports/SpeciesRepository.ts
-    ports/SpeciesUsage.ts
-    ports/SpeciesUnitOfWork.ts
     types/Species.ts
-    value-objects/{SpeciesCode,SpeciesName,SpeciesDescription}.ts
+    value-objects/SpeciesCode.ts
   application/
     use-cases/CreateSpecies.ts
     use-cases/UpdateSpecies.ts
@@ -26,24 +24,25 @@ packages/core/src/species/
 ```
 
 Los contratos Zod viven en `packages/contracts/src/species.ts`, publicados como
-`@ayllugen/contracts/species`. Ese paquete depende del dominio, nunca a la inversa.
+`@ayllugen/contracts/species`. Sus validadores wire no importan reglas del dominio.
 
 Las apps consumen archivos concretos mediante subrutas públicas:
 `@ayllugen/core/species/entity`, `/create`, `/update`, `/repository`, `/types`, etc.
-Los Value Objects y las políticas se consumen desde subrutas directas, sin cargar
+El Value Object y las políticas se consumen desde subrutas directas, sin cargar
 casos de uso. No hay barrels ni fachadas de reexports en core/contracts. Domain y
 Application mantienen imports relativos entre archivos concretos. Los consumidores
 usan `import type` para puertos, datos e inputs. Ver todas las
 [entradas públicas](../../../README.md#entradas-públicas-sin-barrels).
 
 Domain y Application no importan Prisma, Watermelon, React, Express, Inversify,
-Zod ni archivos de las apps. Contracts adapta las mismas validaciones puras a
-Zod para HTTP/sync; no es una dependencia del núcleo.
+Zod ni archivos de las apps. Contracts define sus propias validaciones Zod para
+HTTP/sync; no es una dependencia del núcleo.
 
-`SpeciesCode`, `SpeciesName` y `SpeciesDescription` son Value Objects: cada uno
-normaliza y garantiza sus propias invariantes al crear o editar. `changeDetails()`
+`SpeciesCode` es un Value Object. Nombre y descripción son valores primitivos
+validados dentro de la entidad al crear o editar. `restore()` conserva el texto
+persistido sin normalizarlo ni validarlo de nuevo. `changeDetails()`
 valida solo los campos enviados y conserva exactamente los valores omitidos.
-`restore()` valida identidad y campos persistidos sin normalizarlos ni generar efectos;
+`restore()` comprueba identidad y código, sin generar efectos;
 nunca sustituye la validación de una entrada HTTP/push. La entidad contiene identidad
 y campos de negocio. Las fechas del origen viajan en `SpeciesData`, una proyección de
 persistencia; la auditoría del servidor es una extensión exclusiva del adaptador API.
@@ -53,16 +52,16 @@ persistencia; la auditoría del servidor es una extensión exclusiva del adaptad
 - Mobile: `apps/mobile/src/features/species/infrastructure/WatermelonSpeciesRepository.ts`.
 - Backend: `apps/api/src/modules/species/infrastructure/repositories/PrismaSpeciesRepository.ts`.
 - Cada app tiene un `species/bootstrap.ts` que ensambla los mismos casos de uso.
-- Los repositorios implementan `SpeciesRepository` y `SpeciesUsage`. No deciden
-  si se permite crear/eliminar: los casos de uso hacen esa decisión con los datos consultados.
-- `SpeciesUnitOfWork` coordina lectura/validación/escritura. En mobile usa el
-  escritor de Watermelon; en API una transacción Prisma y el lock de cuenta
-  utilizado por sync. No se guarda un cliente de transacción mutable global.
+- Los casos de uso reciben `SpeciesRepository` directamente. El repositorio está
+  limitado a una cuenta y ofrece las consultas que necesitan las reglas del dominio.
+- Los casos de uso validan duplicados y uso antes de escribir. Los adaptadores
+  repiten esas comprobaciones dentro de cada escritura para cubrir carreras:
+  Watermelon usa su writer y API una transacción Prisma con el lock de cuenta de sync.
+  No se guarda un cliente de transacción mutable global.
 - Un escritor Watermelon no equivale a rollback SQL: cada comando termina sus
   validaciones antes de efectuar su única mutación.
 - La fábrica mobile captura la cuenta; no cambia a REST cuando aparece internet.
-- Se conserva el token DI existente `ISpeciesRepository` para la unidad Prisma;
-  `SpeciesUseCasesFactory` ensambla casos de uso por cuenta sin acoplar Application a bootstrap.
+- `SpeciesUseCasesFactory` ensambla casos de uso por cuenta sin acoplar Application a bootstrap.
 
 ## Comportamiento
 
