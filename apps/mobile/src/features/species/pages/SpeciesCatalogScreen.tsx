@@ -15,7 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import featureContainer from '@/features/container';
-import type { Species } from '@/features/species/interfaces/species.types';
+import type { ISpecies } from '@/features/species/interfaces/species.types';
 import type { RootStackParamList } from '@/presentation/navigation/types';
 import AppIcon from '@/presentation/components/appIcon/AppIcon';
 import BaseInput from '@/presentation/components/input/BaseInput';
@@ -32,14 +32,13 @@ const SpeciesCatalogScreen = () => {
   const isOnline = useNetworkStore(state => state.isOnline);
   const isNetworkInitialized = useNetworkStore(state => state.isInitialized);
 
-  const [speciesList, setSpeciesList] = useState<Species[]>([]);
+  const [speciesList, setSpeciesList] = useState<ISpecies[]>([]);
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false);
   const [isSavingSpecies, setIsSavingSpecies] = useState(false);
   const [speciesError, setSpeciesError] = useState<string | undefined>(
     undefined,
   );
   const [editingSpeciesId, setEditingSpeciesId] = useState<string | null>(null);
-  const [speciesCodeInput, setSpeciesCodeInput] = useState('');
   const [speciesNameInput, setSpeciesNameInput] = useState('');
   const [speciesDescriptionInput, setSpeciesDescriptionInput] = useState('');
   const [isUsingCachedData, setIsUsingCachedData] = useState(true);
@@ -69,7 +68,6 @@ const SpeciesCatalogScreen = () => {
 
   const resetSpeciesForm = useCallback(() => {
     setEditingSpeciesId(null);
-    setSpeciesCodeInput('');
     setSpeciesNameInput('');
     setSpeciesDescriptionInput('');
   }, []);
@@ -81,13 +79,12 @@ const SpeciesCatalogScreen = () => {
 
   useEffect(() => {
     if (!selectedSpecies) return;
-    setSpeciesCodeInput(selectedSpecies.code);
     setSpeciesNameInput(selectedSpecies.name);
     setSpeciesDescriptionInput(selectedSpecies.description ?? '');
   }, [selectedSpecies]);
 
   const onSaveSpecies = async () => {
-    if (!speciesCodeInput.trim() || !speciesNameInput.trim()) {
+    if (!speciesNameInput.trim()) {
       Toast.show({
         type: 'info',
         text1: t('settingsScreen.speciesRequiredTitle'),
@@ -100,13 +97,11 @@ const SpeciesCatalogScreen = () => {
     try {
       if (editingSpeciesId) {
         await featureContainer.species.update(editingSpeciesId, {
-          code: speciesCodeInput,
           name: speciesNameInput,
           description: speciesDescriptionInput,
         });
       } else {
         await featureContainer.species.create({
-          code: speciesCodeInput,
           name: speciesNameInput,
           description: speciesDescriptionInput,
         });
@@ -130,7 +125,7 @@ const SpeciesCatalogScreen = () => {
     }
   };
 
-  const onDeleteSpecies = (speciesItem: Species) => {
+  const onDeleteSpecie = (speciesItem: ISpecies) => {
     Alert.alert(
       t('settingsScreen.speciesDeleteTitle'),
       t('settingsScreen.speciesDeleteMessage', { name: speciesItem.name }),
@@ -209,7 +204,6 @@ const SpeciesCatalogScreen = () => {
                 <View key={item.id} style={styles.speciesItem}>
                   <View style={styles.speciesItemTextBlock}>
                     <Text style={styles.speciesName}>{item.name}</Text>
-                    <Text style={styles.speciesCode}>{item.code}</Text>
                     {item.description ? (
                       <Text style={styles.speciesDescriptionText}>
                         {item.description}
@@ -230,7 +224,7 @@ const SpeciesCatalogScreen = () => {
                         styles.speciesActionButton,
                         styles.speciesActionButtonDanger,
                       ]}
-                      onPress={() => onDeleteSpecies(item)}
+                      onPress={() => onDeleteSpecie(item)}
                     >
                       <Text
                         style={[
@@ -259,14 +253,6 @@ const SpeciesCatalogScreen = () => {
               : t('settingsScreen.speciesCreateAction')}
           </Text>
 
-          <BaseInput
-            label={t('settingsScreen.speciesCodeLabel')}
-            value={speciesCodeInput}
-            onChangeText={setSpeciesCodeInput}
-            placeholder={t('settingsScreen.speciesCodePlaceholder')}
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
           <BaseInput
             label={t('settingsScreen.speciesNameLabel')}
             value={speciesNameInput}

@@ -1,31 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { CreateSpecies } from "@ayllugen/core/species/create";
-import { UpdateSpecies } from "@ayllugen/core/species/update";
-import { DeleteSpecies } from "@ayllugen/core/species/delete";
-import { ListSpecies } from "@ayllugen/core/species/list";
-import { GetSpecies } from "@ayllugen/core/species/get";
-import { ResolveSpeciesByCode } from "@ayllugen/core/species/resolve-by-code";
-import { InitializeSpeciesCatalog } from "@ayllugen/core/species/initialize-catalog";
-import type { SpeciesRepository } from "@ayllugen/core/species/repository";
-import type { SpeciesRecord } from "./application/SpeciesRecord";
-import type { SpeciesUseCases } from "./application/ports/SpeciesUseCasesFactory";
+import { CreateSpecie } from "@ayllugen/core/species/create";
+import { UpdateSpecie } from "@ayllugen/core/species/update";
+import { DeleteSpecie } from "@ayllugen/core/species/delete";
+import { ListSpecie } from "@ayllugen/core/species/list";
+import { GetSpecie } from "@ayllugen/core/species/get";
+import { InitializeSpecieCatalog } from "@ayllugen/core/species/initialize-catalog";
+import type { ISpecieRepository } from "@ayllugen/core/species/repository";
+import type { ISpecieUseCases } from "./application/ports/SpecieUseCasesFactory";
 
 /** DI supplies the Prisma adapter; all use cases come from the shared package. */
-export function createSpeciesUseCases(
-  repository: SpeciesRepository<SpeciesRecord>,
-): SpeciesUseCases {
-  const listSpecies = new ListSpecies(repository);
-  const resolveSpecies = new ResolveSpeciesByCode(repository, randomUUID);
+export function createSpecieUseCases(
+  repository: ISpecieRepository,
+): ISpecieUseCases {
+  const listSpecie = new ListSpecie(repository);
   return {
-    createSpecies: new CreateSpecies(repository, randomUUID),
-    updateSpecies: new UpdateSpecies(repository),
-    deleteSpecies: new DeleteSpecies(repository),
-    getSpecies: new GetSpecies(repository),
-    listSpecies,
-    resolveSpecies,
-    initializeCatalog: new InitializeSpeciesCatalog(
-      listSpecies,
-      resolveSpecies,
-    ),
+    createSpecie: new CreateSpecie(repository, randomUUID),
+    updateSpecie: new UpdateSpecie(repository),
+    deleteSpecie: new DeleteSpecie(repository),
+    getSpecie: new GetSpecie(repository),
+    listSpecie,
+    initializeCatalog: new InitializeSpecieCatalog(repository, randomUUID),
   };
 }

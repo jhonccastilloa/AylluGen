@@ -12,8 +12,8 @@ import { BreedingRepository } from "../../modules/breeding/infrastructure/reposi
 import { HealthRecordRepository } from "../../modules/health/infrastructure/repositories/HealthRecordRepository";
 import { ProductionRecordRepository } from "../../modules/production/infrastructure/repositories/ProductionRecordRepository";
 import { PrismaSpeciesRepository } from "../../modules/species/infrastructure/repositories/PrismaSpeciesRepository";
-import { createSpeciesUseCases } from "../../modules/species/bootstrap";
-import type { SpeciesUseCasesFactory } from "../../modules/species/application/ports/SpeciesUseCasesFactory";
+import { createSpecieUseCases } from "../../modules/species/bootstrap";
+import type { SpecieUseCasesFactory } from "../../modules/species/application/ports/SpecieUseCasesFactory";
 
 // Importar servicios existentes
 import { AuthService } from "../../modules/auth/application/services/AuthService";
@@ -68,9 +68,9 @@ container
   .bind<ProductionRecordRepository>(TYPES.IProductionRecordRepository)
   .to(ProductionRecordRepository);
 container
-  .bind<SpeciesUseCasesFactory>(TYPES.SpeciesUseCasesFactory)
+  .bind<SpecieUseCasesFactory>(TYPES.SpecieUseCasesFactory)
   .toDynamicValue(() => (ownerId) =>
-    createSpeciesUseCases(new PrismaSpeciesRepository(ownerId)),
+    createSpecieUseCases(new PrismaSpeciesRepository(ownerId)),
   );
 
 // ============ BINDEOS DE SERVICIOS ============

@@ -1,9 +1,9 @@
 import { SpeciesError } from "@ayllugen/core/species/errors";
-import { CreateSpecies } from "@ayllugen/core/species/create";
+import { CreateSpecie } from "@ayllugen/core/species/create";
 import { prisma } from "../../../../src/infrastructure/database/prisma/client";
 import { PrismaSpeciesRepository } from "../../../../src/modules/species/infrastructure/repositories/PrismaSpeciesRepository";
 import { SpeciesService } from "../../../../src/modules/species/application/services/SpeciesService";
-import { createSpeciesUseCases } from "../../../../src/modules/species/bootstrap";
+import { createSpecieUseCases } from "../../../../src/modules/species/bootstrap";
 import { speciesCreateSchema } from "../../../../src/modules/species/application/schemas/species.schema";
 import { recordSchemas } from "../../../../src/modules/sync/application/schemas/watermelon.schema";
 
@@ -44,7 +44,7 @@ function fixture() {
   Object.assign(prisma, { species: tx.species, animal: tx.animal });
   const repository = new PrismaSpeciesRepository(OWNER);
   const api = new SpeciesService((owner) =>
-    createSpeciesUseCases(new PrismaSpeciesRepository(owner)),
+    createSpecieUseCases(new PrismaSpeciesRepository(owner)),
   );
   return { tx, api, repository };
 }
@@ -167,7 +167,7 @@ it("does not swallow infrastructure failures and translates SQL uniqueness confl
 
 it("keeps the core error free of HTTP status codes", async () => {
   const { repository } = fixture();
-  const useCase = new CreateSpecies(repository, () => record.id);
+  const useCase = new CreateSpecie(repository, () => record.id);
   try {
     await useCase.execute({ code: "!!", name: "Alpaca" });
     throw new Error("expected validation failure");

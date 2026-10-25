@@ -72,7 +72,6 @@ model Animal {
 
 model Species {
   id          String   @id @default(uuid())
-  code        String
   name        String
   description String?
   userId      String
@@ -84,7 +83,6 @@ model Species {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  @@unique([userId, code])
   @@unique([userId, name])
   @@index([userId])
   @@map("species")

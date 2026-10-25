@@ -82,7 +82,6 @@ const timestampFields = {
 export const fields: Record<SyncTable, Record<string, string>> = {
   species: {
     ...timestampFields,
-    code: "code",
     name: "name",
     description: "description",
   },

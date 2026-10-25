@@ -1,10 +1,7 @@
-import { SpeciesError } from "../errors/SpeciesError";
+import { SpecieError } from "../errors/SpecieError";
 
-/** Caller supplies usage from its local state or the final state of a sync batch. */
-export function assertSpeciesUnused(hasAnimals: boolean): void {
-  if (hasAnimals)
-    throw new SpeciesError(
-      "SPECIES_IN_USE",
-      "No se puede eliminar una especie con animales.",
-    );
+export function assertSpecieUnused(hasAnimals: boolean): void {
+  if (hasAnimals) throw new SpecieError("SPECIES_IN_USE", "La especie tiene animales asociados.");
 }
+
+export const assertSpeciesUnused = assertSpecieUnused;

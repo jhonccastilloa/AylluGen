@@ -1,0 +1,212 @@
+packages/contracts/src\species.ts:4:export const speciesCodeSchema = z.string().refine(
+packages/contracts/src\species.ts:20:  code: speciesCodeSchema,
+packages/contracts/src\species.ts:27:  code: z.string(),
+apps/mobile/src\presentation\screens\showcase\InputShowcaseScreen.tsx:66:  { id: 'A-001', code: 'A-001', name: 'Rayo', sex: 'male', breed: 'Angus' },
+apps/mobile/src\presentation\screens\showcase\InputShowcaseScreen.tsx:69:    code: 'A-002',
+apps/mobile/src\presentation\screens\showcase\InputShowcaseScreen.tsx:74:  { id: 'A-010', code: 'A-010', name: 'Luna', sex: 'female', breed: 'Angus' },
+apps/mobile/src\presentation\screens\showcase\InputShowcaseScreen.tsx:77:    code: 'A-011',
+apps/mobile/src\presentation\screens\showcase\InputShowcaseScreen.tsx:84:    code: 'A-099',
+apps/mobile/src\infrastructure\database\schema\species.schema.ts:4:  { name: 'code', type: 'string', isIndexed: true },
+apps/mobile/src\features\container.ts:44:    species: createSpeciesModule(database, userId),
+packages/core/src/species\README.md:15:    value-objects/SpeciesCode.ts
+packages/core/src/species\README.md:23:    use-cases/InitializeSpeciesCatalog.ts
+packages/core/src/species\README.md:41:`SpeciesCode` es un Value Object. Nombre y descripción son valores primitivos
+packages/core/src/species\application\use-cases\UpdateSpecie.ts:7:  code?: string;
+packages/core/src/species\application\use-cases\UpdateSpecie.ts:20:      code: input.code ?? previousSpecie.code,
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:26:  species: model.species as Species,
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:74:          species: kind?.code ?? item.species,
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:116:        animal.species = kind.code;
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:140:      input = { ...input, speciesId: species.id, speciesCode: species.code };
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:155:        record.species = species.code;
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:190:        if (input.speciesCode !== undefined) {
+apps/mobile/src\features\animals\services\AnimalsLocalRepository.ts:191:          record.species = input.speciesCode as Species;
+apps/mobile/src\core\utils\apiErrorHandler.tsx:13:    if (error.code === 'ECONNABORTED') {
+packages/core/src/species\application\use-cases\CreateSpecie.ts:6:  code: string;
+packages/core/src/species\application\use-cases\CreateSpecie.ts:19:      code: input.code,
+packages/core/src/species\application\use-cases\CreateSpecie.ts:23:    const existCode = await this.repository.findByCode(species.code);
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:101:  const [newSpeciesCode, setNewSpeciesCode] = useState('');
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:192:    setNewSpeciesCode('');
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:203:    setNewSpeciesCode(suggestedCode);
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:210:    if (!newSpeciesCode.trim() || !newSpeciesName.trim()) {
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:222:        code: newSpeciesCode,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:249:        code: option.code,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:258:        code: animal.crotal,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:275:        code: animal.crotal,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:354:        species: species.code,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:355:        speciesCode: species.code,
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:656:              label={t('settingsScreen.speciesCodeLabel')}
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:657:              value={newSpeciesCode}
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:658:              onChangeText={setNewSpeciesCode}
+apps/mobile/src\features\animals\pages\RegisterAnimalScreen.tsx:659:              placeholder={t('settingsScreen.speciesCodePlaceholder')}
+packages/core/src/species\domain\value-objects\SpecieCode.ts:3:export class SpecieCode {
+packages/core/src/species\domain\value-objects\SpecieCode.ts:6:  static create(input: string): SpecieCode {
+packages/core/src/species\domain\value-objects\SpecieCode.ts:7:    const value = SpecieCode.normalize(input);
+packages/core/src/species\domain\value-objects\SpecieCode.ts:8:    const message = SpecieCode.issue(value);
+packages/core/src/species\domain\value-objects\SpecieCode.ts:10:    return new SpecieCode(value);
+packages/core/src/species\domain\value-objects\SpecieCode.ts:13:  static restore(value: string): SpecieCode {
+packages/core/src/species\domain\value-objects\SpecieCode.ts:14:    const message = SpecieCode.issue(value);
+packages/core/src/species\domain\value-objects\SpecieCode.ts:16:    return new SpecieCode(value);
+packages/core/src/species\domain\errors\SpecieError.ts:10:    public readonly code: SpecieErrorCode,
+apps/mobile/src\infrastructure\database\constants.ts:2:  species: 'species',
+apps/mobile/src\features\animals\interfaces\animals.types.ts:10:  species: Species;
+apps/mobile/src\features\animals\interfaces\animals.types.ts:26:  speciesCode?: string;
+apps/mobile/src\features\animals\interfaces\animals.types.ts:27:  species: Species;
+apps/mobile/src\features\animals\interfaces\animals.types.ts:37:  speciesCode?: string;
+packages/core/src/species\domain\entities\SpecieEntity.ts:2:import { SpecieCode } from "../value-objects/SpecieCode";
+packages/core/src/species\domain\entities\SpecieEntity.ts:7:  code: string;
+packages/core/src/species\domain\entities\SpecieEntity.ts:15:  code: SpecieCode;
+packages/core/src/species\domain\entities\SpecieEntity.ts:63:      code: SpecieCode.create(props.code),
+packages/core/src/species\domain\entities\SpecieEntity.ts:79:  get code() {
+packages/core/src/species\domain\entities\SpecieEntity.ts:80:    return this.props.code.value;
+apps/mobile/src\core\types\api.ts:3:  code?: string;
+packages/core/src/species\domain\ports\SpecieRepository.ts:7:  findByCode(code: string): Promise<SpecieEntity | null>;
+apps/mobile/src\infrastructure\database\models\SpeciesModel.ts:6:  @text('code') code!: string;
+apps/mobile/src\features\breedings\pages\BreedingMatchScreen.tsx:139:        code: item.crotal,
+apps/mobile/src\features\breedings\pages\BreedingMatchScreen.tsx:149:        code: item.crotal,
+apps/api/src\presentation\middlewares\validation.middleware.ts:16:          code: issue.code,
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:42:  const [speciesCodeInput, setSpeciesCodeInput] = useState('');
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:72:    setSpeciesCodeInput('');
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:84:    setSpeciesCodeInput(selectedSpecies.code);
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:90:    if (!speciesCodeInput.trim() || !speciesNameInput.trim()) {
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:103:          code: speciesCodeInput,
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:109:          code: speciesCodeInput,
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:212:                    <Text style={styles.speciesCode}>{item.code}</Text>
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:263:            label={t('settingsScreen.speciesCodeLabel')}
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:264:            value={speciesCodeInput}
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:265:            onChangeText={setSpeciesCodeInput}
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:266:            placeholder={t('settingsScreen.speciesCodePlaceholder')}
+apps/mobile/src\features\species\pages\SpeciesCatalogScreen.tsx:404:  speciesCode: {
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:12:  code: row.code,
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:40:    row.code = fields.code;
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:53:  async findByCode(code: string): Promise<ISpeciesData | null> {
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:55:      await this.collection.query(this.owned, Q.where('code', code)).fetch()
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:62:  ): Promise<'code' | 'name' | null> {
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:66:        Q.or(Q.where('code', fields.code), Q.where('name', fields.name)),
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:70:    if (matches.some(row => row.code === fields.code)) return 'code';
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:96:      const existing = await this.findByCode(fields.code);
+apps/mobile/src\features\species\infrastructure\WatermelonSpeciesRepository.ts:124:        row.code !== previous.code ||
+apps/api/src\shared\errors\AppError.ts:3:  public readonly code: string;
+apps/api/src\shared\errors\AppError.ts:10:    code: string,
+apps/api/src\shared\errors\AppError.ts:16:    this.code = code;
+apps/mobile/src\features\species\bootstrap.ts:16:const toView = (species: ISpeciesData): ISpecies => ({
+apps/mobile/src\features\species\bootstrap.ts:19:  code: species.code,
+apps/mobile/src\features\sync\services\watermelonProtocol.ts:21:  species: z.object({
+apps/mobile/src\features\sync\services\watermelonProtocol.ts:74:  species: businessSchemas.species.extend(deviceDates),
+apps/mobile/src\features\species\interfaces\species.types.ts:3:  code: string;
+apps/api/src\presentation\middlewares\error.middleware.ts:32:      code?: string;
+apps/api/src\presentation\middlewares\error.middleware.ts:52:      code: error.code ?? "SYNC_REQUEST_ERROR",
+apps/api/src\presentation\middlewares\error.middleware.ts:64:        code:
+apps/api/src\presentation\middlewares\error.middleware.ts:65:          error.code ??
+apps/api/src\presentation\middlewares\error.middleware.ts:77:    code: "ROUTE_NOT_FOUND",
+apps/api/src\presentation\middlewares\error-handlers\index.ts:12:  code: string;
+apps/api/src\presentation\middlewares\error-handlers\index.ts:42:      code: zodError.code,
+apps/api/src\presentation\middlewares\error-handlers\index.ts:81:      code: "VALIDATION_ERROR",
+apps/api/src\presentation\middlewares\error-handlers\index.ts:114:      code: appError.code,
+apps/api/src\presentation\middlewares\error-handlers\index.ts:123:      response.code = "INTERNAL_SERVER_ERROR";
+apps/api/src\presentation\middlewares\error-handlers\index.ts:147:      code: "INVALID_TOKEN",
+apps/api/src\presentation\middlewares\error-handlers\index.ts:176:      code: "TOKEN_EXPIRED",
+apps/api/src\presentation\middlewares\error-handlers\index.ts:205:      code: "INTERNAL_SERVER_ERROR",
+apps/mobile/src\core\i18n\locales\fr.json:208:    "sireSearchPlaceholder": "Rechercher le père par code, nom ou race",
+apps/mobile/src\core\i18n\locales\fr.json:212:    "damSearchPlaceholder": "Rechercher la mère par code, nom ou race",
+apps/mobile/src\core\i18n\locales\fr.json:234:    "searchPlaceholder": "Rechercher par code, nom ou race",
+apps/mobile/src\core\i18n\locales\es.json:436:    "speciesCodeLabel": "Código",
+apps/mobile/src\core\i18n\locales\es.json:437:    "speciesCodePlaceholder": "ALPACA",
+apps/mobile/src\core\i18n\locales\en.json:150:    "speciesSearchPlaceholder": "Search species by code or name",
+apps/mobile/src\core\i18n\locales\en.json:226:    "sireSearchPlaceholder": "Search sire by code, name or breed",
+apps/mobile/src\core\i18n\locales\en.json:230:    "damSearchPlaceholder": "Search dam by code, name or breed",
+apps/mobile/src\core\i18n\locales\en.json:252:    "searchPlaceholder": "Search by code, name or breed",
+apps/mobile/src\core\i18n\locales\en.json:428:    "speciesRequiredMessage": "Species code and name are required.",
+apps/mobile/src\core\i18n\locales\en.json:436:    "speciesCodeLabel": "Code",
+apps/mobile/src\core\i18n\locales\en.json:437:    "speciesCodePlaceholder": "ALPACA",
+apps/mobile/src\features\production\pages\ProductionRecordsScreen.tsx:83:        code: item.crotal,
+apps/mobile/src\features\production\pages\ProductionRecordFormScreen.tsx:74:        code: item.crotal,
+apps/api/src\modules\breeding\infrastructure\repositories\BreedingRepository.ts:110:      species: data.speciesCatalog?.code ?? "",
+apps/mobile/src\presentation\components\parent-selector-input\BaseParentSelectorInput.tsx:15:  code: string;
+apps/mobile/src\presentation\components\parent-selector-input\BaseParentSelectorInput.tsx:46:  const fragments = [option.code];
+apps/mobile/src\presentation\components\parent-selector-input\BaseParentSelectorInput.tsx:95:      const haystack = [option.code, option.name, option.breed]
+apps/api/src\modules\sync\infrastructure\repositories\WatermelonRepository.ts:155:      const value = error as { code?: string; meta?: { code?: string } };
+apps/api/src\modules\sync\infrastructure\repositories\WatermelonRepository.ts:157:        ["P2034", "P2002", "P2003"].includes(value.code ?? "") ||
+apps/api/src\modules\sync\infrastructure\repositories\WatermelonRepository.ts:159:          value.meta?.code ?? "",
+apps/api/src\modules\animal\infrastructure\repositories\AnimalRepository.ts:8:  SpeciesCode,
+apps/api/src\modules\animal\infrastructure\repositories\AnimalRepository.ts:129:  async findBySpecies(userId: string, species: SpeciesCode): Promise<Animal[]> {
+apps/api/src\modules\animal\infrastructure\repositories\AnimalRepository.ts:135:          code: species,
+apps/api/src\modules\animal\infrastructure\repositories\AnimalRepository.ts:168:      species: data.speciesCatalog?.code ?? "",
+apps/api/src\modules\health\infrastructure\repositories\HealthRecordRepository.ts:170:      species: data.speciesCatalog?.code ?? "",
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:17:    speciesCode: z
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:22:      .describe("Species code when speciesId is not available"),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:23:    species: z
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:28:      .describe("Legacy species code for backward compatibility"),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:39:    (input) => Boolean(input.speciesId || input.speciesCode || input.species),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:42:        "Debe enviar speciesId o speciesCode para enlazar la especie del animal",
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:51:      speciesCode: "SHEEP",
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:72:    speciesCode: z
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:77:      .describe("Species code when updating by code"),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:91:      speciesCode: "ALPACA",
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:99:    species: z.string().optional().describe("Filter by species code"),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:110:      species: "SHEEP",
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:122:  species: z.string(),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:134:    species: z.string(),
+apps/api/src\modules\animal\application\schemas\animal.schema.ts:162:      species: "SHEEP",
+apps/api/src\modules\animal\domain\entities\Animal.ts:6:export type SpeciesCode = string;
+apps/api/src\modules\animal\domain\entities\Animal.ts:13:  species: SpeciesCode;
+apps/api/src\modules\animal\application\services\AnimalService.ts:41:        speciesCode: data.speciesCode,
+apps/api/src\modules\animal\application\services\AnimalService.ts:42:        species: data.species,
+apps/api/src\modules\animal\application\services\AnimalService.ts:98:    if (data.speciesId || data.speciesCode) {
+apps/api/src\modules\animal\application\services\AnimalService.ts:103:          speciesCode: data.speciesCode,
+apps/api/src\modules\animal\application\services\AnimalService.ts:227:      species: animal.species,
+apps/api/src\modules\animal\domain\repositories\IAnimalRepository.ts:6:  SpeciesCode,
+apps/api/src\modules\animal\domain\repositories\IAnimalRepository.ts:21:  findBySpecies(userId: string, species: SpeciesCode): Promise<Animal[]>;
+apps/api/src\modules\breeding\application\services\BreedingService.ts:239:            species: breeding.offspring.species,
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:34:  species: z.object({
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:83:  species: {
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:85:    code: "code",
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:181:    species: tableChanges(recordSchemas.species).optional(),
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:202:        ctx.addIssue({ code: "custom", message: `IDs duplicados en ${table}` });
+apps/api/src\modules\sync\application\schemas\watermelon.schema.ts:205:      ctx.addIssue({ code: "custom", message: "El push supera 500 registros" });
+apps/api/src\modules\breeding\application\schemas\breeding.schema.ts:10:  species: z.string(),
+apps/api/src\modules\sync\application\services\WatermelonService.ts:381:        code: error instanceof AppError ? error.code : "SYNC_INTERNAL_ERROR",
+apps/api/src\modules\species\presentation\controllers\SpeciesController.ts:29:    res.status(200).json({ species: result });
+apps/api/src\modules\health\application\services\HealthRecordService.ts:180:            species: record.animal.species,
+apps/api/src\modules\production\infrastructure\repositories\ProductionRecordRepository.ts:188:      species: data.speciesCatalog?.code ?? "",
+apps/mobile/src\features\health\pages\HealthRecordFormScreen.tsx:66:        code: item.crotal,
+apps/api/src\modules\production\application\schemas\production.schema.ts:10:  species: z.string(),
+apps/api/src\modules\species\application\speciesErrors.ts:10:    if (error.code === "SPECIES_NOT_FOUND")
+apps/api/src\modules\species\application\speciesErrors.ts:12:    if (error.code === "SPECIES_DUPLICATE" || error.code === "SPECIES_CONFLICT")
+apps/api/src\modules\species\bootstrap.ts:7:import { ResolveSpecieByCode } from "@ayllugen/core/species/resolve-by-code";
+apps/api/src\modules\species\bootstrap.ts:8:import { InitializeSpecieCatalog } from "@ayllugen/core/species/initialize-catalog";
+apps/api/src\modules\species\bootstrap.ts:17:  const resolveSpecie = new ResolveSpecieByCode(repository, randomUUID);
+apps/api/src\modules\species\bootstrap.ts:25:    initializeCatalog: new InitializeSpecieCatalog(
+apps/api/src\modules\species\application\services\SpeciesService.ts:2:import { SpeciesCode } from "@ayllugen/core/species/code";
+apps/api/src\modules\species\application\services\SpeciesService.ts:15:  { code: "ALPACA", name: "Alpaca" },
+apps/api/src\modules\species\application\services\SpeciesService.ts:16:  { code: "SHEEP", name: "Sheep" },
+apps/api/src\modules\species\application\services\SpeciesService.ts:17:  { code: "LLAMA", name: "Llama" },
+apps/api/src\modules\species\application\services\SpeciesService.ts:18:  { code: "VICUGNA", name: "Vicugna" },
+apps/api/src\modules\species\application\services\SpeciesService.ts:86:    input: { speciesId?: string; speciesCode?: string; species?: string },
+apps/api/src\modules\species\application\services\SpeciesService.ts:87:  ): Promise<{ speciesId: string; speciesCode: string; speciesName: string }> {
+apps/api/src\modules\species\application\services\SpeciesService.ts:95:        const rawCode = input.speciesCode ?? input.species;
+apps/api/src\modules\species\application\services\SpeciesService.ts:99:            "Debe enviar speciesId o speciesCode para crear un animal",
+apps/api/src\modules\species\application\services\SpeciesService.ts:101:        const code = SpeciesCode.normalize(rawCode);
+apps/api/src\modules\species\application\services\SpeciesService.ts:102:        result = await commands.resolveSpecie.execute({ code, name: code });
+apps/api/src\modules\species\application\services\SpeciesService.ts:106:        speciesCode: result.code,
+apps/api/src\modules\species\application\services\SpeciesService.ts:118:  private mapToResponse(species: ISpeciesData): SpeciesResponse {
+apps/api/src\modules\species\application\services\SpeciesService.ts:122:      code: species.code,
+apps/api/src\modules\health\application\schemas\health.schema.ts:10:  species: z.string(),
+apps/api/src\modules\species\application\schemas\species.schema.ts:12:    code: "ALPACA",
+apps/api/src\modules\species\application\schemas\species.schema.ts:31:    code: z.string().describe("Código único de especie"),
+apps/api/src\modules\species\application\schemas\species.schema.ts:47:      code: "ALPACA",
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:33:  findByCode(code: string): Promise<ISpeciesData | null> {
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:34:    return this.db.species.findFirst({ where: { ...this.active, code } });
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:39:  ): Promise<"code" | "name" | null> {
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:45:        OR: [{ code: fields.code }, { name: fields.name }],
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:47:      select: { code: true },
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:49:    if (rows.some((row) => row.code === fields.code)) return "code";
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:68:      const code = (error as { code?: string }).code;
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:69:      if (["P2002", "P2003", "P2034"].includes(code ?? ""))
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:77:  private conflict(field: "code" | "name"): never {
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:104:      const existing = await repository.findByCode(fields.code);
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:122:        current.code !== previous.code ||
+apps/api/src\modules\species\infrastructure\repositories\PrismaSpeciesRepository.ts:136:          code: fields.code,
+apps/api/src\modules\species\application\ports\SpecieUseCasesFactory.ts:6:import type { ResolveSpecieByCode } from "@ayllugen/core/species/resolve-by-code";
+apps/api/src\modules\species\application\ports\SpecieUseCasesFactory.ts:7:import type { InitializeSpecieCatalog } from "@ayllugen/core/species/initialize-catalog";
+apps/api/src\modules\species\application\ports\SpecieUseCasesFactory.ts:15:  resolveSpecie: ResolveSpecieByCode;
+apps/api/src\modules\species\application\ports\SpecieUseCasesFactory.ts:16:  initializeCatalog: InitializeSpecieCatalog;

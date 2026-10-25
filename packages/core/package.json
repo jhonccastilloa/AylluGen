@@ -4,105 +4,105 @@
   "private": true,
   "exports": {
     "./species/entity": {
-      "types": "./dist/species/domain/entities/Species.d.ts",
-      "default": "./dist/species/domain/entities/Species.js"
+      "types": "./dist/species/domain/entities/SpecieEntity.d.ts",
+      "default": "./dist/species/domain/entities/SpecieEntity.js"
     },
     "./species/code": {
-      "types": "./dist/species/domain/value-objects/SpeciesCode.d.ts",
-      "default": "./dist/species/domain/value-objects/SpeciesCode.js"
+      "types": "./dist/species/domain/value-objects/SpecieCode.d.ts",
+      "default": "./dist/species/domain/value-objects/SpecieCode.js"
     },
     "./species/deletion-policy": {
       "types": "./dist/species/domain/policies/SpeciesDeletionPolicy.d.ts",
       "default": "./dist/species/domain/policies/SpeciesDeletionPolicy.js"
     },
     "./species/errors": {
-      "types": "./dist/species/domain/errors/SpeciesError.d.ts",
-      "default": "./dist/species/domain/errors/SpeciesError.js"
+      "types": "./dist/species/domain/errors/SpecieError.d.ts",
+      "default": "./dist/species/domain/errors/SpecieError.js"
     },
     "./species/types": {
       "types": "./dist/species/domain/types/Species.d.ts",
       "default": "./dist/species/domain/types/Species.js"
     },
     "./species/repository": {
-      "types": "./dist/species/domain/ports/SpeciesRepository.d.ts",
-      "default": "./dist/species/domain/ports/SpeciesRepository.js"
+      "types": "./dist/species/domain/ports/SpecieRepository.d.ts",
+      "default": "./dist/species/domain/ports/SpecieRepository.js"
     },
     "./species/inputs": {
       "types": "./dist/species/application/use-cases/inputs.d.ts",
       "default": "./dist/species/application/use-cases/inputs.js"
     },
     "./species/create": {
-      "types": "./dist/species/application/use-cases/CreateSpecies.d.ts",
-      "default": "./dist/species/application/use-cases/CreateSpecies.js"
+      "types": "./dist/species/application/use-cases/CreateSpecie.d.ts",
+      "default": "./dist/species/application/use-cases/CreateSpecie.js"
     },
     "./species/update": {
-      "types": "./dist/species/application/use-cases/UpdateSpecies.d.ts",
-      "default": "./dist/species/application/use-cases/UpdateSpecies.js"
+      "types": "./dist/species/application/use-cases/UpdateSpecie.d.ts",
+      "default": "./dist/species/application/use-cases/UpdateSpecie.js"
     },
     "./species/delete": {
-      "types": "./dist/species/application/use-cases/DeleteSpecies.d.ts",
-      "default": "./dist/species/application/use-cases/DeleteSpecies.js"
+      "types": "./dist/species/application/use-cases/DeleteSpecie.d.ts",
+      "default": "./dist/species/application/use-cases/DeleteSpecie.js"
     },
     "./species/list": {
-      "types": "./dist/species/application/use-cases/ListSpecies.d.ts",
-      "default": "./dist/species/application/use-cases/ListSpecies.js"
+      "types": "./dist/species/application/use-cases/ListSpecie.d.ts",
+      "default": "./dist/species/application/use-cases/ListSpecie.js"
     },
     "./species/get": {
-      "types": "./dist/species/application/use-cases/GetSpecies.d.ts",
-      "default": "./dist/species/application/use-cases/GetSpecies.js"
+      "types": "./dist/species/application/use-cases/GetSpecie.d.ts",
+      "default": "./dist/species/application/use-cases/GetSpecie.js"
     },
     "./species/resolve-by-code": {
-      "types": "./dist/species/application/use-cases/ResolveSpeciesByCode.d.ts",
-      "default": "./dist/species/application/use-cases/ResolveSpeciesByCode.js"
+      "types": "./dist/species/application/use-cases/ResolveSpecieByCode.d.ts",
+      "default": "./dist/species/application/use-cases/ResolveSpecieByCode.js"
     },
     "./species/initialize-catalog": {
-      "types": "./dist/species/application/use-cases/InitializeSpeciesCatalog.d.ts",
-      "default": "./dist/species/application/use-cases/InitializeSpeciesCatalog.js"
+      "types": "./dist/species/application/use-cases/InitializeSpecieCatalog.d.ts",
+      "default": "./dist/species/application/use-cases/InitializeSpecieCatalog.js"
     }
   },
   "typesVersions": {
     "*": {
       "species/entity": [
-        "dist/species/domain/entities/Species.d.ts"
+        "dist/species/domain/entities/SpecieEntity.d.ts"
       ],
       "species/code": [
-        "dist/species/domain/value-objects/SpeciesCode.d.ts"
+        "dist/species/domain/value-objects/SpecieCode.d.ts"
       ],
       "species/deletion-policy": [
         "dist/species/domain/policies/SpeciesDeletionPolicy.d.ts"
       ],
       "species/errors": [
-        "dist/species/domain/errors/SpeciesError.d.ts"
+        "dist/species/domain/errors/SpecieError.d.ts"
       ],
       "species/types": [
         "dist/species/domain/types/Species.d.ts"
       ],
       "species/repository": [
-        "dist/species/domain/ports/SpeciesRepository.d.ts"
+        "dist/species/domain/ports/SpecieRepository.d.ts"
       ],
       "species/inputs": [
         "dist/species/application/use-cases/inputs.d.ts"
       ],
       "species/create": [
-        "dist/species/application/use-cases/CreateSpecies.d.ts"
+        "dist/species/application/use-cases/CreateSpecie.d.ts"
       ],
       "species/update": [
-        "dist/species/application/use-cases/UpdateSpecies.d.ts"
+        "dist/species/application/use-cases/UpdateSpecie.d.ts"
       ],
       "species/delete": [
-        "dist/species/application/use-cases/DeleteSpecies.d.ts"
+        "dist/species/application/use-cases/DeleteSpecie.d.ts"
       ],
       "species/list": [
-        "dist/species/application/use-cases/ListSpecies.d.ts"
+        "dist/species/application/use-cases/ListSpecie.d.ts"
       ],
       "species/get": [
-        "dist/species/application/use-cases/GetSpecies.d.ts"
+        "dist/species/application/use-cases/GetSpecie.d.ts"
       ],
       "species/resolve-by-code": [
-        "dist/species/application/use-cases/ResolveSpeciesByCode.d.ts"
+        "dist/species/application/use-cases/ResolveSpecieByCode.d.ts"
       ],
       "species/initialize-catalog": [
-        "dist/species/application/use-cases/InitializeSpeciesCatalog.d.ts"
+        "dist/species/application/use-cases/InitializeSpecieCatalog.d.ts"
       ]
     }
   },

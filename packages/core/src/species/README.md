@@ -7,10 +7,10 @@ Primer módulo migrado. No cambia tablas, schema 7, IDs ni protocolo sync.
 ```text
 packages/core/src/species/
   domain/
-    entities/Species.ts
+    entities/SpeciesEntity.ts
     errors/SpeciesError.ts
     policies/SpeciesDeletionPolicy.ts
-    ports/SpeciesRepository.ts
+    ports/ISpeciesRepository.ts
     types/Species.ts
     value-objects/SpeciesCode.ts
   application/
@@ -44,15 +44,17 @@ persistido sin normalizarlo ni validarlo de nuevo. `changeDetails()`
 valida solo los campos enviados y conserva exactamente los valores omitidos.
 `restore()` comprueba identidad y código, sin generar efectos;
 nunca sustituye la validación de una entrada HTTP/push. La entidad contiene identidad
-y campos de negocio. Las fechas del origen viajan en `SpeciesData`, una proyección de
-persistencia; la auditoría del servidor es una extensión exclusiva del adaptador API.
+y campos de negocio. Los casos de uso y el repositorio comparten el contrato concreto
+`ISpeciesData`, que incluye las fechas de origen y de registro. La app API ya no
+especializa ese contrato con `SpeciesRecord`. La entidad se llama `SpeciesEntity` y
+las interfaces de Species llevan prefijo `I` (`ISpeciesProps`, `ISpeciesRepository`, etc.).
 
 ## Adaptadores y ensamblado
 
 - Mobile: `apps/mobile/src/features/species/infrastructure/WatermelonSpeciesRepository.ts`.
 - Backend: `apps/api/src/modules/species/infrastructure/repositories/PrismaSpeciesRepository.ts`.
 - Cada app tiene un `species/bootstrap.ts` que ensambla los mismos casos de uso.
-- Los casos de uso reciben `SpeciesRepository` directamente. El repositorio está
+- Los casos de uso reciben `ISpeciesRepository` directamente. El repositorio está
   limitado a una cuenta y ofrece las consultas que necesitan las reglas del dominio.
 - Los casos de uso validan duplicados y uso antes de escribir. Los adaptadores
   repiten esas comprobaciones dentro de cada escritura para cubrir carreras:
@@ -91,8 +93,9 @@ lote y aplicándolo atómicamente. Los validadores wire no normalizan datos ni f
 no se altera un snapshot mientras Watermelon está confirmando cambios.
 
 `created_at`/`updated_at` de Watermelon corresponden a
-`clientCreatedAt`/`clientUpdatedAt`. El adaptador REST origina sus fechas en el
-servidor. `createdAt`/`updatedAt` Prisma siguen siendo auditoría independiente.
+`clientCreatedAt`/`clientUpdatedAt` y respaldan `createdAt`/`updatedAt` en el
+resultado común mobile. El adaptador REST origina las fechas de origen en el servidor
+y conserva `createdAt`/`updatedAt` Prisma como auditoría independiente.
 La reconstrucción/lectura/pull no genera cambios pendientes. Se mantienen
 checkpoints, recibos, tombstones y aislamiento por cuenta.
 

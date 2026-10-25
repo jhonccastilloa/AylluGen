@@ -68,11 +68,10 @@ test('apps and contracts resolve the same concrete public files', () => {
   const contracts = createRequire(path.join(root, 'packages/contracts/package.json'));
   const manifest = readJson('packages/core/package.json');
   const runtimeEntries = {
-    entity: 'Species', errors: 'SpeciesError', create: 'CreateSpecies',
-    update: 'UpdateSpecies', delete: 'DeleteSpecies', list: 'ListSpecies',
-    get: 'GetSpecies', 'resolve-by-code': 'ResolveSpeciesByCode',
-    'initialize-catalog': 'InitializeSpeciesCatalog', code: 'SpeciesCode',
-    'deletion-policy': 'assertSpeciesUnused',
+    entity: 'SpecieEntity', errors: 'SpecieError', create: 'CreateSpecie',
+    update: 'UpdateSpecie', delete: 'DeleteSpecie', list: 'ListSpecie',
+    get: 'GetSpecie', 'resolve-by-code': 'ResolveSpecieByCode',
+    'initialize-catalog': 'InitializeSpecieCatalog', code: 'SpecieCode',
   };
   for (const consumer of [api, mobile, contracts]) {
     for (const [entry, name] of Object.entries(runtimeEntries)) {
@@ -82,15 +81,15 @@ test('apps and contracts resolve the same concrete public files', () => {
       assert.equal(typeof consumer(specifier)[name], 'function', name);
     }
   }
-  assert.equal(api('@ayllugen/core/species/entity').Species, mobile('@ayllugen/core/species/entity').Species);
+  assert.equal(api('@ayllugen/core/species/entity').SpecieEntity, mobile('@ayllugen/core/species/entity').SpecieEntity);
   for (const consumer of [api, mobile]) {
     assert.equal(typeof consumer('@ayllugen/contracts/species').speciesFieldsSchema.parse, 'function');
     for (const specifier of ['@ayllugen/core', '@ayllugen/contracts', '@ayllugen/core/species',
       '@ayllugen/core/species/name', '@ayllugen/core/species/description',
       '@ayllugen/core/species/rules',
       '@ayllugen/core/species/usage', '@ayllugen/core/species/unit-of-work',
-      '@ayllugen/core/dist/species/domain/entities/Species',
-      '@ayllugen/core/species/domain/entities/Species', '@ayllugen/contracts/dist/species']) {
+      '@ayllugen/core/dist/species/domain/entities/SpecieEntity',
+      '@ayllugen/core/species/domain/entities/SpecieEntity', '@ayllugen/contracts/dist/species']) {
       assert.throws(() => consumer(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
     }
   }
@@ -174,26 +173,26 @@ test('domain values, policies and contracts load no application use cases', () =
   }
 });
 
-test('loading CreateSpecies loads only its dependencies, not other use cases or type stubs', () => {
+test('loading CreateSpecie loads only its dependencies, not other use cases or type stubs', () => {
   const loaded = loadedCoreModules('@ayllugen/core/species/create');
-  assert.ok(loaded.includes('packages/core/dist/species/application/use-cases/CreateSpecies.js'));
+  assert.ok(loaded.includes('packages/core/dist/species/application/use-cases/CreateSpecie.js'));
   for (const file of loaded)
     assert.doesNotMatch(file, /\/ports\/|\/domain\/types\/|\/inputs\.js$|\/index\.js$/);
   assert.deepEqual(loaded.filter(file => file.includes('/application/use-cases/')).sort(), [
-    'packages/core/dist/species/application/use-cases/CreateSpecies.js',
-    'packages/core/dist/species/application/use-cases/requireSpecies.js',
+    'packages/core/dist/species/application/use-cases/CreateSpecie.js',
   ]);
 });
 
 test('type-only consumers emit no runtime imports', () => {
   const source = `
-    import type { SpeciesData, SpeciesFields, SpeciesProps } from '@ayllugen/core/species/types';
+    import type { ISpeciesData } from '@ayllugen/core/species/types';
+    import type { ISpeciesFields, ISpeciesProps, ICreateSpecieProps } from '@ayllugen/core/species/entity';
     import type { SpeciesErrorCode } from '@ayllugen/core/species/errors';
-    import type { SpeciesRepository } from '@ayllugen/core/species/repository';
-    import type { CreateSpeciesInput, UpdateSpeciesInput, SpeciesIdGenerator } from '@ayllugen/core/species/inputs';
-    export type Contract = [SpeciesData, SpeciesFields, SpeciesProps, SpeciesErrorCode,
-      SpeciesRepository, SpeciesIdGenerator,
-      CreateSpeciesInput, UpdateSpeciesInput];
+    import type { ISpeciesRepository } from '@ayllugen/core/species/repository';
+    import type { ICreateSpecieInput, IUpdateSpecieInput, SpecieIdGenerator } from '@ayllugen/core/species/inputs';
+    export type Contract = [ISpeciesData, ISpeciesFields, ISpeciesProps, ICreateSpecieProps, SpeciesErrorCode,
+      ISpeciesRepository, SpecieIdGenerator,
+      ICreateSpecieInput, IUpdateSpecieInput];
   `;
   const result = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
   assert.doesNotMatch(result.outputText, /require\(|@ayllugen/);

@@ -5,7 +5,6 @@ import {
   AnimalCreateDTO,
   AnimalUpdateDTO,
   Sex,
-  SpeciesCode,
 } from "../../../animal/domain/entities/Animal";
 import { IAnimalRepository } from "../../../animal/domain/repositories/IAnimalRepository";
 
@@ -126,14 +125,12 @@ export class AnimalRepository implements IAnimalRepository {
     return children.map((item: any) => this.mapToEntity(item));
   }
 
-  async findBySpecies(userId: string, species: SpeciesCode): Promise<Animal[]> {
+  async findBySpecies(userId: string, speciesId: string): Promise<Animal[]> {
     const animals = await (prisma.animal as any).findMany({
       where: {
         userId,
         deletedAt: null,
-        speciesCatalog: {
-          code: species,
-        },
+        speciesId,
       },
       include: { speciesCatalog: true },
     });
@@ -165,7 +162,7 @@ export class AnimalRepository implements IAnimalRepository {
       crotal: data.crotal,
       sex: data.sex as Sex,
       speciesId: data.speciesId,
-      species: data.speciesCatalog?.code ?? "",
+      species: data.speciesCatalog?.name ?? "",
       speciesName: data.speciesCatalog?.name ?? undefined,
       birthDate: data.birthDate ?? undefined,
       isFounder: data.isFounder,

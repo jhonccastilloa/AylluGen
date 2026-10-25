@@ -17,7 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import type { RootStackParamList } from '@/presentation/navigation/types';
 import type { Animal, Sex } from '@/features/animals/interfaces/animals.types';
-import type { Species as SpeciesCatalogItem } from '@/features/species/interfaces/species.types';
+import type { ISpecies as SpeciesCatalogItem } from '@/features/species/interfaces/species.types';
 import featureContainer from '@/features/container';
 import { useAuthStore } from '@/store/useAuthStore';
 import Toast from 'react-native-toast-message';

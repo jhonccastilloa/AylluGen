@@ -14,18 +14,6 @@ export const animalCreateSchema = z
       .min(1)
       .optional()
       .describe("Species ID linked from species catalog"),
-    speciesCode: z
-      .string()
-      .min(2)
-      .max(30)
-      .optional()
-      .describe("Species code when speciesId is not available"),
-    species: z
-      .string()
-      .min(2)
-      .max(30)
-      .optional()
-      .describe("Legacy species code for backward compatibility"),
     birthDate: z.iso.datetime().optional().describe("Birth date of the animal"),
     isFounder: z
       .boolean()
@@ -35,20 +23,16 @@ export const animalCreateSchema = z
     fatherId: z.uuid().optional().describe("Father animal ID"),
     motherId: z.uuid().optional().describe("Mother animal ID"),
   })
-  .refine(
-    (input) => Boolean(input.speciesId || input.speciesCode || input.species),
-    {
-      message:
-        "Debe enviar speciesId o speciesCode para enlazar la especie del animal",
-    },
-  )
+  .refine((input) => Boolean(input.speciesId), {
+    message: "Debe enviar speciesId para enlazar la especie del animal",
+  })
   .openapi({
     title: "AnimalCreateInput",
     description: "Schema for creating a new animal",
     example: {
       crotal: "CR12345",
       sex: Sex.FEMALE,
-      speciesCode: "SHEEP",
+      speciesId: "550e8400-e29b-41d4-a716-446655440000",
       birthDate: "2024-01-15T00:00:00Z",
       isFounder: false,
       fatherId: "550e8400-e29b-41d4-a716-446655440000",
@@ -69,12 +53,6 @@ export const animalUpdateSchema = z
       .min(1)
       .optional()
       .describe("Species ID linked from species catalog"),
-    speciesCode: z
-      .string()
-      .min(2)
-      .max(30)
-      .optional()
-      .describe("Species code when updating by code"),
     birthDate: z.iso.datetime().optional().describe("Birth date of the animal"),
     isFounder: z
       .boolean()
@@ -88,7 +66,7 @@ export const animalUpdateSchema = z
     description: "Schema for updating an animal",
     example: {
       isFounder: true,
-      speciesCode: "ALPACA",
+      speciesId: "550e8400-e29b-41d4-a716-446655440000",
       fatherId: undefined,
       motherId: undefined,
     },
@@ -96,7 +74,7 @@ export const animalUpdateSchema = z
 
 export const animalQuerySchema = z
   .object({
-    species: z.string().optional().describe("Filter by species code"),
+    speciesId: z.string().optional().describe("Filter by species ID"),
     sex: z.enum(Sex).optional().describe("Filter by sex"),
     isFounder: z.boolean().optional().describe("Filter by founder status"),
     search: z.string().optional().describe("Search by crotal"),

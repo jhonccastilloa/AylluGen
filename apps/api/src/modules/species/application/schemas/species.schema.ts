@@ -6,10 +6,8 @@ import {
 
 export const speciesCreateSchema = createSpeciesInputSchema.openapi({
   title: "SpeciesCreateInput",
-  description:
-    "Crear especie; código y textos se normalizan antes de validar el negocio.",
+  description: "Crear especie; el nombre se valida antes de guardar.",
   example: {
-    code: "ALPACA",
     name: "Alpaca",
     description: "Camélido andino domesticado",
   },
@@ -28,7 +26,6 @@ export const speciesUpdateSchema = updateSpeciesInputSchema.openapi({
 export const speciesResponseSchema = z
   .object({
     id: z.string().describe("Identificador de especie"),
-    code: z.string().describe("Código único de especie"),
     name: z.string().describe("Nombre visible de la especie"),
     description: z.string().nullable().describe("Descripción de la especie"),
     userId: z.string().describe("Identificador del usuario propietario"),
@@ -44,7 +41,6 @@ export const speciesResponseSchema = z
     description: "Schema de respuesta de especie",
     example: {
       id: "7f4f9d90-d1de-4ec2-9e1d-0161a4f0e9b1",
-      code: "ALPACA",
       name: "Alpaca",
       description: "Camélido andino domesticado",
       userId: "123e4567-e89b-12d3-a456-426614174001",

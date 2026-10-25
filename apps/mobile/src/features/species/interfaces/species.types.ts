@@ -1,6 +1,5 @@
-export interface Species {
+export interface ISpecies {
   id: string;
-  code: string;
   name: string;
   description: string | null;
   userId: string;
@@ -8,4 +7,4 @@ export interface Species {
   updatedAt: string;
 }
 
-export type { CreateSpeciesInput as SpeciesCreateInput, UpdateSpeciesInput as SpeciesUpdateInput } from '@ayllugen/core/species/inputs';
+export type { ICreateSpecieInput as SpeciesCreateInput, IUpdateSpecieInput as SpeciesUpdateInput } from '@ayllugen/core/species/inputs';

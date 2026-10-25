@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { speciesFieldsSchema, createSpeciesInputSchema, updateSpeciesInputSchema } = require('@ayllugen/contracts/species');
-const { Species } = require('@ayllugen/core/species/entity');
+const { SpeciesEntity } = require('@ayllugen/core/species/entity');
 const { SpeciesCode } = require('@ayllugen/core/species/code');
 const valid = { code: 'ALPACA', name: 'Alpaca', description: null };
 
@@ -13,7 +13,7 @@ test('wire validation does not normalize stored text', () => {
 test('commands defer normalization to the domain and support explicit clearing', () => {
   const input = createSpeciesInputSchema.parse({ code: ' alpaca ', name: ' Alpaca ' });
   assert.equal(input.code, ' alpaca ');
-  const species = Species.create({ ...input, description: input.description ?? null, id: 'id', userId: 'owner' });
+  const species = SpeciesEntity.create({ ...input, description: input.description ?? null, id: 'id', userId: 'owner' });
   assert.equal(species.code, 'ALPACA');
   assert.deepEqual(updateSpeciesInputSchema.parse({ description: null }), { description: null });
   assert.equal(updateSpeciesInputSchema.safeParse({}).success, false);

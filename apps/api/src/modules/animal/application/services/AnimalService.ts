@@ -38,8 +38,6 @@ export class AnimalService {
       userId,
       {
         speciesId: data.speciesId,
-        speciesCode: data.speciesCode,
-        species: data.species,
       },
     );
 
@@ -95,12 +93,11 @@ export class AnimalService {
       motherId: data.motherId,
     };
 
-    if (data.speciesId || data.speciesCode) {
+    if (data.speciesId) {
       const resolvedSpecies = await this.speciesService.resolveSpeciesForAnimal(
         userId,
         {
           speciesId: data.speciesId,
-          speciesCode: data.speciesCode,
         },
       );
       updateData.speciesId = resolvedSpecies.speciesId;
@@ -157,12 +154,12 @@ export class AnimalService {
     userId: string,
     query: AnimalQueryInput,
   ): Promise<{ animals: AnimalResponse[]; total: number }> {
-    const { species, sex, isFounder, search, limit, offset } = query;
+    const { speciesId, sex, isFounder, search, limit, offset } = query;
 
     let animals = await this.animalRepository.findAllByUserId(userId);
 
-    if (species) {
-      animals = animals.filter((a) => a.species === species);
+    if (speciesId) {
+      animals = animals.filter((a) => a.speciesId === speciesId);
     }
 
     if (sex) {

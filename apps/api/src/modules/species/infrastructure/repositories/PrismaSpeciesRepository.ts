@@ -1,7 +1,8 @@
-import type { SpeciesRepository } from "@ayllugen/core/species/repository";
+import type { ISpeciesRepository } from "@ayllugen/core/species/repository";
 import { SpeciesError } from "@ayllugen/core/species/errors";
-import { assertSpeciesUnused } from "@ayllugen/core/species/deletion-policy";
-import type { SpeciesFields } from "@ayllugen/core/species/types";
+import { assertSpecieUnused } from "@ayllugen/core/species/deletion-policy";
+import type { ISpeciesData } from "@ayllugen/core/species/types";
+import type { ISpeciesFields } from "@ayllugen/core/species/entity";
 import {
   prisma,
   type PrismaTransaction,
@@ -10,10 +11,9 @@ import {
   AuthenticationError,
   ConflictError,
 } from "../../../../shared/errors/AppError";
-import type { SpeciesRecord } from "../../application/SpeciesRecord";
 
 /** Scoped to one owner; each mutation performs its checks under the sync account lock. */
-export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord> {
+export class PrismaSpeciesRepository implements ISpeciesRepository {
   constructor(
     public readonly ownerId: string,
     private readonly db: PrismaTransaction = prisma,
@@ -21,32 +21,31 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
   private get active() {
     return { userId: this.ownerId, deletedAt: null };
   }
-  list(): Promise<SpeciesRecord[]> {
+  list(): Promise<ISpeciesData[]> {
     return this.db.species.findMany({
       where: this.active,
       orderBy: { name: "asc" },
     });
   }
-  findById(id: string): Promise<SpeciesRecord | null> {
+  findById(id: string): Promise<ISpeciesData | null> {
     return this.db.species.findFirst({ where: { ...this.active, id } });
   }
-  findByCode(code: string): Promise<SpeciesRecord | null> {
-    return this.db.species.findFirst({ where: { ...this.active, code } });
+  findByName(name: string): Promise<ISpeciesData | null> {
+    return this.db.species.findFirst({ where: { ...this.active, name: { equals: name, mode: "insensitive" } } });
   }
   async findConflict(
-    fields: SpeciesFields,
+    fields: ISpeciesFields,
     exceptId?: string,
-  ): Promise<"code" | "name" | null> {
+  ): Promise<"name" | null> {
     // SQL currently reserves keys even after soft deletion; do not change that policy.
     const rows = await this.db.species.findMany({
       where: {
         userId: this.ownerId,
         ...(exceptId ? { id: { not: exceptId } } : {}),
-        OR: [{ code: fields.code }, { name: fields.name }],
+        name: { equals: fields.name, mode: "insensitive" },
       },
-      select: { code: true },
+      select: { id: true },
     });
-    if (rows.some((row) => row.code === fields.code)) return "code";
     return rows.length ? "name" : null;
   }
 
@@ -74,21 +73,20 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
     }
   }
 
-  private conflict(field: "code" | "name"): never {
+  private conflict(field: "name"): never {
     throw new SpeciesError(
       "SPECIES_DUPLICATE",
-      "Ya existe una especie con ese código o nombre.",
-      field,
+      "Ya existe una especie con ese nombre.",
     );
   }
 
-  private createRow(id: string, fields: SpeciesFields): Promise<SpeciesRecord> {
+  private createRow(id: string, fields: ISpeciesFields): Promise<ISpeciesData> {
     return this.db.species.create({
       data: { id, userId: this.ownerId, ...fields },
     });
   }
 
-  async insert(id: string, fields: SpeciesFields): Promise<SpeciesRecord> {
+  async insert(id: string, fields: ISpeciesFields): Promise<ISpeciesData> {
     return this.write(async (repository) => {
       const conflict = await repository.findConflict(fields);
       if (conflict) repository.conflict(conflict);
@@ -96,12 +94,12 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
     });
   }
 
-  async findOrInsertByCode(
+  async findOrInsertByName(
     id: string,
-    fields: SpeciesFields,
-  ): Promise<SpeciesRecord> {
+    fields: ISpeciesFields,
+  ): Promise<ISpeciesData> {
     return this.write(async (repository) => {
-      const existing = await repository.findByCode(fields.code);
+      const existing = await repository.findByName(fields.name);
       if (existing) return existing;
       const conflict = await repository.findConflict(fields);
       if (conflict) repository.conflict(conflict);
@@ -111,15 +109,14 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
 
   async update(
     id: string,
-    fields: SpeciesFields,
-    previous: SpeciesFields,
-  ): Promise<SpeciesRecord> {
+    fields: ISpeciesFields,
+    previous: ISpeciesFields,
+  ): Promise<ISpeciesData> {
     return this.write(async (repository) => {
       const current = await repository.findById(id);
       if (!current)
         throw new SpeciesError("SPECIES_NOT_FOUND", "Especie no encontrada.");
       if (
-        current.code !== previous.code ||
         current.name !== previous.name ||
         current.description !== previous.description
       )
@@ -133,7 +130,6 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
         where: { id, ...this.active },
         // REST originates on the server; push keeps the device action dates.
         data: {
-          code: fields.code,
           name: fields.name,
           description: fields.description,
           clientUpdatedAt: new Date(),
@@ -145,7 +141,7 @@ export class PrismaSpeciesRepository implements SpeciesRepository<SpeciesRecord>
     await this.write(async (repository) => {
       if (!(await repository.findById(id)))
         throw new SpeciesError("SPECIES_NOT_FOUND", "Especie no encontrada.");
-      assertSpeciesUnused(await repository.hasAnimals(id));
+      assertSpecieUnused(await repository.hasAnimals(id));
       await repository.db.species.update({
         where: { id, ...repository.active },
         data: { deletedAt: new Date() },

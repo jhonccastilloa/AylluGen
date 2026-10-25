@@ -1,4 +1,4 @@
-import { CreateSpecies } from '@ayllugen/core/species/create';
+import { CreateSpecie } from '@ayllugen/core/species/create';
 import { createSpeciesModule } from '../bootstrap';
 import { WatermelonSpeciesRepository } from './WatermelonSpeciesRepository';
 import {
@@ -95,7 +95,7 @@ it('isolates accounts with owner-scoped repositories', async () => {
   ).rejects.toMatchObject({ code: 'SPECIES_NOT_FOUND' });
   await catalog.create(valid);
   const otherRepository = new WatermelonSpeciesRepository(db, OTHER);
-  const otherCreate = new CreateSpecies(otherRepository, generateUuid);
+  const otherCreate = new CreateSpecie(otherRepository, generateUuid);
   const createdForOther = await otherCreate.execute({ code: 'LLAMA', name: 'Llama' });
   expect(createdForOther.userId).toBe(OTHER);
   expect(await catalog.list()).toHaveLength(1);

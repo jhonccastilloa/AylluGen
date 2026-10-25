@@ -3,14 +3,13 @@ export enum Sex {
   FEMALE = "FEMALE",
 }
 
-export type SpeciesCode = string;
 
 export interface Animal {
   id: string;
   crotal: string;
   sex: Sex;
   speciesId: string;
-  species: SpeciesCode;
+  species: string;
   speciesName?: string;
   birthDate?: Date;
   isFounder: boolean;

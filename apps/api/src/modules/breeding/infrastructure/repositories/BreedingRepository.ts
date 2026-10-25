@@ -107,7 +107,7 @@ export class BreedingRepository implements IBreedingRepository {
       crotal: data.crotal,
       sex: data.sex as Sex,
       speciesId: data.speciesId,
-      species: data.speciesCatalog?.code ?? "",
+      species: data.speciesCatalog?.name ?? "",
       speciesName: data.speciesCatalog?.name ?? undefined,
       birthDate: data.birthDate ?? undefined,
       isFounder: data.isFounder,

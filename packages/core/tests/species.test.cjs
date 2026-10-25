@@ -2,17 +2,17 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { Species } = require("@ayllugen/core/species/entity");
+const { SpeciesEntity } = require("@ayllugen/core/species/entity");
 const { SpeciesError } = require("@ayllugen/core/species/errors");
-const { CreateSpecies } = require("@ayllugen/core/species/create");
-const { UpdateSpecies } = require("@ayllugen/core/species/update");
-const { DeleteSpecies } = require("@ayllugen/core/species/delete");
-const { ListSpecies } = require("@ayllugen/core/species/list");
-const { GetSpecies } = require("@ayllugen/core/species/get");
-const { ResolveSpeciesByCode } = require("@ayllugen/core/species/resolve-by-code");
-const { InitializeSpeciesCatalog } = require("@ayllugen/core/species/initialize-catalog");
+const { CreateSpecie } = require("@ayllugen/core/species/create");
+const { UpdateSpecie } = require("@ayllugen/core/species/update");
+const { DeleteSpecie } = require("@ayllugen/core/species/delete");
+const { ListSpecie } = require("@ayllugen/core/species/list");
+const { GetSpecie } = require("@ayllugen/core/species/get");
+const { ResolveSpecieByCode } = require("@ayllugen/core/species/resolve-by-code");
+const { InitializeSpecieCatalog } = require("@ayllugen/core/species/initialize-catalog");
 const {
-  assertSpeciesUnused,
+  assertSpecieUnused,
 } = require("@ayllugen/core/species/deletion-policy");
 
 function fixture() {
@@ -95,19 +95,19 @@ function fixture() {
   };
   const commands = (owner) => {
     const store = repository(owner);
-    const list = new ListSpecies(store);
-    const resolve = new ResolveSpeciesByCode(
+    const list = new ListSpecie(store);
+    const resolve = new ResolveSpecieByCode(
       store,
       () => `id-${++nextId}`,
     );
     return {
-      create: new CreateSpecies(store, () => `id-${++nextId}`),
-      update: new UpdateSpecies(store),
-      delete: new DeleteSpecies(store),
+      create: new CreateSpecie(store, () => `id-${++nextId}`),
+      update: new UpdateSpecie(store),
+      delete: new DeleteSpecie(store),
       list,
-      get: new GetSpecies(store),
+      get: new GetSpecie(store),
       resolve,
-      initialize: new InitializeSpeciesCatalog(list, resolve),
+      initialize: new InitializeSpecieCatalog(list, resolve),
     };
   };
   return {
@@ -124,7 +124,7 @@ const errorCode = (code) => (error) =>
   error instanceof SpeciesError && error.code === code;
 
 test("entity normalizes commands and protects its identity from primitive mutations", () => {
-  const species = Species.create({
+  const species = SpeciesEntity.create({
     ...valid,
     id: "a",
     userId: "owner",
@@ -141,17 +141,17 @@ test("entity normalizes commands and protects its identity from primitive mutati
   assert.equal(species.description, "Hola");
   assert.equal(species.id, "a");
   assert.throws(
-    () => Species.create({ ...valid, id: "b", userId: "owner", code: "!" }),
+    () => SpeciesEntity.create({ ...valid, id: "b", userId: "owner", code: "!" }),
     (error) => errorCode("SPECIES_INVALID")(error) && error.field === "code",
   );
   assert.throws(
-    () => Species.create({ ...valid, id: "c", userId: "owner", name: " " }),
+    () => SpeciesEntity.create({ ...valid, id: "c", userId: "owner", name: " " }),
     (error) => errorCode("SPECIES_INVALID")(error) && error.field === "name",
   );
 });
 
 test("restore neither normalizes historical strings nor copies audit data into entity", () => {
-  const species = Species.restore({
+  const species = SpeciesEntity.restore({
     ...valid,
     id: "a",
     userId: "owner",
@@ -163,7 +163,7 @@ test("restore neither normalizes historical strings nor copies audit data into e
 });
 
 test("partial edits preserve even legacy text in omitted fields", () => {
-  const species = Species.restore({
+  const species = SpeciesEntity.restore({
     ...valid,
     id: "a",
     userId: "owner",
@@ -189,7 +189,7 @@ test("partial edits preserve even legacy text in omitted fields", () => {
 });
 
 test("create and restore reject invalid identity; restore requires a valid code", () => {
-  for (const method of [Species.create, Species.restore]) {
+  for (const method of [SpeciesEntity.create, SpeciesEntity.restore]) {
     for (const [field, value] of [["id", "  "], ["userId", ""]]) {
       assert.throws(
         () => method({ ...valid, id: "a", userId: "owner", [field]: value }),
@@ -198,7 +198,7 @@ test("create and restore reject invalid identity; restore requires a valid code"
     }
   }
   assert.throws(
-    () => Species.restore({ ...valid, id: "a", userId: "owner", code: "alpaca" }),
+    () => SpeciesEntity.restore({ ...valid, id: "a", userId: "owner", code: "alpaca" }),
     (error) => errorCode("SPECIES_INVALID")(error) && error.field === "code",
   );
 });
@@ -354,8 +354,8 @@ test("default initialization and resolve are explicit and repeatable", async () 
 });
 
 test("sync can use the deletion rule against its final batch state", () => {
-  assert.throws(() => assertSpeciesUnused(true), errorCode("SPECIES_IN_USE"));
-  assertSpeciesUnused(false);
+  assert.throws(() => assertSpecieUnused(true), errorCode("SPECIES_IN_USE"));
+  assertSpecieUnused(false);
 });
 
 test("domain and application import no frameworks, adapters or contracts", () => {
