@@ -1,7 +1,7 @@
 import { SpecieError } from "../../domain/errors/SpecieError";
 import type { ISpecieRepository } from "../../domain/ports/SpecieRepository";
 
-export class DeleteSpecie {
+export class DeleteSpecieUseCase {
   constructor(private readonly repository: ISpecieRepository) {}
   async execute(specieId: string): Promise<void> {
     const specie = await this.repository.findById(specieId);

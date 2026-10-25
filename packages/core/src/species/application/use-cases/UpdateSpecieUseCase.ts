@@ -8,7 +8,7 @@ export interface IUpdateSpecieInput {
   name?: string;
   description?: string;
 }
-export class UpdateSpecie {
+export class UpdateSpecieUseCase {
   constructor(private readonly repository: ISpecieRepository) {}
   async execute(input: IUpdateSpecieInput): Promise<SpecieEntity> {
     const previousSpecie = await this.repository.findById(input.id);

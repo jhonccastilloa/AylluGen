@@ -2,7 +2,7 @@ import { SpecieEntity } from "../../domain/entities/SpecieEntity";
 import { SpecieError } from "../../domain/errors/SpecieError";
 import type { ISpecieRepository } from "../../domain/ports/SpecieRepository";
 
-export class GetSpecie {
+export class GetSpecieUseCase {
   constructor(private readonly repository: ISpecieRepository) {}
   async execute(specieId: string): Promise<SpecieEntity> {
     const specie = await this.repository.findById(specieId);

@@ -6,7 +6,7 @@ export interface ICreateSpecieInput {
   name: string;
   description?: string | null;
 }
-export class CreateSpecie {
+export class CreateSpecieUseCase {
   constructor(
     private readonly repository: ISpecieRepository,
     private readonly idGenerator: IIdGeneratorPort,
