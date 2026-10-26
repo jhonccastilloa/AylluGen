@@ -4,7 +4,7 @@ import { animalCreateSchema } from "../../../animal/application/schemas/animal.s
 import { breedingCreateSchema } from "../../../breeding/application/schemas/breeding.schema";
 import { healthRecordCreateSchema } from "../../../health/application/schemas/health.schema";
 import { productionRecordCreateSchema } from "../../../production/application/schemas/production.schema";
-import { speciesFieldsSchema } from "@ayllugen/contracts/species";
+import { speciesFieldsSchema } from "@ayllugen/shared/contracts/species";
 import {
   SYNC_LIMITS,
   SYNC_TABLES,

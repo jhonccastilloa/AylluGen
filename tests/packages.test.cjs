@@ -13,7 +13,7 @@ const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).fla
 
 test('shared packages have one root toolchain and no module-level configuration', () => {
   assert.ok(readJson('package.json').devDependencies.typescript);
-  for (const name of ['core', 'contracts']) {
+  for (const name of ['core', 'shared']) {
     const manifest = readJson(`packages/${name}/package.json`);
     assert.equal(manifest.name, `@ayllugen/${name}`);
     assert.equal(manifest.devDependencies, undefined);
@@ -28,9 +28,9 @@ test('shared packages have one root toolchain and no module-level configuration'
     assert.doesNotMatch(path.basename(file), /^(?:package\.json|tsconfig.*\.json|\.gitignore)$/);
   }
   assert.deepEqual(readJson('tsconfig.packages.json').references, [
-    { path: './packages/core' }, { path: './packages/contracts' },
+    { path: './packages/core' }, { path: './packages/shared' },
   ]);
-  assert.deepEqual(readJson('packages/contracts/tsconfig.json').references, [{ path: '../core' }]);
+  assert.deepEqual(readJson('packages/shared/tsconfig.json').references, []);
 });
 
 test('all core source imports stay within core, without runtime libraries', () => {
@@ -62,10 +62,9 @@ test('all core source imports stay within core, without runtime libraries', () =
   }
 });
 
-test('apps and contracts resolve the same concrete public files', () => {
+test('apps resolve core entries and shared public files', () => {
   const api = createRequire(path.join(root, 'apps/api/package.json'));
   const mobile = createRequire(path.join(root, 'apps/mobile/package.json'));
-  const contracts = createRequire(path.join(root, 'packages/contracts/package.json'));
   const manifest = readJson('packages/core/package.json');
   const runtimeEntries = {
     entity: 'SpecieEntity', errors: 'SpecieError', create: 'CreateSpecie',
@@ -73,7 +72,7 @@ test('apps and contracts resolve the same concrete public files', () => {
     get: 'GetSpecie', 'resolve-by-code': 'ResolveSpecieByCode',
     'initialize-catalog': 'InitializeSpecieCatalog', code: 'SpecieCode',
   };
-  for (const consumer of [api, mobile, contracts]) {
+  for (const consumer of [api, mobile]) {
     for (const [entry, name] of Object.entries(runtimeEntries)) {
       const specifier = `@ayllugen/core/species/${entry}`;
       const expected = path.join(root, 'packages/core', manifest.exports[`./species/${entry}`].default);
@@ -83,18 +82,19 @@ test('apps and contracts resolve the same concrete public files', () => {
   }
   assert.equal(api('@ayllugen/core/species/entity').SpecieEntity, mobile('@ayllugen/core/species/entity').SpecieEntity);
   for (const consumer of [api, mobile]) {
-    assert.equal(typeof consumer('@ayllugen/contracts/species').speciesFieldsSchema.parse, 'function');
-    for (const specifier of ['@ayllugen/core', '@ayllugen/contracts', '@ayllugen/core/species',
+    assert.equal(typeof consumer('@ayllugen/shared/contracts/species').speciesFieldsSchema.parse, 'function');
+    assert.equal(typeof consumer('@ayllugen/shared/ids/uuid').UuidIdGenerator, 'function');
+    for (const specifier of ['@ayllugen/core', '@ayllugen/shared', '@ayllugen/core/species',
       '@ayllugen/core/species/name', '@ayllugen/core/species/description',
       '@ayllugen/core/species/rules',
       '@ayllugen/core/species/usage', '@ayllugen/core/species/unit-of-work',
       '@ayllugen/core/dist/species/domain/entities/SpecieEntity',
-      '@ayllugen/core/species/domain/entities/SpecieEntity', '@ayllugen/contracts/dist/species']) {
+      '@ayllugen/core/species/domain/entities/SpecieEntity', '@ayllugen/shared/dist/contracts/species']) {
       assert.throws(() => consumer(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
     }
   }
-  assert.deepEqual(readJson('packages/contracts/package.json').dependencies, {
-    '@ayllugen/core': 'workspace:*', zod: '^4.3.6',
+  assert.deepEqual(readJson('packages/shared/package.json').dependencies, {
+    uuid: '^11.1.0', zod: '^4.3.6',
   });
 });
 
@@ -103,7 +103,7 @@ test('subpath exports and TypeScript declarations agree for both app resolvers',
     ['core', ['entity', 'code', 'deletion-policy', 'errors', 'types', 'repository',
       'inputs', 'create', 'update', 'delete', 'list', 'get', 'resolve-by-code',
       'initialize-catalog'].map(entry => `./species/${entry}`)],
-    ['contracts', ['./species']],
+    ['shared', ['./contracts/species', './ids/uuid']],
   ]) {
     const manifest = readJson(`packages/${name}/package.json`);
     assert.deepEqual(Object.keys(manifest.exports), entries);
@@ -134,7 +134,7 @@ test('subpath exports and TypeScript declarations agree for both app resolvers',
 });
 
 test('shared sources export their own declarations without barrels or re-export facades', () => {
-  for (const name of ['core', 'contracts']) {
+  for (const name of ['core', 'shared']) {
     for (const file of walk(path.join(root, `packages/${name}/src`)).filter(file => file.endsWith('.ts'))) {
       assert.notEqual(path.basename(file), 'index.ts', 'No shared barrels');
       const code = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
@@ -164,11 +164,11 @@ test('domain values, policies and contracts load no application use cases', () =
   for (const specifier of [
     '@ayllugen/core/species/code',
     '@ayllugen/core/species/deletion-policy',
-    '@ayllugen/contracts/species',
+    '@ayllugen/shared/contracts/species',
   ]) {
     const loaded = loadedCoreModules(specifier);
     assert.ok(loaded.every(file => file.startsWith('packages/core/dist/species/domain/')), loaded.join('\n'));
-    if (specifier === '@ayllugen/contracts/species')
+    if (specifier === '@ayllugen/shared/contracts/species')
       assert.deepEqual(loaded, [], 'Zod contracts must not load core at runtime');
   }
 });

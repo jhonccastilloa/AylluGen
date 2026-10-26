@@ -1,5 +1,5 @@
 {
-  "watch": ["src", "../../packages/core/dist", "../../packages/contracts/dist"],
+  "watch": ["src", "../../packages/core/dist", "../../packages/shared/dist"],
   "ext": "ts,js",
   "ignore": ["src/**/*.spec.ts"],
   "exec": "ts-node -r tsconfig-paths/register src/index.ts"

@@ -5,7 +5,7 @@ import { DeleteSpecie } from '@ayllugen/core/species/delete';
 import { ListSpecie } from '@ayllugen/core/species/list';
 import { GetSpecie } from '@ayllugen/core/species/get';
 import type { ISpeciesData } from '@ayllugen/core/species/types';
-import { generateUuid } from '@/features/shared/utils/id';
+import { UuidIdGenerator } from '@ayllugen/shared/ids/uuid';
 import { WatermelonSpeciesRepository } from './infrastructure/WatermelonSpeciesRepository';
 import type {
   ISpecies,
@@ -25,7 +25,8 @@ const toView = (species: ISpeciesData): ISpecies => ({
 /** Composition root per account; screen projection is not a business rule. */
 export function createSpeciesModule(database: Database, ownerId: string) {
   const repository = new WatermelonSpeciesRepository(database, ownerId);
-  const createSpecie = new CreateSpecie(repository, generateUuid);
+  const idGenerator = new UuidIdGenerator();
+  const createSpecie = new CreateSpecie(repository, () => idGenerator.generate());
   const updateSpecie = new UpdateSpecie(repository);
   const deleteSpecie = new DeleteSpecie(repository);
   const listSpecie = new ListSpecie(repository);

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { speciesFieldsSchema, createSpeciesInputSchema, updateSpeciesInputSchema } = require('@ayllugen/contracts/species');
+const { speciesFieldsSchema, createSpeciesInputSchema, updateSpeciesInputSchema } = require('@ayllugen/shared/contracts/species');
 const { SpeciesEntity } = require('@ayllugen/core/species/entity');
 const { SpeciesCode } = require('@ayllugen/core/species/code');
 const valid = { code: 'ALPACA', name: 'Alpaca', description: null };

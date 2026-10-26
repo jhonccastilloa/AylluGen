@@ -7,7 +7,7 @@ import {
   OTHER,
   seed,
 } from '@/features/sync/services/syncTestDatabase';
-import { generateUuid } from '@/features/shared/utils/id';
+import { generateUuid } from '@ayllugen/shared/ids/uuid';
 import type { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
 
 const valid = { code: ' alpaca ', name: ' Alpaca ', description: ' Andina ' };

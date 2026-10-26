@@ -19,7 +19,7 @@ import authSession from '@/infrastructure/auth/AuthSession';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { useSyncStore } from '@/store/useSyncStore';
 import type { SpeciesModel } from '@/infrastructure/database/models/SpeciesModel';
-import { generateUuid } from '@/features/shared/utils/id';
+import { generateUuid } from '@ayllugen/shared/ids/uuid';
 import { AnimalsLocalRepository } from '@/features/animals/services/AnimalsLocalRepository';
 import { createSpeciesModule } from '@/features/species/bootstrap';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';

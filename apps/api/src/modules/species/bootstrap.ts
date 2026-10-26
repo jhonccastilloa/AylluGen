@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { UuidIdGenerator } from "@ayllugen/shared/ids/uuid";
 import { CreateSpecie } from "@ayllugen/core/species/create";
 import { UpdateSpecie } from "@ayllugen/core/species/update";
 import { DeleteSpecie } from "@ayllugen/core/species/delete";
@@ -12,13 +12,17 @@ import type { ISpecieUseCases } from "./application/ports/SpecieUseCasesFactory"
 export function createSpecieUseCases(
   repository: ISpecieRepository,
 ): ISpecieUseCases {
+  const idGenerator = new UuidIdGenerator();
   const listSpecie = new ListSpecie(repository);
   return {
-    createSpecie: new CreateSpecie(repository, randomUUID),
+    createSpecie: new CreateSpecie(repository, () => idGenerator.generate()),
     updateSpecie: new UpdateSpecie(repository),
     deleteSpecie: new DeleteSpecie(repository),
     getSpecie: new GetSpecie(repository),
     listSpecie,
-    initializeCatalog: new InitializeSpecieCatalog(repository, randomUUID),
+    initializeCatalog: new InitializeSpecieCatalog(
+      repository,
+      () => idGenerator.generate(),
+    ),
   };
 }

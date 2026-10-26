@@ -17,7 +17,7 @@ import {
   nowTimestamp,
   timestampToIso,
 } from '@/features/shared/utils/date';
-import { generateUuid } from '@/features/shared/utils/id';
+import { generateUuid } from '@ayllugen/shared/ids/uuid';
 
 const toIsoOrEmpty = (value?: number | null): string =>
   timestampToIso(value) ?? new Date(0).toISOString();

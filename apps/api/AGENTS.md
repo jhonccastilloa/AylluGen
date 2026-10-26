@@ -37,7 +37,7 @@ Species is the first shared hexagonal module: `packages/core/src/species` owns D
 
 Install workspace dependencies with pnpm from the monorepo root. Run `pnpm build:shared` before direct typecheck/test commands. Species sync uses shared canonical rules, not one CRUD command per pushed row.
 
-Import concrete public entries such as `@ayllugen/core/species/create`, `/entity`, `/errors`, `/repository`, `/types`, and `/inputs`; use `import type` for ports and data types. Pure rules use `/deletion-policy` and schemas use `@ayllugen/contracts/species`. Do not import `@ayllugen/core/species`, package roots or internal `dist` paths. Core/contracts have no barrels or re-export facades; module internals import concrete files.
+Import concrete public entries such as `@ayllugen/core/species/create`, `/entity`, `/errors`, `/repository`, `/types`, and `/inputs`; use `import type` for ports and data types. Pure rules use `/deletion-policy`; shared schemas use `@ayllugen/shared/contracts/species` and cross-platform UUIDs use `@ayllugen/shared/ids/uuid`. Do not import package roots or internal `dist` paths. Core/shared have no barrels or re-export facades; module internals import concrete files.
 
 This project uses **Modular Clean Architecture** where each feature is a self-contained module with all layers:
 

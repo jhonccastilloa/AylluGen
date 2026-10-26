@@ -11,7 +11,7 @@ import { createSpeciesModule } from '@/features/species/bootstrap';
 import { HealthLocalRepository } from '@/features/health/services/HealthLocalRepository';
 import { ProductionLocalRepository } from '@/features/production/services/ProductionLocalRepository';
 import { BreedingsLocalRepository } from '@/features/breedings/services/BreedingsLocalRepository';
-import { generateUuid } from '@/features/shared/utils/id';
+import { generateUuid } from '@ayllugen/shared/ids/uuid';
 import type { BreedingModel } from './models/BreedingModel';
 
 const animalRaw = (id = generateUuid()) => ({

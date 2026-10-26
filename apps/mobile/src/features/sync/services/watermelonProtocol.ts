@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { speciesFieldsSchema } from '@ayllugen/contracts/species';
+import { speciesFieldsSchema } from '@ayllugen/shared/contracts/species';
 import type { SyncTableChangeSet } from '@nozbe/watermelondb/sync';
 export type SyncChanges = Record<string, SyncTableChangeSet>;
 

@@ -11,9 +11,10 @@ import {
 
 import { SpeciesModel } from './models/SpeciesModel';
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
-import { generateUuid } from '@/features/shared/utils/id';
+import { UuidIdGenerator } from '@ayllugen/shared/ids/uuid';
 
-setGenerator(generateUuid);
+const idGenerator = new UuidIdGenerator();
+setGenerator(() => idGenerator.generate());
 
 export function createDatabase(dbName: string): Database {
   const adapter = new PreservingSQLiteAdapter({

@@ -10,7 +10,7 @@ import type {
   Species,
 } from '@/features/animals/interfaces/animals.types';
 import { isoToTimestamp, timestampToIso } from '@/features/shared/utils/date';
-import { generateUuid } from '@/features/shared/utils/id';
+import { generateUuid } from '@ayllugen/shared/ids/uuid';
 import {
   inputRaw,
   validateLocalRecord,

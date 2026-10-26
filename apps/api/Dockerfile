@@ -11,12 +11,12 @@ COPY tsconfig.packages.base.json tsconfig.packages.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/mobile/package.json apps/mobile/package.json
 COPY packages/core/package.json packages/core/package.json
-COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/shared/package.json packages/shared/package.json
 # Root supplies shared build tools; app-specific dependencies stay scoped.
 RUN pnpm --filter ayllugen-workspace --filter ayllu-gen-backend... install --frozen-lockfile
 
 COPY packages/core packages/core
-COPY packages/contracts packages/contracts
+COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN pnpm build:shared
 WORKDIR /workspace/apps/api
@@ -34,7 +34,7 @@ WORKDIR /workspace
 # Prisma migration CLI remains available; no download at container startup.
 COPY --from=builder /workspace/node_modules ./node_modules
 COPY --from=builder /workspace/packages/core ./packages/core
-COPY --from=builder /workspace/packages/contracts ./packages/contracts
+COPY --from=builder /workspace/packages/shared ./packages/shared
 COPY --from=builder /workspace/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /workspace/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /workspace/apps/api/dist ./apps/api/dist

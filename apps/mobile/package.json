@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@ayllugen/core": "workspace:*",
-    "@ayllugen/contracts": "workspace:*",
+    "@ayllugen/shared": "workspace:*",
+    "react-native-get-random-values": "^1.11.0",
     "@hookform/resolvers": "^5.2.2",
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-community/datetimepicker": "^8.6.0",

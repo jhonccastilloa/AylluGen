@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build:shared": "tsc --build tsconfig.packages.json",
-    "test:shared": "pnpm build:shared && node --test tests/packages.test.cjs packages/core/tests/*.test.cjs packages/contracts/tests/*.test.cjs",
+    "test:shared": "pnpm build:shared && node --test tests/packages.test.cjs packages/core/tests/*.test.cjs packages/shared/tests/*.test.cjs",
     "watch:shared": "tsc --build tsconfig.packages.json --watch"
   },
   "devDependencies": {

@@ -1,0 +1,26 @@
+{
+  "name": "@ayllugen/shared",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["dist"],
+  "exports": {
+    "./contracts/species": {
+      "types": "./dist/contracts/species.d.ts",
+      "default": "./dist/contracts/species.js"
+    },
+    "./ids/uuid": {
+      "types": "./dist/ids/UuidIdGenerator.d.ts",
+      "default": "./dist/ids/UuidIdGenerator.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "contracts/species": ["dist/contracts/species"],
+      "ids/uuid": ["dist/ids/UuidIdGenerator"]
+    }
+  },
+  "dependencies": {
+    "uuid": "^11.1.0",
+    "zod": "^4.3.6"
+  }
+}

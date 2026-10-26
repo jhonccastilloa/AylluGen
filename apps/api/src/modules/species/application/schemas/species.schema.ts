@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   createSpeciesInputSchema,
   updateSpeciesInputSchema,
-} from "@ayllugen/contracts/species";
+} from "@ayllugen/shared/contracts/species";
 
 export const speciesCreateSchema = createSpeciesInputSchema.openapi({
   title: "SpeciesCreateInput",

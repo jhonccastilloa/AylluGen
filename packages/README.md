@@ -19,11 +19,12 @@ packages/
         domain/{entities,errors,policies,ports,types,value-objects}/
         application/use-cases/
     tests/
-  contracts/
-    package.json                # @ayllugen/contracts: core + Zod
-    tsconfig.json               # Hereda base; referencia core
+  shared/
+    package.json                # @ayllugen/shared: Zod y UUID multiplataforma
+    tsconfig.json               # Hereda la base común
     src/
-      species.ts                # Entrada de contratos; no barrel global
+      contracts/species.ts      # Esquemas compartidos
+      ids/UuidIdGenerator.ts    # Generador UUID para API y mobile
     tests/
 ```
 
@@ -33,9 +34,10 @@ hexagonal, sin package.json, tsconfig ni .gitignore por módulo. Esta reorganiza
 no incorpora Animals ni cambia las reglas de Species.
 
 Core contiene entidades, reglas, casos de uso individuales y puertos. No depende
-de contracts, apps, Zod, Prisma, Watermelon, React Native, Express ni Inversify.
-Contracts valida el formato wire con Zod; los adaptadores de
-persistencia, la inyección de dependencias y los bootstraps permanecen en las apps.
+de apps, Zod, Prisma, Watermelon, React Native, Express ni Inversify. Shared reúne
+contratos de datos y utilidades multiplataforma; no debe importar APIs exclusivas
+de Node o React Native. Los adaptadores de persistencia y los bootstraps permanecen
+en las apps.
 
 ## Comandos desde el root
 
@@ -46,12 +48,12 @@ pnpm test:shared
 pnpm watch:shared
 ```
 
-`build:shared` usa el TypeScript del root y compila primero core y luego contracts.
+`build:shared` usa el TypeScript del root y compila los paquetes compartidos.
 `test:shared` compila antes de ejecutar las pruebas de ambos paquetes y de sus
 límites arquitectónicos. Node ejecuta las pruebas sin un framework adicional.
 `watch:shared` recompila ambos paquetes en orden al editar sus fuentes.
 
-Ambos publican CommonJS y declaraciones en `dist`; las apps y contracts importan
+Core y shared publican CommonJS y declaraciones en `dist`; las apps importan
 las entradas públicas por módulo descritas abajo. No hay aliases de compatibilidad
 ni copias del dominio en las apps. Los hooks de preparación existentes de las apps siguen
 llamando `build:shared`. Metro observa el workspace y nodemon observa los dist.
@@ -69,17 +71,18 @@ import { SpeciesCode } from '@ayllugen/core/species/code';
 import type { SpeciesRepository } from '@ayllugen/core/species/repository';
 import type { SpeciesData } from '@ayllugen/core/species/types';
 import { assertSpeciesUnused } from '@ayllugen/core/species/deletion-policy';
-import { speciesFieldsSchema } from '@ayllugen/contracts/species';
+import { speciesFieldsSchema } from '@ayllugen/shared/contracts/species';
+import { UuidIdGenerator } from '@ayllugen/shared/ids/uuid';
 ```
 
-- Core y contracts siguen siendo dos paquetes, no uno por módulo. No hay barrels
+- Core y shared siguen siendo dos paquetes, no uno por módulo. No hay barrels
   ni archivos index en sus fuentes. Cada entrada pública apunta al archivo que
   define la entidad, caso de uso, regla o tipo, sin una fachada de reexports.
-- No importar `@ayllugen/core`, `@ayllugen/core/species` ni `@ayllugen/contracts`:
+- No importar `@ayllugen/core`, `@ayllugen/core/species` ni `@ayllugen/shared`:
   esas entradas no están expuestas. Los tipos se consumen mediante `import type`.
 - El Value Object y la política de eliminación tienen subrutas que apuntan a
-  sus archivos concretos. Contracts y el validador de eliminación de sync no
-  cargan casos de uso. Contracts expone su archivo de schemas directamente.
+  sus archivos concretos. Los contratos y el validador de eliminación de sync no
+  cargan casos de uso. Shared expone subrutas concretas para schemas y UUID.
 - Dentro del módulo, usar imports relativos al archivo concreto. No añadir
   índices ni archivos con otro nombre que reexporten piezas de otros archivos.
 - `exports` delimita las subrutas públicas. `typesVersions` declara las mismas
@@ -98,8 +101,9 @@ Subrutas de core bajo `@ayllugen/core/species/`:
 - Casos de uso: `create`, `update`, `delete`, `list`, `get`, `resolve-by-code`,
   `initialize-catalog`.
 
-Contracts conserva `@ayllugen/contracts/species`, que apunta directamente a su
-archivo de schemas. `requireSpecies` es un helper privado y no se expone.
+Shared expone `@ayllugen/shared/contracts/species` y
+`@ayllugen/shared/ids/uuid`, cada uno apuntando a un archivo concreto.
+`requireSpecies` es un helper privado y no se expone.
 
 Cada import de valor carga su archivo y las dependencias que ese archivo utiliza.
 Importar `create` no carga los otros casos de uso. Las reglas cargan solo dos
