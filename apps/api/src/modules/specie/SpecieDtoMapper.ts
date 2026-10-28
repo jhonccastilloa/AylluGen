@@ -1,5 +1,5 @@
-import { SpecieEntity } from "@ayllugen/core/species/entity";
-import { ISpecieResponseDto } from "./specieDto";
+import type { SpecieEntity } from "@ayllugen/core/species/domain/entities/SpecieEntity";
+import type { ISpecieResponseDto } from "./specieDto";
 
 export class SpecieDtoMapper {
   static toResponse(specie: SpecieEntity): ISpecieResponseDto {
