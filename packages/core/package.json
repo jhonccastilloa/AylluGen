@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
+    "./errors/domain": {
+      "types": "./dist/shared/errors/DomainError.d.ts",
+      "default": "./dist/shared/errors/DomainError.js"
+    },
     "./species/*": {
       "types": "./dist/species/*.d.ts",
       "default": "./dist/species/*.js"
@@ -10,6 +14,7 @@
   },
   "typesVersions": {
     "*": {
+      "errors/domain": ["dist/shared/errors/DomainError"],
       "species/*": [
         "dist/species/*"
       ]

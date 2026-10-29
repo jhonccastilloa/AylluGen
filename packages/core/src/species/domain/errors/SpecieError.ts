@@ -1,22 +1,27 @@
+import { DomainError } from "../../../shared/errors/DomainError";
+import type { DomainErrorKind } from "../../../shared/errors/DomainError";
+
 export type SpecieErrorCode =
   | "SPECIE_INVALID"
   | "SPECIE_NOT_FOUND"
   | "SPECIE_DUPLICATE"
   | "SPECIE_CONFLICT"
   | "SPECIE_IN_USE";
-// Existing adapters use the plural spelling of these domain errors.
-export type SpeciesErrorCode = SpecieErrorCode
-  | "SPECIES_INVALID" | "SPECIES_NOT_FOUND" | "SPECIES_DUPLICATE"
-  | "SPECIES_CONFLICT" | "SPECIES_IN_USE";
 
-export class SpecieError extends Error {
+const kindByCode = {
+  SPECIE_INVALID: "validation",
+  SPECIE_NOT_FOUND: "not_found",
+  SPECIE_DUPLICATE: "conflict",
+  SPECIE_CONFLICT: "conflict",
+  SPECIE_IN_USE: "conflict",
+} satisfies Record<SpecieErrorCode, DomainErrorKind>;
+
+export class SpecieError extends DomainError {
   constructor(
-    public readonly code: SpeciesErrorCode,
+    public readonly code: SpecieErrorCode,
     message: string,
     public readonly field?: "name",
   ) {
-    super(message);
-    this.name = "SpecieError";
+    super(code, kindByCode[code], message);
   }
 }
-export { SpecieError as SpeciesError };
