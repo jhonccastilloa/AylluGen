@@ -20,11 +20,13 @@ export const authMiddleware = async (
       throw new UnauthenticatedError("Token no proporcionado");
     }
 
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      throw new UnauthenticatedError("Token no proporcionado");
+    // Bearer credentials use one or more spaces and a single token (RFC 6750).
+    const credentials = /^Bearer +([A-Za-z0-9._~+\/-]+=*)$/i.exec(authHeader);
+    if (!credentials) {
+      throw new UnauthenticatedError("Se requiere Authorization: Bearer <token>.");
     }
 
+    const token = credentials[1];
     const decoded = verifyToken(token);
     req.user = decoded;
     next();

@@ -1,7 +1,7 @@
 import express from "express";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import { JsonWebTokenError, TokenExpiredError, sign } from "jsonwebtoken";
 import { SpecieError } from "@ayllugen/core/species/domain/errors/SpecieError";
 import { DomainError } from "@ayllugen/core/errors/domain";
 import type { DomainErrorKind } from "@ayllugen/core/errors/domain";
@@ -17,6 +17,7 @@ import { createSpecieRouter } from "../../../src/modules/specie/SpecieRouter";
 import { mapHttpError } from "../../../src/presentation/errors/mapHttpError";
 import { errorHandler } from "../../../src/presentation/middlewares/http-error.middleware";
 import { generateAccessToken } from "../../../src/shared/utils/jwt";
+import { TOKEN_CONFIG } from "../../../src/shared/constants/tokens";
 import { logger } from "../../../src/shared/logging";
 
 jest.mock("../../../src/shared/logging", () => ({
@@ -126,7 +127,47 @@ describe("Species HTTP error flow", () => {
   test("rejects unauthenticated requests", async () => {
     const response = await fetch(baseUrl);
     expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
     expect(await response.json()).toMatchObject({ code: "AUTHENTICATION_ERROR" });
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    "Bearer", "Basic {token}", "OtroEsquema {token}",
+    "Bearer {token} extra", "Bearer {token},otro", "Bearer\t{token}",
+  ])("rejects malformed credentials: %s", async (header) => {
+    const response = await fetch(baseUrl, {
+      headers: { Authorization: header.replace("{token}", token) },
+    });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
+    expect(await response.json()).toMatchObject({ code: "AUTHENTICATION_ERROR" });
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  test.each(["Bearer", "bearer", "bEaReR", "Bearer  "])(
+    "accepts a valid token with scheme %s", async (scheme) => {
+      repository.list.mockResolvedValueOnce([]);
+      const response = await fetch(baseUrl, {
+        headers: { Authorization: `${scheme} ${token}` },
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual([]);
+      expect(repository.list).toHaveBeenCalledWith("owner");
+      expect(response.headers.has("WWW-Authenticate")).toBe(false);
+    },
+  );
+
+  test.each(["invalid", "expired"])("rejects a %s JWT after parsing Bearer", async (kind) => {
+    const credential = kind === "expired"
+      ? sign({ userId: "owner", dni: "12345678" }, TOKEN_CONFIG.ACCESS_TOKEN.secret, { expiresIn: -1 })
+      : "invalid.jwt.token";
+    const response = await fetch(baseUrl, {
+      headers: { Authorization: `Bearer ${credential}` },
+    });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
+    expect(await response.json()).toMatchObject({ code: kind === "expired" ? "TOKEN_EXPIRED" : "INVALID_TOKEN" });
     expect(repository.list).not.toHaveBeenCalled();
   });
 

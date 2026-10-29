@@ -15,6 +15,9 @@ export function errorHandler(
   }
 
   const result = mapHttpError(error);
+  if (result.statusCode === 401) {
+    res.setHeader("WWW-Authenticate", "Bearer");
+  }
   if (result.statusCode >= 500) {
     // Do not serialize unknown exceptions: database errors can contain row data.
     (req.logger ?? logger).error("http.request_failed", {
