@@ -10,14 +10,15 @@ import {
 } from "./presentation/middlewares/error.middleware";
 // import { requestLogger } from "./presentation/middlewares/request-logger.middleware";
 // import { generalLimiter } from "./presentation/middlewares/rate-limit.middleware";
-import routes from "./presentation/routes";
 import helmet from "helmet";
 import { requestLogger } from "@presentation/middlewares";
+import { createRoutes } from "./presentation/routes";
+import type { IContainerControllers } from "./composition/container";
 
 class App {
   private app: Application;
 
-  constructor() {
+  constructor(private readonly controllers: IContainerControllers) {
     this.app = express();
     this.initializeMiddlewares();
     this.initializeRoutes();
@@ -40,7 +41,7 @@ class App {
   }
 
   private initializeRoutes(): void {
-    this.app.use("/api", routes);
+    this.app.use("/api", createRoutes(this.controllers));
     this.app.get("/", (_req, res) => {
       res.json({ message: "Ayllu Gen API - Clean Architecture" });
     });
@@ -58,8 +59,8 @@ class App {
   public listen(): void {
     const server = this.app.listen(config.port, () => {
       const server = `http://localhost:${config.port}`;
-      console.log(`🚀 Server deployed at: ${server}`);
-      console.log(`📝 View docs at: ${server}/api-docs`);
+      console.log(`­ƒÜÇ Server deployed at: ${server}`);
+      console.log(`­ƒôØ View docs at: ${server}/api-docs`);
     });
     // Manejar Ctrl + C
     process.on("SIGINT", () => {

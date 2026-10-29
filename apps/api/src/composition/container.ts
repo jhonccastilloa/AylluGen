@@ -10,9 +10,12 @@ import { SpecieController } from "../modules/specie/SpecieController";
 import type { IInfrastructure } from "./infrastructure";
 
 export interface IContainer {
-  idGenerator: UuidIdGenerator;
-  specieController: SpecieController;
+  controllers: {
+    specie: SpecieController;
+  };
 }
+
+export type IContainerControllers = IContainer["controllers"];
 
 export const buildContainer = (infrastructure: IInfrastructure): IContainer => {
   const specieRepository = infrastructure.repositories.species;
@@ -27,7 +30,8 @@ export const buildContainer = (infrastructure: IInfrastructure): IContainer => {
   });
 
   return {
-    idGenerator,
-    specieController,
+    controllers: {
+      specie: specieController,
+    },
   };
 };

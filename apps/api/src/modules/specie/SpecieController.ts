@@ -59,7 +59,7 @@ export class SpecieController {
 
   async updateSpecie(
     userId: string,
-    id: string,
+    id: unknown,
     body: unknown,
   ): Promise<HttpResult<ISpecieResponseDto>> {
     const specieId = specieIdSchema.parse(id);
@@ -72,7 +72,7 @@ export class SpecieController {
     return ok(SpecieDtoMapper.toResponse(specie));
   }
 
-  async deleteSpecie(userId: string, id: string): Promise<HttpResult<null>> {
+  async deleteSpecie(userId: string, id: unknown): Promise<HttpResult<null>> {
     const specieId = specieIdSchema.parse(id);
     await this.useCases.deleteSpecieUseCase.execute(userId, specieId);
     return noContent();
