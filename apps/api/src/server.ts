@@ -7,7 +7,7 @@ import { config } from "./shared/constants/config";
 import {
   errorHandler,
   notFoundHandler,
-} from "./presentation/middlewares/error.middleware";
+} from "./presentation/middlewares/http-error.middleware";
 // import { requestLogger } from "./presentation/middlewares/request-logger.middleware";
 // import { generalLimiter } from "./presentation/middlewares/rate-limit.middleware";
 import helmet from "helmet";
@@ -59,8 +59,8 @@ class App {
   public listen(): void {
     const server = this.app.listen(config.port, () => {
       const server = `http://localhost:${config.port}`;
-      console.log(`­ƒÜÇ Server deployed at: ${server}`);
-      console.log(`­ƒôØ View docs at: ${server}/api-docs`);
+      console.log(`🚀 Server deployed at: ${server}`);
+      console.log(`📝 View docs at: ${server}/api-docs`);
     });
     // Manejar Ctrl + C
     process.on("SIGINT", () => {

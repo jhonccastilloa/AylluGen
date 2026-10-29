@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../../shared/utils/jwt";
-import { AuthenticationError } from "../../shared/errors/AppError";
+import { UnauthenticatedError } from "../errors/UnauthenticatedError";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -17,12 +17,12 @@ export const authMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      throw new AuthenticationError("Token no proporcionado");
+      throw new UnauthenticatedError("Token no proporcionado");
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
-      throw new AuthenticationError("Token no proporcionado");
+      throw new UnauthenticatedError("Token no proporcionado");
     }
 
     const decoded = verifyToken(token);

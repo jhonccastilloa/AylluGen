@@ -1,9 +1,9 @@
-import { AuthRequest } from "@presentation/middlewares";
-import { AuthenticationError } from "@shared/errors/AppError";
+import type { AuthRequest } from "../../presentation/middlewares/auth.middleware";
+import { UnauthenticatedError } from "../../presentation/errors/UnauthenticatedError";
 
 const validateUserId = (req: AuthRequest) => {
   const userId = req.user?.userId;
-  if (!userId) throw new AuthenticationError("Usuario no autenticado");
+  if (!userId) throw new UnauthenticatedError("Usuario no autenticado");
   return userId;
 };
 
