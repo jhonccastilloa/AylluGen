@@ -1,52 +1,92 @@
-# Arquitectura modular actual
+# Arquitectura y guía del refactor
 
-Revisado: 2026-09-05.
+## Dirección y estado actual
 
-## Organización
+La migración es incremental: las reglas de negocio y casos de uso se extraen a `packages/core`, y cada aplicación implementa sus adaptadores. **Species es la referencia del flujo nuevo de la API.** La existencia de módulos antiguos no convierte sus patrones en reglas para módulos nuevos.
+
+Esta guía describe lo implementado y distingue las garantías pendientes. No implica que todos los módulos o clientes ya utilicen esta estructura.
+
+## Distribución de responsabilidades
+
+Rutas relativas a la raíz del monorepo:
 
 ```text
-src/index.ts                      carga configuración y arranca App
-src/server.ts                     Express, parsers, CORS, Helmet, Swagger, errores
-src/modules/
-  auth/, user/, species/, animal/, breeding/, health/, production/, sync/
-    domain/                       entidades, reglas y contratos
-    application/                  servicios y esquemas Zod
-    infrastructure/               repositorios Prisma/SQL
-    presentation/                 controladores y rutas
-src/presentation/                 middleware y agregador de rutas
-src/infrastructure/               DB, OpenAPI y health checks
-src/shared/                       DI, configuración, errores, mappers y logging
-prisma/migrations/                historial SQL persistente
-tests/                            unit e integración
-scripts/audit-sync.cjs             preflight de solo lectura
+packages/core/src/
+  shared/errors/DomainError.ts       contrato de errores de negocio
+  species/domain/                   entidad, errores y puertos
+  species/application/use-cases/    casos de uso
+apps/api/src/
+  composition/infrastructure.ts    construye adaptadores de persistencia
+  composition/container.ts         ensambla casos de uso y controladores
+  modules/specie/                   Prisma, controlador, DTOs, mapper, Zod y router
+  protocols/HttpResult.ts           resultado del controlador HTTP
+  presentation/errors/             traducción común de errores
+  presentation/middlewares/        autenticación y manejo HTTP
+  presentation/routes/index.ts     registro de rutas activas
+  index.ts                         arranque y composición
+  server.ts                        configuración de Express
 ```
 
-## Caminos de ejecución
+`modules/specie` (singular) es el adaptador nuevo. `modules/species` (plural) pertenece a la implementación anterior.
 
-REST: `ruta → middleware/controller → servicio → repositorio → PostgreSQL`.
+## Flujo de una solicitud
 
-Sync v2: `WatermelonController → WatermelonService → IWatermelonRepository → sesión transaccional → PostgreSQL`. El contrato y las listas permitidas están separados del transporte. El controlador deriva usuario del JWT y valida el body; no hace SQL.
+```text
+Express → autenticación → SpecieRouter → SpecieController
+        → caso de uso del core → puerto de repositorio → SpeciePrismaRepository
+```
 
-El módulo sync conserva dos implementaciones: `SyncService/SyncRepository` para clientes del protocolo antiguo y `WatermelonService/WatermelonRepository` para v2. No confundir compatibilidad con código muerto.
+- El router extrae el usuario autenticado y adapta `HttpResult` a Express mediante `asyncHandler`.
+- El controlador recibe entradas `unknown`, valida con Zod, ejecuta el caso de uso y proyecta un DTO. No recibe `Request` ni `Response`.
+- El core contiene reglas y orquestación de negocio; depende de puertos, no de Express, Prisma, Inversify o apps.
+- El repositorio recibe `userId` por operación y aplica el alcance por propietario. No mantiene un usuario configurado permanentemente.
+- La composición construye dependencias por constructor al arrancar. El generador de UUID se mantiene interno al ensamblaje.
 
-## Inyección y reglas
+DTOs, esquemas y mappers cumplen responsabilidades distintas; no aplica la antigua prohibición general de DTOs. Tampoco se exige un árbol de cuatro capas dentro de cada módulo de la API.
 
-El contenedor de Inversify usa scope singleton. Los módulos existentes emplean símbolos de `shared/di/types.ts`; Watermelon usa `TYPE_IWatermelonRepository` y bindings por clase para servicio/controlador. Copiar el identificador realmente registrado, no inventar un segundo símbolo.
+## Errores
 
-Las reglas de padres se comparten mediante `AnimalRules`; `GeneticEngine` implementa cálculo COI. Existen dependencias cruzadas entre módulos y algunos servicios legacy acceden a Prisma: la separación describe la organización, no una garantía de pureza absoluta.
+`DomainError` expone `code`, `kind` y un mensaje apto para el consumidor. `SpecieError` lo especializa con códigos `SPECIE_*`; no existen aliases plurales en el contrato nuevo.
 
-## Transacciones
+El mapper HTTP común traduce `validation` a 400, `not_found` a 404 y `conflict` a 409, conservando el código específico. También maneja Zod, autenticación/JWT y errores conocidos del parser. Los fallos desconocidos devuelven un 500 genérico.
 
-Sync v2 crea sesiones locales por operación; no guarda cliente transaccional mutable en el singleton. Pull usa snapshot REPEATABLE READ. Push bloquea contador por propietario bajo READ COMMITTED y aplica el batch completo.
+La autenticación utiliza `UnauthenticatedError`; acepta un único token Bearer con esquema insensible a mayúsculas y verifica el JWT. El middleware de errores añade `WWW-Authenticate: Bearer` a las respuestas 401.
 
-Auth conserva setters transaccionales mutables en repositorios singleton. Es deuda existente: no tomarla como patrón para nuevas transacciones concurrentes.
+Los mensajes técnicos de Prisma no deben convertirse en mensajes públicos de dominio. `AppError` y el manejo anterior permanecen para consumidores legacy, no como referencia del flujo nuevo.
 
-## Persistencia y seguridad
+## Añadir el siguiente módulo
 
-Cinco tablas sincronizables, owner JWT, UUID conservados y relaciones validadas. Triggers capturan escrituras REST/directas y generan versiones/tombstones. Un push conflictivo devuelve 409 sin confirmar cambios parciales.
+1. Acordar reglas, ownership y alcance funcional de la migración.
+2. Definir entidad, errores, puertos y casos de uso en el core siguiendo Species, sin añadir abstracciones para necesidades hipotéticas.
+3. Implementar adaptador de persistencia y presentación en la API: esquemas, DTOs, mapper, controlador y router según lo necesario.
+4. Construir dependencias en `src/composition` e inyectar el controlador al registro de rutas.
+5. Añadir pruebas de comportamiento según el cambio. Usar integración real cuando sea necesario verificar restricciones o transacciones.
+6. Registrar OpenAPI explícitamente si corresponde; montar un router no genera documentación Swagger.
 
-No retirar cascadas/triggers o campos históricos por limpieza superficial. No todas las relaciones son cascade: padres/cría se desvinculan y la propiedad se protege con constraints diferidos.
+Usar entradas públicas existentes como:
 
-CORS y Helmet están montados. El limiter general está comentado; register/login/logout sí montan authLimiter. No afirmar que todas las rutas tienen rate limiting.
+```ts
+import { DomainError } from "@ayllugen/core/errors/domain";
+import type { ISpecieRepository } from "@ayllugen/core/species/domain/ports/SpecieRepository";
+```
 
-Ver [detalle de sync](docs/LOCAL_FIRST.md), [reglas técnicas](src/modules/ARCHITECTURE.md) y [alta de módulos](NEW_MODULE_GUIDE.md).
+Consultar `packages/core/package.json` para los exports. No reutilizar los antiguos paths `/species/create`, `/entity` o `/deletion-policy`. El ensamblaje actual importa los casos desde `/species/application/use-cases/index`; no hay una prohibición general de archivos índice.
+
+Seguir nombres concretos como `SpecieEntity`, `CreateSpecieUseCase`, `SpeciePrismaRepository`, `SpecieController` y `SpecieRouter`. Mantener el estilo existente y no renombrar contratos públicos solo para uniformarlos.
+
+## Coexistencia durante la migración
+
+- Los módulos anteriores conservan servicios, Inversify y otras convenciones. Mantenerlos según el alcance acordado; no copiar automáticamente esas decisiones al flujo nuevo.
+- Solo Species está montado en el agregador actual. La reactivación de rutas forma parte de decisiones de migración posteriores.
+- Conservar las migraciones SQL y sus constraints/triggers. Una reorganización de código no justifica cambiar garantías de persistencia.
+- Los documentos especializados de sync y OpenAPI describen sus propios subsistemas y necesitan revisión cuando se trabaje en ellos.
+
+## Pendientes explícitos de Species
+
+- Traducir errores Prisma reconocidos a errores de negocio, con pruebas del adaptador.
+- Alinear la búsqueda de nombres sin distinción de mayúsculas con la unicidad de la base.
+- Definir la política ante actualizaciones concurrentes y la garantía del borrado frente a asociaciones de animales.
+- Mejorar la inyección del logger, la información de diagnóstico y el contexto de solicitud antes de los parsers.
+- Adaptar pruebas e imports antiguos y completar OpenAPI.
+
+El mapeo correcto de errores HTTP no garantiza atomicidad ni detección de actualizaciones perdidas. Consultar [README](README.md) para comandos y limitaciones de las verificaciones.

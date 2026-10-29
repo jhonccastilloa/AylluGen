@@ -1,6 +1,8 @@
 # OpenAPI: implementación y cobertura actual
 
-Revisado: 2026-09-05.
+Documento especializado del registro OpenAPI. Durante el refactor, los registros
+Swagger pueden describir rutas desactivadas: consultar [README](README.md) y
+`src/presentation/routes/index.ts` para la superficie HTTP montada.
 
 ## Generación
 
@@ -29,4 +31,4 @@ Sync v2 documenta pull 200 sin envelope extra, push 204 sin JSON y errores `{err
 
 No copiar ejemplos de productos hipotéticos como si fueran módulos existentes ni derivar tablas SQL desde los nombres enviados por clientes.
 
-[Guía de módulos](NEW_MODULE_GUIDE.md) · [Arquitectura](MODULAR_ARCHITECTURE.md).
+[Arquitectura y guía del refactor](MODULAR_ARCHITECTURE.md).

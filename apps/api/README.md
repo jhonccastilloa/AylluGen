@@ -1,85 +1,72 @@
 # AylluGen — backend
 
-Estado revisado: 2026-09-05. API ganadera en Node.js/TypeScript, Express 5, Prisma 7 con adaptador pg, PostgreSQL 16 (Compose), Zod 4, Inversify, JWT y Winston.
+API Node.js/TypeScript con Express, Prisma/PostgreSQL, Zod y JWT dentro de un monorepo pnpm.
 
-## Arquitectura e integración móvil
+## Estado del refactor
 
-Ocho módulos: `auth`, `user`, `species`, `animal`, `breeding`, `health`, `production`, `sync`. Cada módulo separa rutas/controladores, servicios, contratos y repositorios.
+Migración incremental hacia arquitectura hexagonal. **Species es el primer flujo integrado**: dominio y casos de uso en `packages/core`, adaptadores en `src/modules/specie` y ensamblaje explícito en `src/composition`.
 
-Species comparte entidad, casos de uso y puertos con mobile mediante entradas directas como `@ayllugen/core/species/create` y `@ayllugen/core/species/repository`, sin barrels; solo sus adaptadores y presentación pertenecen a cada app. Ver [arquitectura Species](../../packages/core/src/species/README.md).
+Los módulos anteriores permanecen como código pendiente de migración. Su presencia en el repositorio no implica que sus rutas estén montadas ni que sean el patrón para desarrollos nuevos.
 
-El móvil guarda especies, animales, cruces, salud y producción en WatermelonDB y sincroniza por v2. REST se conserva para acciones originadas en el servidor; el móvil actual usa exclusivamente CRUD local y sync v2. No hay polling, sockets, pagos, OTP, uploads ni jobs implementados.
+## Preparación y ejecución
 
-## Preparación
+Desde la raíz del monorepo:
 
 ```sh
-cd ../..
 pnpm install --frozen-lockfile
 pnpm build:shared
 cd apps/api
-npm run prisma:generate
+pnpm prisma:generate
+pnpm dev
 ```
 
-Configurar variables del proceso o `.env` privado: `DATABASE_URL` PostgreSQL, `JWT_SECRET` de al menos 32 caracteres, `NODE_ENV` y `PORT`. `REFRESH_TOKEN_SECRET` es opcional; si falta usa JWT_SECRET. Expiraciones por defecto: acceso 15m, refresh 7d; la expiración persistida del refresh usa siete días en el helper actual.
+Configurar en el entorno o en `.env` privado:
 
-La aplicación usa puerto 3000 si no hay PORT. Compose publica backend 4001 y PostgreSQL 5448 hacia 5432 del contenedor: ajustar PORT y host de DB según se ejecute dentro o fuera de Docker. No copiar credenciales reales en documentación.
+- `DATABASE_URL`: conexión PostgreSQL.
+- `JWT_SECRET`: al menos 32 caracteres.
+- `PORT`: opcional, por defecto `3000`.
+- `NODE_ENV`: `development`, `production` o `test`.
+- `REFRESH_TOKEN_SECRET`: opcional; usa `JWT_SECRET` si falta.
+- `JWT_EXPIRES_IN` y `REFRESH_TOKEN_EXPIRES_IN`: por defecto `15m` y `7d`.
 
-En un destino autorizado, respaldar/auditar antes de aplicar las migraciones existentes:
+Para compilar y ejecutar el resultado: `pnpm build` y `pnpm start`. El build general todavía tiene errores asociados a código anterior; consultar el apartado de verificación.
+
+La base requiere las migraciones SQL existentes, incluidos sus triggers y constraints. Para aplicar ese historial al destino configurado se utiliza `pnpm exec prisma migrate deploy`; `prisma db push` no es un sustituto. Para crear cambios de schema en desarrollo: `pnpm prisma:migrate`.
+
+Docker utiliza el contexto del monorepo: `docker build -f apps/api/Dockerfile .` desde la raíz.
+
+## Rutas montadas actualmente
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| GET | `/` | Mensaje del servidor |
+| GET | `/api-docs` | Swagger UI |
+| GET / POST | `/api/species` | Listar / crear especies |
+| GET / PUT / DELETE | `/api/species/:id` | Consultar / actualizar / eliminar una especie |
+
+Todas las rutas de Species requieren `Authorization: Bearer <token>` y operan sobre el usuario autenticado. Los endpoints de login/refresh, los demás módulos de negocio, sync y health checks están desactivados en el agregador durante esta etapa.
+
+La fuente ejecutable de rutas es [createRoutes](src/presentation/routes/index.ts). Swagger conserva registros anteriores y no representa necesariamente lo que está montado; Species todavía no tiene registro OpenAPI dedicado.
+
+## Verificación
+
+Desde la raíz, ejecutar `pnpm build:shared`. Después, desde `apps/api`:
 
 ```sh
-node scripts/audit-sync.cjs
-npx prisma migrate deploy
-npm run build
-npm start
+pnpm exec jest tests/unit/presentation/specie-errors.test.ts --runInBand
+pnpm exec tsc --noEmit
+pnpm test -- --runInBand
+pnpm build
+pnpm lint
 ```
 
-`npm start` ejecuta `node dist` (entrada compilada de `src/index.ts`). `npm run dev` usa nodemon. No crear otra migración init para instalar el repositorio.
+La suite focalizada cubre errores de dominio, respuestas HTTP y Bearer con repositorio simulado. No verifica restricciones reales de PostgreSQL ni concurrencia.
 
-**No sustituir migraciones por `prisma db push`**: sync necesita triggers, índices y constraints SQL que el schema Prisma no expresa completamente. El Dockerfile actual ejecuta migrate deploy al arrancar; eso sí modifica la DB y exige revisión operativa.
-
-Docker usa ahora el contexto del monorepo (`docker build -f apps/api/Dockerfile .` desde la raíz) para incluir `@ayllugen/core`; Compose ya referencia ese contexto. La imagen conserva el árbol pnpm y la CLI Prisma necesaria para migraciones. Construir la imagen no autoriza arrancarla contra una base de datos real.
-
-## Rutas actuales
-
-Todas bajo `/api`, salvo Swagger y la raíz del servidor:
-
-| Grupo          | Rutas / uso                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------ |
-| Auth           | POST /auth/register, /auth/login, /auth/refresh, /auth/logout                                          |
-| Cuenta propia  | GET /users/me; GET/PUT/DELETE /users/:userId                                                           |
-| Sync nativo    | POST /sync/v2/pull y /sync/v2/push                                                                     |
-| Especies       | CRUD /species                                                                                          |
-| Animales       | CRUD /animals; GET /animals/founders, /animals/males, /animals/females, /animals/:animalId/pedigree    |
-| Cruces         | CRUD /breedings; POST /breedings/calculate-coi; GET /breedings/history/:animalId                       |
-| Salud ganadera | CRUD /sanity; GET /sanity/upcoming                                                                     |
-| Producción     | CRUD /production; GET /production/animal/:animalId/summary/:type y /production/animal/:animalId/recent |
-| Operación      | GET /health, /ready, /live                                                                             |
-
-CRUD significa GET/POST de colección y GET/PUT/DELETE por ID; comprobar parámetros en los archivos de rutas. `/api/health` es diagnóstico del servidor, no registros sanitarios. JWT requerido para datos/cuenta/sync; permisos por propietario.
-
-Swagger UI: `/api-docs` en el puerto configurado. No hay endpoints separados `/api-docs/swagger` o de JSON anunciados por el servidor. La cobertura OpenAPI actual no incluye el registro de especies; ver [OPENAPI_ARCHITECTURE.md](OPENAPI_ARCHITECTURE.md).
-
-## Calidad y estado
-
-```sh
-npm test -- --runInBand
-npx tsc --noEmit
-npm run build
-npm run lint
-```
-
-El protocolo de cola antiguo ya no se publica; sync v2 acepta únicamente schema 7. Para integración real configurar `SYNC_TEST_DATABASE_URL` con una base local aislada `sync_test` y todas las migraciones aplicadas. Sin esa variable los casos PostgreSQL se omiten. Las comprobaciones locales no equivalen a un despliegue.
-
-La implementación móvil ya está realizada, pero despliegue v2 y pruebas E2E en dispositivos siguen pendientes. La auditoría histórica de la DB conectada no acredita estado actual de producción.
+El typecheck general conserva fallos en código anterior, incluidos imports de `modules/species` y `AnimalService`. También hay pruebas antiguas pendientes de adaptar a los contratos del core. Los resultados históricos no representan el estado actual de toda la migración.
 
 ## Documentación
 
-- [Arquitectura modular](MODULAR_ARCHITECTURE.md).
-- [Sync: diseño, migraciones y operación](docs/LOCAL_FIRST.md).
-- [Contrato para móvil](.claude/docs/ai/watermelon-sync/api-handoff.md).
-- [Estado y pendientes](IMPLEMENTATION_SUMMARY.md).
-- [Crear módulos](NEW_MODULE_GUIDE.md), [referencias de plantillas](README_PLANTILLAS.md).
-- [Convenciones](src/modules/NAMING_CONVENTIONS.md), [reglas técnicas](src/modules/ARCHITECTURE.md), [AGENTS](AGENTS.md).
-- [Aplicación móvil](../AylluGen-App/README.md).
-
-Licencia declarada en package.json: MIT.
+- [Arquitectura y guía del refactor](MODULAR_ARCHITECTURE.md): referencia única para el flujo nuevo.
+- [Instrucciones para agentes](AGENTS.md): reglas de trabajo y alcance.
+- [OpenAPI](OPENAPI_ARCHITECTURE.md): mecanismo de registro y límites.
+- [Sync](docs/LOCAL_FIRST.md), [fechas de dispositivo](docs/ANIMAL_DEVICE_DATES.md) y [contrato de integración](.claude/docs/ai/watermelon-sync/api-handoff.md): documentación especializada conservada. Su contenido requiere revisión específica antes de cambiar esos subsistemas; no define la arquitectura del refactor ni acredita rutas activas.
