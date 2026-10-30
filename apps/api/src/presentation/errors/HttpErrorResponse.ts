@@ -1,4 +1,4 @@
-import type { HttpResult } from "../../protocols/HttpResult";
+import type { HttpResult } from "../http/HttpResult";
 
 export interface HttpErrorBody {
   error: string;

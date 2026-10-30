@@ -8,6 +8,7 @@ Species es la referencia implementada del flujo nuevo. Consultar
 
 - Core de Species: `packages/core/src/species` desde la raíz del monorepo.
 - Adaptadores de la API: `apps/api/src/modules/specie` (singular).
+- HTTP del módulo en `presentation/http`; repositorio Prisma en `infrastructure/persistence`. El contrato común `HttpResult` está en `src/presentation/http`.
 - Composición explícita: `src/composition/infrastructure.ts` y `container.ts`.
 - `src/modules/species` (plural) y los demás módulos antiguos son código pendiente de migración, no plantillas para módulos nuevos.
 - El agregador de rutas monta únicamente Species; la desactivación de las demás rutas es intencional durante la migración.

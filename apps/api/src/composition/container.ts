@@ -6,7 +6,7 @@ import {
   ListSpecieUseCase,
   UpdateSpecieUseCase,
 } from "@ayllugen/core/species/application/use-cases/index";
-import { SpecieController } from "../modules/specie/SpecieController";
+import { SpecieController } from "../modules/specie/presentation/http/SpecieController";
 import type { IInfrastructure } from "./infrastructure";
 
 export interface IContainer {

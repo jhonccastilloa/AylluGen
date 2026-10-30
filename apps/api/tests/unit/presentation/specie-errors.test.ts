@@ -12,8 +12,8 @@ import { DeleteSpecieUseCase } from "@ayllugen/core/species/application/use-case
 import { GetSpecieUseCase } from "@ayllugen/core/species/application/use-cases/GetSpecieUseCase";
 import { ListSpecieUseCase } from "@ayllugen/core/species/application/use-cases/ListSpecieUseCase";
 import { UpdateSpecieUseCase } from "@ayllugen/core/species/application/use-cases/UpdateSpecieUseCase";
-import { SpecieController } from "../../../src/modules/specie/SpecieController";
-import { createSpecieRouter } from "../../../src/modules/specie/SpecieRouter";
+import { SpecieController } from "../../../src/modules/specie/presentation/http/SpecieController";
+import { createSpecieRouter } from "../../../src/modules/specie/presentation/http/SpecieRouter";
 import { mapHttpError } from "../../../src/presentation/errors/mapHttpError";
 import { errorHandler } from "../../../src/presentation/middlewares/http-error.middleware";
 import { generateAccessToken } from "../../../src/shared/utils/jwt";

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createSpecieRouter } from "../../modules/specie/SpecieRouter";
+import { createSpecieRouter } from "../../modules/specie/presentation/http/SpecieRouter";
 import type { IContainerControllers } from "../../composition/container";
 
 export const createRoutes = (controllers: IContainerControllers): Router => {

@@ -18,8 +18,10 @@ packages/core/src/
 apps/api/src/
   composition/infrastructure.ts    construye adaptadores de persistencia
   composition/container.ts         ensambla casos de uso y controladores
-  modules/specie/                   Prisma, controlador, DTOs, mapper, Zod y router
-  protocols/HttpResult.ts           resultado del controlador HTTP
+  modules/specie/
+    presentation/http/             controlador, DTOs, mapper, Zod y router
+    infrastructure/persistence/    repositorio Prisma
+  presentation/http/HttpResult.ts   resultado del controlador HTTP
   presentation/errors/             traducción común de errores
   presentation/middlewares/        autenticación y manejo HTTP
   presentation/routes/index.ts     registro de rutas activas

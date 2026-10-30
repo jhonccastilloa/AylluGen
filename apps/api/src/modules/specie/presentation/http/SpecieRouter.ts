@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { asyncHandler, authMiddleware } from "../../presentation/middlewares";
-import validateUserId from "../../shared/utils/validateUserId";
+import { asyncHandler, authMiddleware } from "../../../../presentation/middlewares";
+import validateUserId from "../../../../shared/utils/validateUserId";
 import { SpecieController } from "./SpecieController";
 
 export const createSpecieRouter = (controller: SpecieController): Router => {

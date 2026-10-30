@@ -1,5 +1,5 @@
-import { created, noContent, ok } from "../../protocols/HttpResult";
-import type { HttpResult } from "../../protocols/HttpResult";
+import { created, noContent, ok } from "../../../../presentation/http/HttpResult";
+import type { HttpResult } from "../../../../presentation/http/HttpResult";
 import type { ISpecieResponseDto } from "./specieDto";
 import {
   createSpecieSchema,

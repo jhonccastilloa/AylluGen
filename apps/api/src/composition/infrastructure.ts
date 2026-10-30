@@ -1,5 +1,5 @@
 import type { ISpecieRepository } from "@ayllugen/core/species/domain/ports/SpecieRepository";
-import { SpeciePrismaRepository } from "../modules/specie/SpeciePrismaRepository";
+import { SpeciePrismaRepository } from "../modules/specie/infrastructure/persistence/SpeciePrismaRepository";
 import {
   prisma,
   type PrismaTransaction,
