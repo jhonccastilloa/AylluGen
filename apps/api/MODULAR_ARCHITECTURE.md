@@ -88,7 +88,7 @@ Seguir nombres concretos como `SpecieEntity`, `CreateSpecieUseCase`, `SpeciePris
 - Traducir errores Prisma reconocidos a errores de negocio, con pruebas del adaptador.
 - Alinear la búsqueda de nombres sin distinción de mayúsculas con la unicidad de la base.
 - Definir la política ante actualizaciones concurrentes y la garantía del borrado frente a asociaciones de animales.
-- Mejorar la inyección del logger, la información de diagnóstico y el contexto de solicitud antes de los parsers.
+- Ampliar información de diagnóstico cuando se defina una política para detalles técnicos. La composición inyecta la instancia compartida de `infrastructure/logging/logger.ts`, construida mediante `createLogger.ts`, con contrato `shared/logging/Logger.ts` y contexto HTTP antes de los parsers. La instancia compartida es transitoria hasta migrar los consumidores antiguos a inyección.
 - Adaptar pruebas e imports antiguos y completar OpenAPI.
 
 El mapeo correcto de errores HTTP no garantiza atomicidad ni detección de actualizaciones perdidas. Consultar [README](README.md) para comandos y limitaciones de las verificaciones.

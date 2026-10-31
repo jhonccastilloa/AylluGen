@@ -24,6 +24,7 @@ Species es la referencia implementada del flujo nuevo. Consultar
 - Los errores de negocio extienden `DomainError` (`@ayllugen/core/errors/domain`), con `code`, `kind` y mensaje público. No contienen estados HTTP.
 - Species usa exclusivamente `SpecieError` y códigos `SPECIE_*`. El mapper HTTP común traduce categorías a estados; los errores inesperados producen un 500 genérico.
 - La autenticación HTTP usa `UnauthenticatedError` y validación Bearer/JWT. `AppError` pertenece al código anterior.
+- Logging: inyectar `ILogger` desde composición; Winston se construye en `infrastructure/logging/createLogger.ts`. El contexto HTTP se inicializa antes de los parsers. Los consumidores antiguos importan temporalmente la instancia compartida de `infrastructure/logging/logger.ts`.
 - Mantener nombres y formato del código circundante. No renombrar rutas o tablas para uniformar estilo.
 
 ## Verificación
