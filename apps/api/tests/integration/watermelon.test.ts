@@ -24,7 +24,7 @@ import {
 } from "../../src/modules/sync/domain/repositories/IWatermelonRepository";
 
 jest.unmock("../../src/infrastructure/database/prisma/client");
-jest.mock("../../src/shared/logging", () => {
+jest.mock("../../src/infrastructure/logging/logger", () => {
   const logger = {
     info: jest.fn(),
     warn: jest.fn(),

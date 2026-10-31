@@ -4,7 +4,6 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 extendZodWithOpenApi(z);
 
 process.env.NODE_ENV = "test";
-process.env.LOG_SANITIZE = "true";
 process.env.PORT = "3001";
 process.env.DATABASE_URL =
   process.env.SYNC_TEST_DATABASE_URL ??

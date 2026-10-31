@@ -1,7 +1,4 @@
-import {
-  sanitize,
-  sanitizeString,
-} from "../../../src/shared/logging/sanitizer";
+import { sanitize } from "../../../src/infrastructure/logging/sanitizeMetadata";
 
 describe("Log Sanitizer", () => {
   describe("sanitize", () => {
@@ -117,8 +114,7 @@ describe("Log Sanitizer", () => {
       expect(result.password).toBe("[REDACTED]");
       expect(result.error).toEqual({
         name: error.name,
-        message: error.message,
-        stack: undefined,
+        message: "[ERROR_DETAILS_OMITTED]",
       });
     });
 
@@ -172,30 +168,9 @@ describe("Log Sanitizer", () => {
     });
   });
 
-  describe("sanitizeString", () => {
-    it("should sanitize password in string", () => {
-      const input = '{"password":"Secret123","username":"test"}';
-      const result = sanitizeString(input);
-
-      expect(result).toContain('"password":"[REDACTED]"');
-      expect(result).toContain('"username":"test"');
-    });
-
-    it("should sanitize token in string", () => {
-      const input = '{"token":"secret-token","name":"My App"}';
-      const result = sanitizeString(input);
-
-      expect(result).toContain('"token":"[REDACTED]"');
-      expect(result).toContain('"name":"My App"');
-    });
-
-    it("should handle multiple sensitive fields", () => {
-      const input = '{"password":"pass1","token":"token1","apiKey":"key1"}';
-      const result = sanitizeString(input);
-
-      expect(result).toContain('"password":"[REDACTED]"');
-      expect(result).toContain('"token":"[REDACTED]"');
-      expect(result).toContain('"apiKey":"[REDACTED]"');
+  it("represents invalid dates without throwing", () => {
+    expect(sanitize({ date: new Date("invalid") })).toEqual({
+      date: "[INVALID_DATE]",
     });
   });
 });

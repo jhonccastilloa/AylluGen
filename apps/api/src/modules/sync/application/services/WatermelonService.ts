@@ -34,7 +34,7 @@ import {
   RelatedAnimal,
   validateParents,
 } from "../../../animal/domain/services/AnimalRules";
-import { logger } from "../../../../shared/logging";
+import { logger } from "../../../../infrastructure/logging/logger";
 
 export class SyncScopeError extends AppError {
   constructor() {

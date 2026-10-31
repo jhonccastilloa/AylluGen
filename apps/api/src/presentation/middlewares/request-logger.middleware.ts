@@ -1,46 +1,46 @@
 import { Response, NextFunction } from "express";
 import { randomUUID } from "node:crypto";
-import winston from "winston";
-import { logger } from "../../shared/logging";
+import type { ILogger } from "../../shared/logging/Logger";
 import { AuthRequest } from "./auth.middleware";
-import { sanitize } from "../../shared/logging/sanitizer";
 
 export interface AppRequest extends AuthRequest {
   id?: string;
-  logger?: winston.Logger;
+  logger?: ILogger;
 }
 
-export const requestLogger = (
-  req: AppRequest,
-  res: Response,
-  next: NextFunction,
-): void => {
-  const requestId = (req.headers["x-request-id"] as string) || randomUUID();
-  req.id = requestId;
+export const makeRequestLogger =
+  (logger: ILogger) =>
+  (req: AppRequest, res: Response, next: NextFunction): void => {
+    const suppliedId = req.headers["x-request-id"];
+    const requestId =
+      typeof suppliedId === "string" &&
+      /^[A-Za-z0-9._-]{1,128}$/.test(suppliedId)
+        ? suppliedId
+        : randomUUID();
+    req.id = requestId;
 
-  res.setHeader("X-Request-ID", requestId);
+    res.setHeader("X-Request-ID", requestId);
 
-  req.logger = logger.child({ requestId });
+    req.logger = logger.child({ requestId });
 
-  req.logger.info("Request started", {
-    method: req.method,
-    path: req.path,
-    query: sanitize(req.query),
-    ip: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-
-  const startTime = Date.now();
-
-  res.on("finish", () => {
-    const duration = Date.now() - startTime;
-    req.logger?.info("Request completed", {
+    req.logger.info("http.request_started", {
       method: req.method,
       path: req.path,
-      statusCode: res.statusCode,
-      duration,
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
     });
-  });
 
-  next();
-};
+    const startTime = performance.now();
+
+    res.on("finish", () => {
+      const durationMs = performance.now() - startTime;
+      req.logger?.info("http.request_completed", {
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs,
+      });
+    });
+
+    next();
+  };

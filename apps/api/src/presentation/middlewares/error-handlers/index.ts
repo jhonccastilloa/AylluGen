@@ -1,8 +1,8 @@
 import { Response } from "express";
-import { AppRequest } from "../types";
+import type { AppRequest } from "../request-logger.middleware";
 import { AppError, ZodValidationError } from "../../../shared/errors/AppError";
 import { config } from "../../../shared/constants/config";
-import { logger } from "../../../shared/logging";
+import { logger } from "../../../infrastructure/logging/logger";
 import { ZodError } from "zod";
 
 const isDevelopment = config.nodeEnv === "development";

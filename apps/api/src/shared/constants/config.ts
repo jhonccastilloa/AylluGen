@@ -13,6 +13,19 @@ const envSchema = z.object({
     .optional(),
   JWT_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("7d"),
+  LOG_LEVEL: z
+    .enum(["error", "warn", "info", "http", "verbose", "debug", "silly"])
+    .optional(),
+  LOG_FILE_ENABLED: z.enum(["true", "false"]).optional(),
+  LOG_FILE_PATH: z.string().min(1).default("./logs"),
+  LOG_FILE_MAX_FILES: z
+    .string()
+    .regex(/^[1-9]\d*d?$/)
+    .default("14d"),
+  LOG_FILE_MAX_SIZE: z
+    .string()
+    .regex(/^[1-9]\d*[kmg]$/i)
+    .default("20m"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -34,4 +47,25 @@ export const config = {
   refreshTokenExpiresIn: parsedEnv.data.REFRESH_TOKEN_EXPIRES_IN,
   databaseUrl: parsedEnv.data.DATABASE_URL,
   isProd: parsedEnv.data.NODE_ENV === "production",
+  logging: {
+    environment: parsedEnv.data.NODE_ENV,
+    level:
+      parsedEnv.data.LOG_LEVEL ??
+      (parsedEnv.data.NODE_ENV === "development"
+        ? "debug"
+        : parsedEnv.data.NODE_ENV === "test"
+          ? "error"
+          : "info"),
+    fileEnabled:
+      parsedEnv.data.LOG_FILE_ENABLED === undefined
+        ? parsedEnv.data.NODE_ENV === "production"
+        : parsedEnv.data.LOG_FILE_ENABLED === "true",
+    filePath: parsedEnv.data.LOG_FILE_PATH,
+    maxFiles: parsedEnv.data.LOG_FILE_MAX_FILES.endsWith("d")
+      ? parsedEnv.data.LOG_FILE_MAX_FILES
+      : Number(parsedEnv.data.LOG_FILE_MAX_FILES),
+    maxSize: parsedEnv.data.LOG_FILE_MAX_SIZE,
+  },
 };
+
+export type LoggingConfig = typeof config.logging;

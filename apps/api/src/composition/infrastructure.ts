@@ -1,5 +1,7 @@
 import type { ISpecieRepository } from "@ayllugen/core/species/domain/ports/SpecieRepository";
 import { SpeciePrismaRepository } from "../modules/specie/infrastructure/persistence/SpeciePrismaRepository";
+import { logger } from "../infrastructure/logging/logger";
+import type { ILogger } from "../shared/logging/Logger";
 import {
   prisma,
   type PrismaTransaction,
@@ -10,6 +12,7 @@ export interface IRepositories {
 }
 
 export interface IInfrastructure {
+  logger: ILogger;
   prisma: PrismaTransaction;
   repositories: IRepositories;
   // shutdown(): Promise<void>;
@@ -17,6 +20,7 @@ export interface IInfrastructure {
 
 export const buildInfrastructure = (): IInfrastructure => {
   return {
+    logger,
     prisma,
     repositories: {
       species: new SpeciePrismaRepository(prisma),

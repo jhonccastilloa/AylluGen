@@ -1,4 +1,16 @@
-import { loggerConfig } from "./logger.config";
+const sensitiveKeys = [
+  "password",
+  "pwd",
+  "token",
+  "secret",
+  "apiKey",
+  "authorization",
+  "cookie",
+  "creditCard",
+  "ssn",
+  "dni",
+  "email",
+];
 
 const MAX_DEPTH = 10;
 const MAX_ARRAY_LENGTH = 100;
@@ -18,7 +30,7 @@ interface SanitizedObject {
 
 function isSensitiveKey(key: string): boolean {
   const normalizedKey = key.toLowerCase();
-  return loggerConfig.sanitization.sensitiveKeys.some((sensitiveKey) =>
+  return sensitiveKeys.some((sensitiveKey) =>
     normalizedKey.includes(sensitiveKey.toLowerCase()),
   );
 }
@@ -33,7 +45,7 @@ export function sanitize(obj: unknown, depth = 0): SanitizedValue {
   }
 
   if (typeof obj === "string") {
-    return obj;
+    return obj.length > 4096 ? `${obj.slice(0, 4096)}[TRUNCATED]` : obj;
   }
 
   if (typeof obj === "number" || typeof obj === "boolean") {
@@ -41,22 +53,23 @@ export function sanitize(obj: unknown, depth = 0): SanitizedValue {
   }
 
   if (obj instanceof Date) {
-    return obj.toISOString();
+    return Number.isNaN(obj.getTime()) ? "[INVALID_DATE]" : obj.toISOString();
   }
 
   if (obj instanceof Error) {
     return {
       name: obj.name,
-      message: obj.message,
-      stack: loggerConfig.sanitization.enabled ? undefined : obj.stack,
+      message: "[ERROR_DETAILS_OMITTED]",
     };
   }
 
   if (Array.isArray(obj)) {
-    const sanitizedItems = obj.map((item) => sanitize(item, depth + 1));
+    const sanitizedItems = obj
+      .slice(0, MAX_ARRAY_LENGTH)
+      .map((item) => sanitize(item, depth + 1));
 
     if (obj.length > MAX_ARRAY_LENGTH) {
-      return sanitizedItems.slice(0, MAX_ARRAY_LENGTH).concat(
+      return sanitizedItems.concat(
         `[...${obj.length - MAX_ARRAY_LENGTH} more items]`,
       );
     }
@@ -65,12 +78,12 @@ export function sanitize(obj: unknown, depth = 0): SanitizedValue {
   }
 
   if (typeof obj === "object") {
-    const sanitized: SanitizedObject = {};
+    const sanitized: SanitizedObject = Object.create(null);
     const input = obj as Record<string, unknown>;
 
     for (const key of Object.keys(input)) {
       if (isSensitiveKey(key)) {
-        sanitized[key] = loggerConfig.sanitization.replacement;
+        sanitized[key] = "[REDACTED]";
       } else {
         sanitized[key] = sanitize(input[key], depth + 1);
       }
@@ -80,19 +93,4 @@ export function sanitize(obj: unknown, depth = 0): SanitizedValue {
   }
 
   return String(obj);
-}
-
-export function sanitizeString(str: string): string {
-  let result = str;
-  loggerConfig.sanitization.sensitiveKeys.forEach((key) => {
-    const regex = new RegExp(
-      `(["']${key}["']\\s*:\\s*["'])([^"']+)(["'])`,
-      "gi",
-    );
-    result = result.replace(
-      regex,
-      `$1${loggerConfig.sanitization.replacement}$3`,
-    );
-  });
-  return result;
 }
