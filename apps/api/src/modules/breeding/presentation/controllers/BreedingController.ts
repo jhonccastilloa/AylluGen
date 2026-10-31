@@ -8,7 +8,7 @@ import {
   breedingUpdateSchema,
 } from "../../application/schemas/breeding.schema";
 import validateUserId from "@shared/utils/validateUserId";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 import { animalIdParamSchema } from "src/modules/animal/application/schemas/animal.schema";
 
 @injectable()

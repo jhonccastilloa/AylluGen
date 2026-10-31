@@ -7,7 +7,7 @@ import {
   animalQuerySchema,
 } from "../../application/schemas/animal.schema";
 import validateUserId from "@shared/utils/validateUserId";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 
 @injectable()
 export class AnimalController {

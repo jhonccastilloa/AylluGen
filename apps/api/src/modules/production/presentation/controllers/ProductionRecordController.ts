@@ -3,7 +3,7 @@ import { ProductionRecordService } from "../../application/services/ProductionRe
 import { Response } from "express";
 import { AuthRequest } from "../../../../presentation/middlewares/auth.middleware";
 import { TYPES } from "../../../../shared/di/types";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 import {
   productionGetAllQuerySchema,
   productionReacordRecentQuerySchema,

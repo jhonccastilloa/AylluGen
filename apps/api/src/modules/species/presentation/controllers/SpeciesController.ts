@@ -2,7 +2,7 @@ import { injectable, inject } from "inversify";
 import { TYPES } from "../../../../shared/di/types";
 import { SpeciesService } from "../../application/services/SpeciesService";
 import validateUserId from "@shared/utils/validateUserId";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 import {
   speciesCreateSchema,
   speciesIdParamSchema,

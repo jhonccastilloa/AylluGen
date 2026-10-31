@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { UserService } from "../../application/services/UserService";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 import { TYPES } from "../../../../shared/di/types";
 import validateUserId from "@shared/utils/validateUserId";
 import { AuthorizationError } from "../../../../shared/errors/AppError";

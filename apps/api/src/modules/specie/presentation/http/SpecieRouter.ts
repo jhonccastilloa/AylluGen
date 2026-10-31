@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { asyncHandler, authMiddleware } from "../../../../presentation/middlewares";
+import { asyncHandler } from "../../../../presentation/middlewares/asyncHandler.middleware";
+import { authMiddleware } from "../../../../presentation/middlewares/auth.middleware";
 import validateUserId from "../../../../shared/utils/validateUserId";
 import { SpecieController } from "./SpecieController";
 

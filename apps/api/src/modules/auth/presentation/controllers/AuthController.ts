@@ -1,7 +1,7 @@
 import { injectable, inject } from "inversify";
 import { AuthService } from "../../application/services/AuthService";
 import { TYPES } from "../../../../shared/di/types";
-import { asyncHandler } from "@presentation/middlewares";
+import { asyncHandler } from "@presentation/middlewares/asyncHandler.middleware";
 import {
   loginSchema,
   logoutSchema,

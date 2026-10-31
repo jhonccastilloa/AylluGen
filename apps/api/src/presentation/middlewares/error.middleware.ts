@@ -1,5 +1,5 @@
 import { Response, NextFunction } from "express";
-import { AppRequest } from "./types";
+import type { AppRequest } from "./request-logger.middleware";
 import {
   BaseErrorHandler,
   ZodValidationErrorHandler,
