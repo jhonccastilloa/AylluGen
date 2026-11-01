@@ -1,4 +1,5 @@
 import express, { Application } from "express";
+import type { Server } from "node:http";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { openApiSpec } from "./infrastructure/openapi/index";
@@ -16,10 +17,12 @@ import type { IContainerControllers } from "./composition/container";
 
 class App {
   private app: Application;
+  private stopping = false;
 
   constructor(
     private readonly controllers: IContainerControllers,
     private readonly logger: ILogger,
+    private readonly shutdown: () => Promise<void>,
   ) {
     this.app = express();
     this.initializeMiddlewares();
@@ -66,16 +69,31 @@ class App {
         docsUrl: `${server}/api-docs`,
       });
     });
-    // Manejar Ctrl + C
-    process.on("SIGINT", () => {
-      this.logger.info("app.stopping", { signal: "SIGINT" });
-      server.close(() => process.exit(0));
-    });
+    process.on("SIGINT", () => void this.stop(server, "SIGINT"));
+    process.on("SIGTERM", () => void this.stop(server, "SIGTERM"));
+  }
 
-    process.on("SIGTERM", () => {
-      this.logger.info("app.stopping", { signal: "SIGTERM" });
-      server.close(() => process.exit(0));
-    });
+  private async stop(server: Server, signal: NodeJS.Signals): Promise<void> {
+    if (this.stopping) return;
+    this.stopping = true;
+    this.logger.info("app.stopping", { signal });
+    const timeout = setTimeout(() => {
+      this.logger.error("app.shutdown.timeout");
+      process.exit(1);
+    }, 30_000);
+    timeout.unref();
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+      await this.shutdown();
+      clearTimeout(timeout);
+      process.exit(0);
+    } catch (error) {
+      this.logger.error("app.shutdown.failed", { error });
+      process.exit(1);
+    }
   }
 
   public getApp(): Application {

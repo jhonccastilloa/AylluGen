@@ -5,5 +5,9 @@ import App from "./server";
 
 const infrastructure = buildInfrastructure();
 const container = buildContainer(infrastructure);
-const app = new App(container.controllers, infrastructure.logger);
+const app = new App(
+  container.controllers,
+  infrastructure.logger,
+  infrastructure.shutdown,
+);
 app.listen();
