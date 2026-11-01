@@ -6,11 +6,11 @@ Swagger pueden describir rutas desactivadas: consultar [README](README.md) y
 
 ## Generación
 
-[El registro central](src/infrastructure/openapi/index.ts) utiliza OpenAPIRegistry y OpenApiGeneratorV3 de `@asteasolutions/zod-to-openapi`. Las definiciones de negocio son Zod; los paths se registran explícitamente. `swagger-jsdoc` permanece instalado, pero no genera el documento activo.
+[El registro central](src/infrastructure/openapi/index.ts) utiliza OpenAPIRegistry y OpenApiGeneratorV3 de `@asteasolutions/zod-to-openapi`. Las definiciones de negocio son Zod; los paths se registran explícitamente.
 
 Archivos en `src/infrastructure/openapi/features`: `auth.openapi.ts`, `users.openapi.ts`, `animals.openapi.ts`, `breedings.openapi.ts`, `health.openapi.ts`, `production.openapi.ts` y `sync.openapi.ts`.
 
-`src/infrastructure/config/swagger.ts` reexporta la especificación. El servidor monta Swagger UI en **/api-docs**; no monta las rutas alternativas de JSON/swagger descritas en las guías anteriores.
+El servidor importa directamente la especificación de `src/infrastructure/openapi/index.ts` y monta Swagger UI en **/api-docs**; no monta las rutas alternativas de JSON/swagger descritas en las guías anteriores.
 
 ## Cobertura y límites
 

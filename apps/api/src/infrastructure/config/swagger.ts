@@ -1,1 +1,0 @@
-export { openApiSpec } from "../openapi";

@@ -2,7 +2,7 @@ import express, { Application } from "express";
 import cors from "cors";
 // import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
-import { openApiSpec } from "./infrastructure/config/swagger";
+import { openApiSpec } from "./infrastructure/openapi/index";
 import { config } from "./shared/constants/config";
 import {
   makeErrorHandler,
