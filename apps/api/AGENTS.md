@@ -23,7 +23,7 @@ Species es la referencia implementada del flujo nuevo. Consultar
 - Importar entradas públicas que existan en los exports de los paquetes; usar `import type` para tipos. No importar `dist` directamente ni reutilizar antiguos imports cortos como `/species/create` o `/species/deletion-policy`.
 - Los errores de negocio extienden `DomainError` (`@ayllugen/core/errors/domain`), con `code`, `kind` y mensaje público. No contienen estados HTTP.
 - Species usa exclusivamente `SpecieError` y códigos `SPECIE_*`. El mapper HTTP común traduce categorías a estados; los errores inesperados producen un 500 genérico.
-- La autenticación HTTP usa `UnauthenticatedError` y validación Bearer/JWT. `AppError` pertenece al código anterior.
+- La autenticación HTTP usa `UnauthenticatedError` y validación Bearer/JWT. Se retiraron `AppError`, `shared/di` y el middleware antiguo de validación. Los imports pendientes en módulos anteriores se resolverán al migrarlos; no restaurar esas piezas para hacerlos compilar.
 - Logging: inyectar `ILogger` desde composición; Winston se construye en `infrastructure/logging/createLogger.ts`. El contexto HTTP se inicializa antes de los parsers. Los consumidores antiguos importan temporalmente la instancia compartida de `infrastructure/logging/logger.ts`.
 - Mantener nombres y formato del código circundante. No renombrar rutas o tablas para uniformar estilo.
 

@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import "dotenv/config";
 import { buildContainer } from "./composition/container";
 import { buildInfrastructure } from "./composition/infrastructure";

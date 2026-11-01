@@ -54,7 +54,7 @@ El mapper HTTP común traduce `validation` a 400, `not_found` a 404 y `conflict`
 
 La autenticación utiliza `UnauthenticatedError`; acepta un único token Bearer con esquema insensible a mayúsculas y verifica el JWT. El middleware de errores añade `WWW-Authenticate: Bearer` a las respuestas 401.
 
-Los mensajes técnicos de Prisma no deben convertirse en mensajes públicos de dominio. `AppError` y el manejo anterior permanecen para consumidores legacy, no como referencia del flujo nuevo.
+Los mensajes técnicos de Prisma no deben convertirse en mensajes públicos de dominio. `AppError`, el manejo HTTP anterior, el middleware de validación antiguo y el contenedor `shared/di` fueron retirados. Sus consumidores pendientes conservan imports rotos hasta su migración; es una decisión explícita de esta etapa.
 
 ## Añadir el siguiente módulo
 
