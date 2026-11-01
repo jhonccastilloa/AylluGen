@@ -13,9 +13,16 @@ services:
       - "5438:5432"
     volumes:
       - ./postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - ayllu_gen_network
   backend:
+    stop_grace_period: 35s
     build:
       context: ../..
       dockerfile: apps/api/Dockerfile
@@ -24,7 +31,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - ayllu_gen_network
     env_file:

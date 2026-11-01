@@ -42,4 +42,4 @@ COPY --from=builder /workspace/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /workspace/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 WORKDIR /workspace/apps/api
 EXPOSE 3000
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && exec node dist"]
