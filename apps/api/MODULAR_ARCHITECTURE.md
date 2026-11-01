@@ -38,7 +38,7 @@ Express → autenticación → SpecieRouter → SpecieController
         → caso de uso del core → puerto de repositorio → SpeciePrismaRepository
 ```
 
-- El router extrae el usuario autenticado y adapta `HttpResult` a Express mediante `asyncHandler`.
+- El router extrae el usuario autenticado y adapta `HttpResult` a Express mediante handlers `async`. Express 5 propaga automáticamente los rechazos de sus promesas al middleware de errores; las operaciones deben esperarse con `await` o devolverse con `return`.
 - El controlador recibe entradas `unknown`, valida con Zod, ejecuta el caso de uso y proyecta un DTO. No recibe `Request` ni `Response`.
 - El core contiene reglas y orquestación de negocio; depende de puertos, no de Express, Prisma, Inversify o apps.
 - El repositorio recibe `userId` por operación y aplica el alcance por propietario. No mantiene un usuario configurado permanentemente.
