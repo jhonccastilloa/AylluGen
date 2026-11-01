@@ -18,7 +18,7 @@ const passwordSchema = z
 
 export const userResponseSchema = z
   .object({
-    id: z.string().uuid().describe("Identificador único del usuario"),
+    id: z.uuid().describe("Identificador único del usuario"),
     dni: z.string().describe("Documento Nacional de Identidad"),
     createdAt: z.date().describe("Fecha de creación del usuario"),
     updatedAt: z.date().describe("Fecha de última actualización"),

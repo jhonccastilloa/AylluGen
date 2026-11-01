@@ -149,7 +149,7 @@ export function registerAnimalsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Animal ID"),
+        id: z.uuid().describe("Animal ID"),
       }),
     },
     responses: {
@@ -179,7 +179,7 @@ export function registerAnimalsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Animal ID"),
+        id: z.uuid().describe("Animal ID"),
       }),
     },
     responses: {
@@ -209,7 +209,7 @@ export function registerAnimalsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Animal ID"),
+        id: z.uuid().describe("Animal ID"),
       }),
       body: {
         content: {
@@ -249,7 +249,7 @@ export function registerAnimalsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Animal ID"),
+        id: z.uuid().describe("Animal ID"),
       }),
     },
     responses: {

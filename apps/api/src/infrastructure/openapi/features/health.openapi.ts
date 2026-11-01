@@ -104,7 +104,7 @@ export function registerHealthRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Health Record ID"),
+        id: z.uuid().describe("Health Record ID"),
       }),
     },
     responses: {
@@ -134,7 +134,7 @@ export function registerHealthRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Health Record ID"),
+        id: z.uuid().describe("Health Record ID"),
       }),
       body: {
         content: {
@@ -174,7 +174,7 @@ export function registerHealthRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Health Record ID"),
+        id: z.uuid().describe("Health Record ID"),
       }),
     },
     responses: {

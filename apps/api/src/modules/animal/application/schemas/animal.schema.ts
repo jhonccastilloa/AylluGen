@@ -93,7 +93,7 @@ export const animalQuerySchema = z
   });
 
 const animalRelationSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   crotal: z.string(),
   sex: z.enum(Sex),
   speciesId: z.string(),
@@ -105,7 +105,7 @@ const animalRelationSchema = z.object({
 
 export const animalResponseSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     crotal: z.string(),
     sex: z.enum(Sex),
     speciesId: z.string(),
@@ -113,12 +113,12 @@ export const animalResponseSchema = z
     speciesName: z.string().nullable().optional(),
     birthDate: z.string().datetime().nullable(),
     isFounder: z.boolean(),
-    fatherId: z.string().uuid().nullable(),
-    motherId: z.string().uuid().nullable(),
+    fatherId: z.uuid().nullable(),
+    motherId: z.uuid().nullable(),
     father: animalRelationSchema.nullable().optional(),
     mother: animalRelationSchema.nullable().optional(),
     children: z.array(animalRelationSchema).optional(),
-    userId: z.string().uuid(),
+    userId: z.uuid(),
     clientCreatedAt: z.iso
       .datetime()
       .describe("Fecha de creación en el dispositivo"),

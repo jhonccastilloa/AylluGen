@@ -116,7 +116,7 @@ export function registerBreedingsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Breeding ID"),
+        id: z.uuid().describe("Breeding ID"),
       }),
     },
     responses: {
@@ -146,7 +146,7 @@ export function registerBreedingsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        animalId: z.string().uuid().describe("Animal ID"),
+        animalId: z.uuid().describe("Animal ID"),
       }),
     },
     responses: {
@@ -178,7 +178,7 @@ export function registerBreedingsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Breeding ID"),
+        id: z.uuid().describe("Breeding ID"),
       }),
       body: {
         content: {
@@ -218,7 +218,7 @@ export function registerBreedingsRoutes(
     security: [{ [bearerAuth.name]: [] }],
     request: {
       params: z.object({
-        id: z.string().uuid().describe("Breeding ID"),
+        id: z.uuid().describe("Breeding ID"),
       }),
     },
     responses: {

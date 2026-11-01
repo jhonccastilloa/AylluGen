@@ -3,7 +3,7 @@ import { RiskLevel } from "../../domain/entities/Breeding";
 import { Sex } from "../../../animal/domain/entities/Animal";
 
 const animalRelationSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   crotal: z.string(),
   sex: z.enum(Sex),
   speciesId: z.string(),
@@ -54,7 +54,7 @@ export const breedingUpdateSchema = z
       .optional()
       .describe("Date when breeding occurred"),
     notes: z.string().optional().describe("Additional notes"),
-    offspringId: z.string().uuid().optional().describe("Offspring animal ID"),
+    offspringId: z.uuid().optional().describe("Offspring animal ID"),
   })
   .openapi({
     title: "BreedingUpdateInput",
@@ -68,8 +68,8 @@ export const breedingUpdateSchema = z
 
 export const breedingMatchSchema = z
   .object({
-    maleId: z.string().uuid().describe("Male animal ID"),
-    femaleId: z.string().uuid().describe("Female animal ID"),
+    maleId: z.uuid().describe("Male animal ID"),
+    femaleId: z.uuid().describe("Female animal ID"),
   })
   .openapi({
     title: "BreedingMatchInput",
@@ -82,16 +82,16 @@ export const breedingMatchSchema = z
 
 export const breedingResponseSchema = z
   .object({
-    id: z.string().uuid(),
-    maleId: z.string().uuid(),
-    femaleId: z.string().uuid(),
+    id: z.uuid(),
+    maleId: z.uuid(),
+    femaleId: z.uuid(),
     projectedCOI: z.number(),
-    riskLevel: z.nativeEnum(RiskLevel),
-    offspringId: z.string().uuid().nullable(),
+    riskLevel: z.enum(RiskLevel),
+    offspringId: z.uuid().nullable(),
     offspring: animalRelationSchema.nullable(),
     breedingDate: z.string().datetime().nullable(),
     notes: z.string().nullable(),
-    userId: z.string().uuid(),
+    userId: z.uuid(),
     clientCreatedAt: z.iso
       .datetime()
       .describe("Fecha de creación en el dispositivo"),
@@ -125,7 +125,7 @@ export const breedingResponseSchema = z
 export const coiCalculationResponseSchema = z
   .object({
     coi: z.number().describe("Coefficient of Inbreeding (0-1)"),
-    riskLevel: z.nativeEnum(RiskLevel).describe("Risk level"),
+    riskLevel: z.enum(RiskLevel).describe("Risk level"),
     relationship: z.string().describe("Description of relationship"),
     recommendation: z.string().describe("Breeding recommendation"),
   })
