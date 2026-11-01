@@ -4,9 +4,11 @@ import { PrismaClient } from "./generated/client";
 import type { Prisma } from "./generated/client";
 import { config } from "../../../shared/constants/config";
 
-const connectionString = config.databaseUrl;
-
-const adapter = new PrismaPg({ connectionString });
+const adapter = new PrismaPg({
+  connectionString: config.databaseUrl,
+  max: 10,
+  connectionTimeoutMillis: 5_000,
+});
 const prisma = new PrismaClient({
   adapter,
   // Query/error logging can include private sync record values. Use service metadata.

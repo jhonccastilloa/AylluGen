@@ -5,7 +5,10 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   PORT: z.coerce.number().min(1).max(65535).default(3000),
-  DATABASE_URL: z.url("DATABASE_URL must be a valid URL"),
+  DATABASE_URL: z.url({
+    protocol: /^postgres(ql)?$/,
+    error: "DATABASE_URL must be a valid PostgreSQL URL",
+  }),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   REFRESH_TOKEN_SECRET: z
     .string()
