@@ -35,7 +35,9 @@ Los JWT incluyen `tokenUse: "access"` o `tokenUse: "refresh"`. Cada verificador 
 
 Para compilar y ejecutar el resultado: `pnpm build` y `pnpm start`. El build general todavía tiene errores asociados a código anterior; consultar el apartado de verificación.
 
-La base requiere las migraciones SQL existentes, incluidos sus triggers y constraints. Para aplicar ese historial al destino configurado se utiliza `pnpm exec prisma migrate deploy`; `prisma db push` no es un sustituto. Para crear cambios de schema en desarrollo: `pnpm prisma:migrate`.
+La base requiere las migraciones SQL existentes, incluidos sus triggers y constraints. Para aplicar ese historial al destino configurado se utiliza `pnpm prisma:deploy`; `prisma db push` no es un sustituto. Para crear cambios de schema en desarrollo: `pnpm prisma:migrate`.
+
+El cliente usa un pool PostgreSQL de hasta 10 conexiones por proceso y un tiempo máximo de 5 segundos para obtener una conexión. `DATABASE_URL` debe usar el protocolo `postgres:` o `postgresql:`. Al recibir `SIGINT` o `SIGTERM`, la API cierra HTTP, espera las solicitudes activas y desconecta Prisma; el cierre tiene un límite total de 30 segundos. Docker Compose espera a que PostgreSQL esté saludable antes de iniciar el backend.
 
 Docker utiliza el contexto del monorepo: `docker build -f apps/api/Dockerfile .` desde la raíz.
 
