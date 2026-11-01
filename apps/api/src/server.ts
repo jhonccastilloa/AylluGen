@@ -1,6 +1,5 @@
 import express, { Application } from "express";
 import cors from "cors";
-// import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import { openApiSpec } from "./infrastructure/openapi/index";
 import { config } from "./shared/constants/config";
@@ -8,7 +7,7 @@ import {
   makeErrorHandler,
   notFoundHandler,
 } from "./presentation/middlewares/http-error.middleware";
-// import { generalLimiter } from "./presentation/middlewares/rate-limit.middleware";
+import { generalLimiter } from "./presentation/middlewares/rate-limit.middleware";
 import helmet from "helmet";
 import { makeRequestLogger } from "./presentation/middlewares/request-logger.middleware";
 import type { ILogger } from "./shared/logging/Logger";
@@ -37,7 +36,7 @@ class App {
         contentSecurityPolicy: config.isProd ? undefined : false,
       }),
     );
-    // this.app.use(generalLimiter);
+    this.app.use(generalLimiter);
     this.app.use("/api/sync/v2", express.json({ limit: "2mb" }));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));

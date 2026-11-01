@@ -68,6 +68,10 @@ La suite focalizada cubre errores de dominio, respuestas HTTP y Bearer con repos
 
 El typecheck general conserva fallos en código anterior, incluidos imports de `modules/species` y `AnimalService`. También hay pruebas antiguas pendientes de adaptar a los contratos del core. Los resultados históricos no representan el estado actual de toda la migración.
 
+## Limitación de solicitudes
+
+La limitación de solicitudes se activa únicamente con `NODE_ENV=production`: límite general de 100 solicitudes por IP cada 15 minutos y límite de autenticación de 5 en los endpoints que lo utilicen. En desarrollo y pruebas se omite. Los contadores son locales a cada proceso; el límite de autenticación tendrá efecto cuando se reactiven sus rutas.
+
 ## Logging
 
 Durante la migración, `infrastructure/logging/logger.ts` crea una única instancia Winston al importar el módulo. La composición la inyecta mediante el contrato `ILogger` en los middlewares. El contexto de solicitud se establece antes de los parsers y devuelve `X-Request-ID`; se admite un identificador de 1–128 caracteres alfanuméricos, punto, guion o guion bajo, o se genera un UUID.
