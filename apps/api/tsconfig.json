@@ -14,8 +14,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "moduleResolution": "node",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
     "baseUrl": "./",
     "paths": {
       "@infrastructure/*": ["src/infrastructure/*"],
