@@ -6,7 +6,7 @@ import {
   verifyRefreshToken,
   getRefreshTokenExpirationDate,
 } from "../../src/shared/utils/jwt";
-import { TOKEN_CONFIG } from "../../src/shared/constants/tokens";
+import { config } from "../../src/shared/constants/config";
 
 test("accepts generated access and refresh tokens with standard JWT claims", () => {
   const identity = { userId: "owner", dni: "12345678" };
@@ -17,7 +17,7 @@ test("accepts generated access and refresh tokens with standard JWT claims", () 
 test("validates identity in refresh tokens too", () => {
   const token = sign(
     { dni: "12345678", tokenUse: "refresh" },
-    TOKEN_CONFIG.REFRESH_TOKEN.secret,
+    config.jwtRefreshSecret,
   );
   expect(() => verifyRefreshToken(token)).toThrow(JsonWebTokenError);
 });
@@ -26,11 +26,11 @@ test.each([undefined, "other", 42])(
   "rejects missing or invalid token purpose: %s",
   (tokenUse) => {
     const identity = { userId: "owner", dni: "12345678", tokenUse };
+    expect(() => verifyToken(sign(identity, config.jwtSecret))).toThrow(
+      JsonWebTokenError,
+    );
     expect(() =>
-      verifyToken(sign(identity, TOKEN_CONFIG.ACCESS_TOKEN.secret)),
-    ).toThrow(JsonWebTokenError);
-    expect(() =>
-      verifyRefreshToken(sign(identity, TOKEN_CONFIG.REFRESH_TOKEN.secret)),
+      verifyRefreshToken(sign(identity, config.jwtRefreshSecret)),
     ).toThrow(JsonWebTokenError);
   },
 );
@@ -92,8 +92,8 @@ test("uses the issued token expiration with a configured nine-day lifetime", () 
 test("rejects missing or invalid expiration instead of persisting an invalid date", () => {
   for (const token of [
     "invalid",
-    sign({ userId: "owner" }, TOKEN_CONFIG.REFRESH_TOKEN.secret),
-    sign({ exp: 1e20 }, TOKEN_CONFIG.REFRESH_TOKEN.secret),
+    sign({ userId: "owner" }, config.jwtRefreshSecret),
+    sign({ exp: 1e20 }, config.jwtRefreshSecret),
   ]) {
     expect(() => getRefreshTokenExpirationDate(token)).toThrow(
       JsonWebTokenError,

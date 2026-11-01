@@ -5,7 +5,7 @@ import {
   verifyRefreshToken,
   TokenPayload,
 } from "../../../src/shared/utils/jwt";
-import { TOKEN_CONFIG } from "../../../src/shared/constants/tokens";
+import { config } from "../../../src/shared/constants/config";
 
 describe("JWT Utils", () => {
   const mockPayload: TokenPayload = {
@@ -117,15 +117,13 @@ describe("JWT Utils", () => {
 
   describe("Token Configuration", () => {
     it("should have defined access token config", () => {
-      expect(TOKEN_CONFIG.ACCESS_TOKEN).toBeDefined();
-      expect(TOKEN_CONFIG.ACCESS_TOKEN.secret).toBeDefined();
-      expect(TOKEN_CONFIG.ACCESS_TOKEN.expiresIn).toBeDefined();
+      expect(config.jwtSecret).toBeDefined();
+      expect(config.jwtExpiresIn).toBeDefined();
     });
 
     it("should have defined refresh token config", () => {
-      expect(TOKEN_CONFIG.REFRESH_TOKEN).toBeDefined();
-      expect(TOKEN_CONFIG.REFRESH_TOKEN.secret).toBeDefined();
-      expect(TOKEN_CONFIG.REFRESH_TOKEN.expiresIn).toBeDefined();
+      expect(config.jwtRefreshSecret).toBeDefined();
+      expect(config.refreshTokenExpiresIn).toBeDefined();
     });
   });
 });

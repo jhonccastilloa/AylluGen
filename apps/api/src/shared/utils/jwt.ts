@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { TOKEN_CONFIG } from "../constants/tokens";
+import { config } from "../constants/config";
 
 const tokenPayloadSchema = z.object({
   userId: z.string().min(1),
@@ -14,21 +14,17 @@ const signedPayloadSchema = tokenPayloadSchema.extend({
 });
 
 export const generateAccessToken = (payload: TokenPayload): string => {
-  return jwt.sign(
-    { ...payload, tokenUse: "access" },
-    TOKEN_CONFIG.ACCESS_TOKEN.secret,
-    {
-      expiresIn: TOKEN_CONFIG.ACCESS_TOKEN.expiresIn,
-    } as jwt.SignOptions,
-  );
+  return jwt.sign({ ...payload, tokenUse: "access" }, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn,
+  } as jwt.SignOptions);
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
   return jwt.sign(
     { ...payload, tokenUse: "refresh" },
-    TOKEN_CONFIG.REFRESH_TOKEN.secret,
+    config.jwtRefreshSecret,
     {
-      expiresIn: TOKEN_CONFIG.REFRESH_TOKEN.expiresIn,
+      expiresIn: config.refreshTokenExpiresIn,
     } as jwt.SignOptions,
   );
 };
@@ -37,9 +33,7 @@ export const verifyToken = (
   token: string,
   isRefreshToken = false,
 ): TokenPayload => {
-  const secret = isRefreshToken
-    ? TOKEN_CONFIG.REFRESH_TOKEN.secret
-    : TOKEN_CONFIG.ACCESS_TOKEN.secret;
+  const secret = isRefreshToken ? config.jwtRefreshSecret : config.jwtSecret;
   const decoded = jwt.verify(token, secret);
   const result = signedPayloadSchema.safeParse(decoded);
   if (

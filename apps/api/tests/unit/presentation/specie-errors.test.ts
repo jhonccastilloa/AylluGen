@@ -19,7 +19,7 @@ import { makeErrorHandler } from "../../../src/presentation/middlewares/http-err
 import { makeRequestLogger } from "../../../src/presentation/middlewares/request-logger.middleware";
 import type { ILogger } from "../../../src/shared/logging/Logger";
 import { generateAccessToken } from "../../../src/shared/utils/jwt";
-import { TOKEN_CONFIG } from "../../../src/shared/constants/tokens";
+import { config } from "../../../src/shared/constants/config";
 const logger: ILogger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -215,11 +215,9 @@ describe("Species HTTP error flow", () => {
     async (kind) => {
       const credential =
         kind === "expired"
-          ? sign(
-              { userId: "owner", dni: "12345678" },
-              TOKEN_CONFIG.ACCESS_TOKEN.secret,
-              { expiresIn: -1 },
-            )
+          ? sign({ userId: "owner", dni: "12345678" }, config.jwtSecret, {
+              expiresIn: -1,
+            })
           : "invalid.jwt.token";
       const response = await fetch(baseUrl, {
         headers: { Authorization: `Bearer ${credential}` },
@@ -246,7 +244,7 @@ describe("Species HTTP error flow", () => {
       typeof payload === "string"
         ? payload
         : { ...payload, tokenUse: "access" },
-      TOKEN_CONFIG.ACCESS_TOKEN.secret,
+      config.jwtSecret,
     );
     const response = await fetch(baseUrl, {
       headers: { Authorization: `Bearer ${credential}` },
@@ -262,7 +260,7 @@ describe("Species HTTP error flow", () => {
     async (tokenUse) => {
       const credential = sign(
         { userId: "owner", dni: "12345678", tokenUse },
-        TOKEN_CONFIG.ACCESS_TOKEN.secret,
+        config.jwtSecret,
       );
       const response = await fetch(baseUrl, {
         headers: { Authorization: `Bearer ${credential}` },
