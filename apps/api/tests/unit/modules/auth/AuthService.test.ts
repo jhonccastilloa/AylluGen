@@ -14,6 +14,7 @@ import { hashPassword } from "../../../../src/shared/utils/bcrypt";
 import {
   generateAccessToken,
   generateRefreshToken,
+  getRefreshTokenExpirationDate,
 } from "../../../../src/shared/utils/jwt";
 import { transaction } from "../../../../src/infrastructure/database/prisma/client";
 
@@ -44,6 +45,9 @@ describe("AuthService", () => {
   };
 
   beforeEach(() => {
+    jest
+      .mocked(getRefreshTokenExpirationDate)
+      .mockReturnValue(mockRefreshToken.expiresAt);
     container = new Container({ autobind: true });
     userRepository = {
       findById: jest.fn(),

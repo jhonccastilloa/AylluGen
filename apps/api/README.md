@@ -29,6 +29,10 @@ Configurar en el entorno o en `.env` privado:
 - `REFRESH_TOKEN_SECRET`: opcional; usa `JWT_SECRET` si falta.
 - `JWT_EXPIRES_IN` y `REFRESH_TOKEN_EXPIRES_IN`: por defecto `15m` y `7d`.
 
+La fecha de vencimiento persistida del refresh token se obtiene de su claim `exp` tras emitirlo. Cambiar `REFRESH_TOKEN_EXPIRES_IN` (por ejemplo, a `9d`) ajusta tanto el JWT como su vencimiento guardado; no hay un plazo fijo adicional de siete días.
+
+Los JWT incluyen `tokenUse: "access"` o `tokenUse: "refresh"`. Cada verificador exige el propósito correspondiente después de verificar la firma, incluso si ambos secretos coinciden. Los tokens anteriores sin este claim dejan de aceptarse y requieren un nuevo inicio de sesión.
+
 Para compilar y ejecutar el resultado: `pnpm build` y `pnpm start`. El build general todavía tiene errores asociados a código anterior; consultar el apartado de verificación.
 
 La base requiere las migraciones SQL existentes, incluidos sus triggers y constraints. Para aplicar ese historial al destino configurado se utiliza `pnpm exec prisma migrate deploy`; `prisma db push` no es un sustituto. Para crear cambios de schema en desarrollo: `pnpm prisma:migrate`.

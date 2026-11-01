@@ -233,6 +233,47 @@ describe("Species HTTP error flow", () => {
     },
   );
 
+  test.each([
+    { dni: "12345678" },
+    { userId: 42, dni: "12345678" },
+    { userId: "", dni: "12345678" },
+    { userId: "owner" },
+    { userId: "owner", dni: 12345678 },
+    { userId: "owner", dni: "" },
+    "non-object-payload",
+  ])("rejects a signed JWT with invalid identity: %j", async (payload) => {
+    const credential = sign(
+      typeof payload === "string"
+        ? payload
+        : { ...payload, tokenUse: "access" },
+      TOKEN_CONFIG.ACCESS_TOKEN.secret,
+    );
+    const response = await fetch(baseUrl, {
+      headers: { Authorization: `Bearer ${credential}` },
+    });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
+    expect(await response.json()).toMatchObject({ code: "INVALID_TOKEN" });
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  test.each([undefined, "refresh"])(
+    "rejects a signed token with the wrong access purpose: %s",
+    async (tokenUse) => {
+      const credential = sign(
+        { userId: "owner", dni: "12345678", tokenUse },
+        TOKEN_CONFIG.ACCESS_TOKEN.secret,
+      );
+      const response = await fetch(baseUrl, {
+        headers: { Authorization: `Bearer ${credential}` },
+      });
+      expect(response.status).toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
+      expect(await response.json()).toMatchObject({ code: "INVALID_TOKEN" });
+      expect(repository.list).not.toHaveBeenCalled();
+    },
+  );
+
   test("maps Zod and domain validation separately", async () => {
     const malformed = await post(JSON.stringify({ name: 42 }));
     expect(malformed.status).toBe(400);

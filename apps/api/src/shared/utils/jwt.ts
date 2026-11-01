@@ -1,21 +1,36 @@
 import jwt from "jsonwebtoken";
+import { z } from "zod";
 import { TOKEN_CONFIG } from "../constants/tokens";
 
-export interface TokenPayload {
-  userId: string;
-  dni: string;
-}
+const tokenPayloadSchema = z.object({
+  userId: z.string().min(1),
+  dni: z.string().min(1),
+});
+
+export type TokenPayload = z.infer<typeof tokenPayloadSchema>;
+
+const signedPayloadSchema = tokenPayloadSchema.extend({
+  tokenUse: z.enum(["access", "refresh"]),
+});
 
 export const generateAccessToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, TOKEN_CONFIG.ACCESS_TOKEN.secret, {
-    expiresIn: TOKEN_CONFIG.ACCESS_TOKEN.expiresIn,
-  } as jwt.SignOptions);
+  return jwt.sign(
+    { ...payload, tokenUse: "access" },
+    TOKEN_CONFIG.ACCESS_TOKEN.secret,
+    {
+      expiresIn: TOKEN_CONFIG.ACCESS_TOKEN.expiresIn,
+    } as jwt.SignOptions,
+  );
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, TOKEN_CONFIG.REFRESH_TOKEN.secret, {
-    expiresIn: TOKEN_CONFIG.REFRESH_TOKEN.expiresIn,
-  } as jwt.SignOptions);
+  return jwt.sign(
+    { ...payload, tokenUse: "refresh" },
+    TOKEN_CONFIG.REFRESH_TOKEN.secret,
+    {
+      expiresIn: TOKEN_CONFIG.REFRESH_TOKEN.expiresIn,
+    } as jwt.SignOptions,
+  );
 };
 
 export const verifyToken = (
@@ -25,9 +40,34 @@ export const verifyToken = (
   const secret = isRefreshToken
     ? TOKEN_CONFIG.REFRESH_TOKEN.secret
     : TOKEN_CONFIG.ACCESS_TOKEN.secret;
-  return jwt.verify(token, secret) as TokenPayload;
+  const decoded = jwt.verify(token, secret);
+  const result = signedPayloadSchema.safeParse(decoded);
+  if (
+    !result.success ||
+    result.data.tokenUse !== (isRefreshToken ? "refresh" : "access")
+  ) {
+    throw new jwt.JsonWebTokenError("Invalid token payload");
+  }
+  return { userId: result.data.userId, dni: result.data.dni };
 };
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
   return verifyToken(token, true);
 };
+
+export function getRefreshTokenExpirationDate(token: string): Date {
+  const payload = jwt.decode(token);
+  if (
+    !payload ||
+    typeof payload === "string" ||
+    typeof payload.exp !== "number" ||
+    !Number.isFinite(payload.exp)
+  ) {
+    throw new jwt.JsonWebTokenError("Invalid refresh token expiration");
+  }
+  const expiresAt = new Date(payload.exp * 1000);
+  if (Number.isNaN(expiresAt.getTime())) {
+    throw new jwt.JsonWebTokenError("Invalid refresh token expiration");
+  }
+  return expiresAt;
+}

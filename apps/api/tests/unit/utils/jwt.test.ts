@@ -126,7 +126,6 @@ describe("JWT Utils", () => {
       expect(TOKEN_CONFIG.REFRESH_TOKEN).toBeDefined();
       expect(TOKEN_CONFIG.REFRESH_TOKEN.secret).toBeDefined();
       expect(TOKEN_CONFIG.REFRESH_TOKEN.expiresIn).toBeDefined();
-      expect(TOKEN_CONFIG.REFRESH_TOKEN.days).toBeGreaterThan(0);
     });
   });
 });

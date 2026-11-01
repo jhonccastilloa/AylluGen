@@ -16,7 +16,7 @@ import {
   verifyRefreshToken,
   TokenPayload,
 } from "../../../../shared/utils/jwt";
-import { getRefreshTokenExpirationDate } from "../../../../shared/constants/tokens";
+import { getRefreshTokenExpirationDate } from "../../../../shared/utils/jwt";
 import {
   ConflictError,
   AuthenticationError,
@@ -53,7 +53,7 @@ export class AuthService {
       const accessToken = generateAccessToken(tokenPayload);
       const refreshToken = generateRefreshToken(tokenPayload);
 
-      const refreshTokenExpiresAt = getRefreshTokenExpirationDate();
+      const refreshTokenExpiresAt = getRefreshTokenExpirationDate(refreshToken);
 
       await this.refreshTokenRepository.create(
         refreshToken,
@@ -94,7 +94,7 @@ export class AuthService {
       const accessToken = generateAccessToken(tokenPayload);
       const refreshToken = generateRefreshToken(tokenPayload);
 
-      const refreshTokenExpiresAt = getRefreshTokenExpirationDate();
+      const refreshTokenExpiresAt = getRefreshTokenExpirationDate(refreshToken);
 
       await this.refreshTokenRepository.deleteByUserId(user.id);
       await this.refreshTokenRepository.create(
@@ -137,7 +137,8 @@ export class AuthService {
     const accessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
 
-    const refreshTokenExpiresAt = getRefreshTokenExpirationDate();
+    const refreshTokenExpiresAt =
+      getRefreshTokenExpirationDate(newRefreshToken);
 
     await this.refreshTokenRepository.delete(data.refreshToken);
     await this.refreshTokenRepository.create(
