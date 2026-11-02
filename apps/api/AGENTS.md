@@ -55,4 +55,4 @@ Elegir verificaciones según el cambio. Los comandos directos `pnpm exec` requie
 - Preservar ownership, migraciones SQL, constraints y triggers existentes. `prisma db push` no sustituye el historial SQL.
 - No copiar clientes transaccionales mutables de repositorios singleton antiguos.
 - Las pruebas de integración requieren una base aislada; las de sync usan `SYNC_TEST_DATABASE_URL`. Una suite con pruebas omitidas no acredita integración.
-- La traducción de errores Prisma y las garantías de concurrencia de Species siguen pendientes; no atribuirlas al mapper HTTP.
+- El mapper HTTP traduce globalmente P2002/P2003 a 409 y P2025 a 404 con mensajes genéricos. La integración con PostgreSQL real y las garantías de concurrencia de Species siguen pendientes; no atribuirlas al mapper HTTP.

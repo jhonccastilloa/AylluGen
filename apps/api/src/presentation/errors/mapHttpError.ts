@@ -4,6 +4,7 @@ import { DomainError } from "@ayllugen/core/errors/domain";
 import type { DomainErrorKind } from "@ayllugen/core/errors/domain";
 import { UnauthenticatedError } from "./UnauthenticatedError";
 import type { HttpErrorResponse } from "./HttpErrorResponse";
+import { Prisma } from "../../infrastructure/database/prisma/generated/client";
 
 const statusByKind = {
   validation: 400,
@@ -61,13 +62,49 @@ export function mapHttpError(error: unknown): HttpErrorResponse {
     if (error.type === "entity.too.large" && error.status === 413) {
       return {
         statusCode: 413,
-        body: { error: "El cuerpo de la solicitud es demasiado grande.", code: "PAYLOAD_TOO_LARGE" },
+        body: {
+          error: "El cuerpo de la solicitud es demasiado grande.",
+          code: "PAYLOAD_TOO_LARGE",
+        },
       };
+    }
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
+      case "P2002":
+        return {
+          statusCode: 409,
+          body: {
+            error: "Ya existe un registro con esos datos.",
+            code: "RESOURCE_CONFLICT",
+          },
+        };
+      case "P2003":
+        return {
+          statusCode: 409,
+          body: {
+            error:
+              "La operación entra en conflicto con registros relacionados.",
+            code: "RELATION_CONFLICT",
+          },
+        };
+      case "P2025":
+        return {
+          statusCode: 404,
+          body: {
+            error: "No se encontró un registro necesario para la operación.",
+            code: "RESOURCE_NOT_FOUND",
+          },
+        };
     }
   }
 
   return {
     statusCode: 500,
-    body: { error: "Error interno del servidor.", code: "INTERNAL_SERVER_ERROR" },
+    body: {
+      error: "Error interno del servidor.",
+      code: "INTERNAL_SERVER_ERROR",
+    },
   };
 }

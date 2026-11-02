@@ -20,6 +20,7 @@ import { makeRequestLogger } from "../../../src/presentation/middlewares/request
 import type { ILogger } from "../../../src/shared/logging/Logger";
 import { generateAccessToken } from "../../../src/shared/utils/jwt";
 import { config } from "../../../src/shared/constants/config";
+import { Prisma } from "../../../src/infrastructure/database/prisma/generated/client";
 const logger: ILogger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -339,6 +340,31 @@ describe("Species HTTP error flow", () => {
     expect(await oversized.json()).toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
     expect(repository.insert).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ["P2002", 409, "RESOURCE_CONFLICT"],
+    ["P2003", 409, "RELATION_CONFLICT"],
+    ["P2025", 404, "RESOURCE_NOT_FOUND"],
+    ["P2039", 500, "INTERNAL_SERVER_ERROR"],
+  ])(
+    "handles Prisma %s globally without exposing technical details",
+    async (code, status, publicCode) => {
+      repository.findByName.mockResolvedValueOnce(null);
+      repository.insert.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("private database values", {
+          code: String(code),
+          clientVersion: "7.10.0",
+          meta: { target: ["private_column"] },
+        }),
+      );
+      const response = await post(JSON.stringify({ name: "Alpaca" }));
+      expect(response.status).toBe(status);
+      const body = await response.json();
+      expect(body).toMatchObject({ code: publicCode });
+      expect(JSON.stringify(body)).not.toMatch(/private|P20/);
+      expect(logger.error).toHaveBeenCalledTimes(status === 500 ? 1 : 0);
+    },
+  );
 
   test.each([
     ["client-request-1", true],

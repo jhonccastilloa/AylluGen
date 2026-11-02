@@ -56,7 +56,7 @@ La autenticación utiliza `UnauthenticatedError`; acepta un único token Bearer 
 
 Los mensajes técnicos de Prisma no deben convertirse en mensajes públicos de dominio. `AppError`, el manejo HTTP anterior, el middleware de validación antiguo y el contenedor `shared/di` fueron retirados. Sus consumidores pendientes conservan imports rotos hasta su migración; es una decisión explícita de esta etapa.
 
-La traducción de errores Prisma queda pendiente de replantear. Los casos de uso realizan las comprobaciones de negocio; los errores de persistencia que escapan de ellas llegan al manejo HTTP genérico como errores inesperados.
+Los casos de uso conservan sus errores de negocio específicos. Como respaldo global, `presentation/errors/mapHttpError.ts` traduce errores conocidos de Prisma: `P2002` a 409 `RESOURCE_CONFLICT`, `P2003` a 409 `RELATION_CONFLICT` y `P2025` a 404 `RESOURCE_NOT_FOUND`. Este último puede indicar un registro relacionado requerido, no necesariamente el recurso de la URL. Las respuestas usan mensajes públicos fijos y no exponen mensajes ni metadatos de Prisma. Los demás errores, incluidos fallos de conexión o validación de consultas Prisma, conservan el 500 genérico. Los repositorios no necesitan capturar estas excepciones y el core no depende de Prisma.
 
 ## Borrado de Species
 
@@ -93,7 +93,7 @@ Seguir nombres concretos como `SpecieEntity`, `CreateSpecieUseCase`, `SpeciePris
 
 ## Pendientes explícitos de Species
 
-- Definir la traducción de errores de persistencia cuando se retome ese alcance y verificarla con PostgreSQL real.
+- Verificar el manejo global de errores de persistencia con PostgreSQL real; las pruebas HTTP actuales simulan errores Prisma.
 - Alinear la búsqueda de nombres sin distinción de mayúsculas con la unicidad de la base.
 - Definir la política ante actualizaciones concurrentes y la garantía del borrado frente a asociaciones de animales.
 - Ampliar información de diagnóstico cuando se defina una política para detalles técnicos. La composición inyecta la instancia compartida de `infrastructure/logging/logger.ts`, construida mediante `createLogger.ts`, con contrato `shared/logging/Logger.ts` y contexto HTTP antes de los parsers. La instancia compartida es transitoria hasta migrar los consumidores antiguos a inyección.
