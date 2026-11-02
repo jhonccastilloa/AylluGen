@@ -12,13 +12,9 @@ type ISpecieRow = NonNullable<
 export class SpeciePrismaRepository implements ISpecieRepository {
   constructor(private readonly db: PrismaTransaction = prisma) {}
 
-  private active(userId: string) {
-    return { userId, deletedAt: null };
-  }
-
   async list(userId: string): Promise<SpecieEntity[]> {
     const rows = await this.db.species.findMany({
-      where: this.active(userId),
+      where: { userId },
       orderBy: { name: "asc" },
     });
     return rows.map(SpeciePrismaRepository.toEntity);
@@ -26,17 +22,12 @@ export class SpeciePrismaRepository implements ISpecieRepository {
 
   async findById(userId: string, id: string): Promise<SpecieEntity | null> {
     const row = await this.db.species.findFirst({
-      where: { ...this.active(userId), id },
+      where: { userId, id },
     });
     return row ? SpeciePrismaRepository.toEntity(row) : null;
   }
 
-  async findByName(
-    userId: string,
-    name: string,
-  ): Promise<SpecieEntity | null> {
-    // Names remain reserved by the database's (userId, name) unique constraint
-    // after soft deletion, so check deleted rows too.
+  async findByName(userId: string, name: string): Promise<SpecieEntity | null> {
     const row = await this.db.species.findFirst({
       where: {
         userId,
@@ -48,7 +39,8 @@ export class SpeciePrismaRepository implements ISpecieRepository {
 
   async hasAnimals(userId: string, specieId: string): Promise<boolean> {
     const count = await this.db.animal.count({
-      where: { ...this.active(userId), speciesId: specieId },
+      // Historical animals still reference their species through the foreign key.
+      where: { userId, speciesId: specieId },
     });
     return count > 0;
   }
@@ -67,7 +59,7 @@ export class SpeciePrismaRepository implements ISpecieRepository {
 
   async update(specie: SpecieEntity): Promise<SpecieEntity> {
     const row = await this.db.species.update({
-      where: { id: specie.id, ...this.active(specie.userId) },
+      where: { id: specie.id, userId: specie.userId },
       data: {
         name: specie.name,
         description: specie.description,
@@ -78,9 +70,8 @@ export class SpeciePrismaRepository implements ISpecieRepository {
   }
 
   async delete(userId: string, id: string): Promise<void> {
-    await this.db.species.update({
-      where: { id, ...this.active(userId) },
-      data: { deletedAt: new Date() },
+    await this.db.species.delete({
+      where: { id, userId },
     });
   }
 

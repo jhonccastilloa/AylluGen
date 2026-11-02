@@ -71,17 +71,16 @@ model Animal {
 }
 
 model Species {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  animals     Animal[]
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animals         Animal[]
   clientCreatedAt DateTime @default(now())
   clientUpdatedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([userId, name])
   @@index([userId])
@@ -89,21 +88,21 @@ model Species {
 }
 
 model Breeding {
-  id           String     @id @default(uuid())
-  maleId       String
-  femaleId     String
-  projectedCOI Float
-  riskLevel    RiskLevel
-  offspringId  String?
-  offspring    Animal?    @relation(fields: [offspringId], references: [id], onDelete: SetNull)
-  breedingDate DateTime?
-  notes        String?
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientCreatedAt DateTime @default(now())
-  clientUpdatedAt DateTime @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id              String    @id @default(uuid())
+  maleId          String
+  femaleId        String
+  projectedCOI    Float
+  riskLevel       RiskLevel
+  offspringId     String?
+  offspring       Animal?   @relation(fields: [offspringId], references: [id], onDelete: SetNull)
+  breedingDate    DateTime?
+  notes           String?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientCreatedAt DateTime  @default(now())
+  clientUpdatedAt DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([userId])
   @@index([maleId])
@@ -113,20 +112,20 @@ model Breeding {
 }
 
 model HealthRecord {
-  id          String     @id @default(uuid())
-  animalId    String
-  animal      Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  type        HealthType
-  date        DateTime
-  notes       String?
-  nextDueDate DateTime?
-  completed   Boolean    @default(true)
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientCreatedAt DateTime @default(now())
-  clientUpdatedAt DateTime @default(now())
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id              String     @id @default(uuid())
+  animalId        String
+  animal          Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type            HealthType
+  date            DateTime
+  notes           String?
+  nextDueDate     DateTime?
+  completed       Boolean    @default(true)
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientCreatedAt DateTime   @default(now())
+  clientUpdatedAt DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([userId])
   @@index([animalId])
@@ -136,21 +135,21 @@ model HealthRecord {
 }
 
 model ProductionRecord {
-  id           String         @id @default(uuid())
-  animalId     String
-  animal       Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  type         ProductionType
-  date         DateTime
-  value        Float
-  unit         String
-  qualityScore Int?
-  notes        String?
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientCreatedAt DateTime @default(now())
-  clientUpdatedAt DateTime @default(now())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id              String         @id @default(uuid())
+  animalId        String
+  animal          Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type            ProductionType
+  date            DateTime
+  value           Float
+  unit            String
+  qualityScore    Int?
+  notes           String?
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientCreatedAt DateTime       @default(now())
+  clientUpdatedAt DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([userId])
   @@index([animalId])

@@ -56,6 +56,14 @@ La autenticación utiliza `UnauthenticatedError`; acepta un único token Bearer 
 
 Los mensajes técnicos de Prisma no deben convertirse en mensajes públicos de dominio. `AppError`, el manejo HTTP anterior, el middleware de validación antiguo y el contenedor `shared/di` fueron retirados. Sus consumidores pendientes conservan imports rotos hasta su migración; es una decisión explícita de esta etapa.
 
+La traducción de errores Prisma queda pendiente de replantear. Los casos de uso realizan las comprobaciones de negocio; los errores de persistencia que escapan de ellas llegan al manejo HTTP genérico como errores inesperados.
+
+## Borrado de Species
+
+El borrado es físico y solo se permite si ningún animal del usuario referencia la especie, incluidos animales eliminados lógicamente. La clave foránea `Animal.speciesId` conserva `onDelete: Restrict` como garantía de base de datos. El nombre queda disponible al eliminar la fila; una creación posterior recibe un ID nuevo. No existe restauración de especies. El trigger existente mantiene el registro técnico del borrado en `sync_records`.
+
+La migración `20261101010000_species_physical_deletion` termina los borrados lógicos anteriores y retira `Species.deletedAt`. Si una especie previamente eliminada todavía tiene animales asociados, la clave foránea impide aplicar esa limpieza; no se eliminan animales en cascada.
+
 ## Añadir el siguiente módulo
 
 1. Acordar reglas, ownership y alcance funcional de la migración.
@@ -85,7 +93,7 @@ Seguir nombres concretos como `SpecieEntity`, `CreateSpecieUseCase`, `SpeciePris
 
 ## Pendientes explícitos de Species
 
-- Traducir errores Prisma reconocidos a errores de negocio, con pruebas del adaptador.
+- Definir la traducción de errores de persistencia cuando se retome ese alcance y verificarla con PostgreSQL real.
 - Alinear la búsqueda de nombres sin distinción de mayúsculas con la unicidad de la base.
 - Definir la política ante actualizaciones concurrentes y la garantía del borrado frente a asociaciones de animales.
 - Ampliar información de diagnóstico cuando se defina una política para detalles técnicos. La composición inyecta la instancia compartida de `infrastructure/logging/logger.ts`, construida mediante `createLogger.ts`, con contrato `shared/logging/Logger.ts` y contexto HTTP antes de los parsers. La instancia compartida es transitoria hasta migrar los consumidores antiguos a inyección.
