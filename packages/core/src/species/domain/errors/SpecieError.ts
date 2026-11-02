@@ -20,7 +20,6 @@ export class SpecieError extends DomainError {
   constructor(
     public readonly code: SpecieErrorCode,
     message: string,
-    public readonly field?: "name",
   ) {
     super(code, kindByCode[code], message);
   }
