@@ -2,180 +2,59 @@ import {
   registerSchema,
   loginSchema,
   refreshTokenSchema,
-} from "../../../src/modules/auth/application/schemas/auth.schema";
-import { updateUserSchema } from "../../../src/modules/user/application/schemas/user.schema";
+  changePasswordSchema,
+} from "../../../src/modules/auth/presentation/http/authSchema";
+import { PlainPassword } from "@ayllugen/core/auth/domain/value-objects/PlainPassword";
 
-describe("Auth Schemas", () => {
-  describe("registerSchema", () => {
-    it("should validate correct data", () => {
-      const validData = {
-        dni: "12345678",
-        password: "Password123!",
-      };
-
-      const result = registerSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
-
-    it("should reject invalid DNI (not 8 digits)", () => {
-      const invalidData = {
-        dni: "123456",
-        password: "Password123!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues).toContainEqual(
-          expect.objectContaining({
-            path: ["dni"],
-          }),
-        );
-      }
-    });
-
-    it("should reject DNI with letters", () => {
-      const invalidData = {
-        dni: "abcdefgh",
-        password: "Password123!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject weak password (no uppercase)", () => {
-      const invalidData = {
-        dni: "12345678",
-        password: "password123!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject weak password (no lowercase)", () => {
-      const invalidData = {
-        dni: "12345678",
-        password: "PASSWORD123!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject weak password (no number)", () => {
-      const invalidData = {
-        dni: "12345678",
-        password: "Password!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject weak password (no special character)", () => {
-      const invalidData = {
-        dni: "12345678",
-        password: "Password123",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
-
-    it("should reject password shorter than 8 characters", () => {
-      const invalidData = {
-        dni: "12345678",
-        password: "Pass1!",
-      };
-
-      const result = registerSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
+describe("Account input validation", () => {
+  test.each(["123", "abcdefgh", "123456789"])(
+    "rejects invalid DNI %s",
+    (dni) => {
+      expect(
+        registerSchema.safeParse({ dni, password: "Password123!" }).success,
+      ).toBe(false);
+    },
+  );
+  test.each([
+    "password123!",
+    "PASSWORD123!",
+    "Password!",
+    "Password123",
+    "Pass1!",
+    "A1!" + "é".repeat(35),
+  ])("rejects invalid new password in the core: %s", (password) => {
+    expect(() => PlainPassword.create(password)).toThrow();
   });
-
-  describe("loginSchema", () => {
-    it("should validate correct data", () => {
-      const validData = {
-        dni: "12345678",
-        password: "Password123!",
-      };
-
-      const result = loginSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
-
-    it("should accept any password for login", () => {
-      const validData = {
-        dni: "12345678",
-        password: "any",
-      };
-
-      const result = loginSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
+  test("accepts exactly 72 UTF-8 bytes without trimming or changing the password", () => {
+    const value = "Aa1!" + "é".repeat(34);
+    expect(PlainPassword.create(value).value).toBe(value);
   });
-
-  describe("refreshTokenSchema", () => {
-    it("should validate correct data", () => {
-      const validData = {
-        refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      };
-
-      const result = refreshTokenSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
-
-    it("should reject missing refreshToken", () => {
-      const invalidData = {};
-
-      const result = refreshTokenSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
+  test("preserves the original value but redacts string and JSON representations", () => {
+    const value = " Password123! ";
+    const password = PlainPassword.create(value);
+    expect(password.value).toBe(value);
+    expect(String(password)).toBe("[REDACTED]");
+    expect(JSON.stringify({ password })).toBe('{"password":"[REDACTED]"}');
+    expect({ ...password }).toEqual({});
   });
-});
-
-describe("User Schemas", () => {
-  describe("updateUserSchema", () => {
-    it("should validate correct password update", () => {
-      const validData = {
-        password: "NewPassword123!",
-      };
-
-      const result = updateUserSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
-
-    it("should accept empty object (no update)", () => {
-      const validData = {};
-
-      const result = updateUserSchema.safeParse(validData);
-
-      expect(result.success).toBe(true);
-    });
-
-    it("should reject weak password in update", () => {
-      const invalidData = {
-        password: "weak",
-      };
-
-      const result = updateUserSchema.safeParse(invalidData);
-
-      expect(result.success).toBe(false);
-    });
+  test("login does not require meeting new-password complexity rules", () => {
+    expect(
+      loginSchema.safeParse({ dni: "01234567", password: "legacy" }).success,
+    ).toBe(true);
+  });
+  test("requires a refresh token and both passwords for a password change", () => {
+    expect(refreshTokenSchema.safeParse({}).success).toBe(false);
+    expect(refreshTokenSchema.safeParse({ refreshToken: "" }).success).toBe(
+      false,
+    );
+    expect(
+      changePasswordSchema.safeParse({ newPassword: "Password123!" }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "old",
+        newPassword: "Password123!",
+      }).success,
+    ).toBe(true);
   });
 });

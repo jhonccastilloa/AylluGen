@@ -4,7 +4,8 @@ import {
   loginSchema,
   refreshTokenSchema,
   authResponseSchema,
-} from "../../../modules/auth/application/schemas/auth.schema";
+  changePasswordSchema,
+} from "../../../modules/auth/presentation/http/authSchema";
 
 export function registerAuthRoutes(registry: OpenAPIRegistry) {
   registry.registerPath({
@@ -75,7 +76,8 @@ export function registerAuthRoutes(registry: OpenAPIRegistry) {
     path: "/api/auth/refresh",
     tags: ["Auth"],
     summary: "Refrescar token de acceso",
-    description: "Genera un nuevo token de acceso usando el refresh token",
+    description:
+      "Consume el refresh token y devuelve nuevos tokens y la cuenta. El token anterior deja de ser válido.",
     request: {
       body: {
         content: {
@@ -90,7 +92,7 @@ export function registerAuthRoutes(registry: OpenAPIRegistry) {
         description: "Token refrescado exitosamente",
         content: {
           "application/json": {
-            schema: authResponseSchema.pick({ accessToken: true }),
+            schema: authResponseSchema,
           },
         },
       },
@@ -106,7 +108,6 @@ export function registerAuthRoutes(registry: OpenAPIRegistry) {
     tags: ["Auth"],
     summary: "Cerrar sesión",
     description: "Cierra la sesión del usuario eliminando el refresh token",
-    security: [{ bearerAuth: [] }],
     request: {
       body: {
         content: {
@@ -117,12 +118,29 @@ export function registerAuthRoutes(registry: OpenAPIRegistry) {
       },
     },
     responses: {
-      200: {
+      204: {
         description: "Sesión cerrada exitosamente",
       },
       400: {
         description: "Error al cerrar sesión",
       },
+    },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/api/auth/change-password",
+    tags: ["Auth"],
+    summary: "Cambiar contraseña y cerrar todas las sesiones de renovación",
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        content: { "application/json": { schema: changePasswordSchema } },
+      },
+    },
+    responses: {
+      204: { description: "Contraseña actualizada" },
+      400: { description: "Contraseña nueva inválida" },
+      401: { description: "Credenciales inválidas" },
     },
   });
 }

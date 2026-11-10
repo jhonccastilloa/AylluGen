@@ -1,3 +1,4 @@
+import "./extendZod";
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
