@@ -10,6 +10,7 @@ const statusByKind = {
   validation: 400,
   not_found: 404,
   conflict: 409,
+  unauthenticated: 401,
 } satisfies Record<DomainErrorKind, number>;
 
 export function mapHttpError(error: unknown): HttpErrorResponse {

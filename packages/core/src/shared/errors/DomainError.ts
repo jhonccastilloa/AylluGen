@@ -1,4 +1,5 @@
-export type DomainErrorKind = "validation" | "not_found" | "conflict";
+export type DomainErrorKind =
+  "validation" | "not_found" | "conflict" | "unauthenticated";
 
 /** Expected business failures. Transport adapters decide how to present them. */
 export abstract class DomainError extends Error {

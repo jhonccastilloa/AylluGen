@@ -3,6 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
+    "./shared/ports/IdGeneratorPort": {
+      "types": "./dist/shared/ports/IdGeneratorPort.d.ts",
+      "default": "./dist/shared/ports/IdGeneratorPort.js"
+    },
+    "./user/*": {
+      "types": "./dist/user/*.d.ts",
+      "default": "./dist/user/*.js"
+    },
+    "./auth/*": {
+      "types": "./dist/auth/*.d.ts",
+      "default": "./dist/auth/*.js"
+    },
     "./errors/domain": {
       "types": "./dist/shared/errors/DomainError.d.ts",
       "default": "./dist/shared/errors/DomainError.js"
@@ -14,7 +26,18 @@
   },
   "typesVersions": {
     "*": {
-      "errors/domain": ["dist/shared/errors/DomainError"],
+      "shared/ports/IdGeneratorPort": [
+        "dist/shared/ports/IdGeneratorPort"
+      ],
+      "user/*": [
+        "dist/user/*"
+      ],
+      "auth/*": [
+        "dist/auth/*"
+      ],
+      "errors/domain": [
+        "dist/shared/errors/DomainError"
+      ],
       "species/*": [
         "dist/species/*"
       ]
