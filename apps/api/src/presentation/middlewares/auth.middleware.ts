@@ -1,18 +1,16 @@
-import type { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../../shared/utils/jwt";
+import type { Request, RequestHandler } from "express";
+import type { ITokenIdentity } from "@ayllugen/core/auth/domain/ports/TokenService";
 import { UnauthenticatedError } from "../errors/UnauthenticatedError";
+import { tokenService } from "../../modules/auth/infrastructure/security/tokenService";
 
 export interface AuthRequest extends Request {
-  user?: {
-    userId: string;
-    dni: string;
-  };
+  user?: ITokenIdentity;
 }
 
-export const authMiddleware = (
+export const authMiddleware: RequestHandler = (
   req: AuthRequest,
-  _res: Response,
-  next: NextFunction,
+  _res,
+  next,
 ) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -28,6 +26,6 @@ export const authMiddleware = (
   }
 
   const token = credentials[1];
-  req.user = verifyToken(token);
+  req.user = tokenService.verifyAccess(token);
   next();
 };

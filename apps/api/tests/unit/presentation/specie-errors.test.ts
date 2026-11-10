@@ -18,7 +18,7 @@ import { mapHttpError } from "../../../src/presentation/errors/mapHttpError";
 import { makeErrorHandler } from "../../../src/presentation/middlewares/http-error.middleware";
 import { makeRequestLogger } from "../../../src/presentation/middlewares/request-logger.middleware";
 import type { ILogger } from "../../../src/shared/logging/Logger";
-import { generateAccessToken } from "../../../src/shared/utils/jwt";
+import { JwtTokenService } from "../../../src/modules/auth/infrastructure/security/JwtTokenService";
 import { config } from "../../../src/shared/constants/config";
 import { Prisma } from "../../../src/infrastructure/database/prisma/generated/client";
 const logger: ILogger = {
@@ -142,13 +142,14 @@ describe("Species HTTP error flow", () => {
     const app = express();
     app.use(makeRequestLogger(logger));
     app.use(express.json({ limit: "1kb" }));
+    const tokens = new JwtTokenService(config);
     app.use("/species", createSpecieRouter(controller));
     app.use(errorHandler);
     server = await new Promise<Server>((resolve) => {
       const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
     });
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/species`;
-    token = generateAccessToken({ userId: "owner", dni: "12345678" });
+    token = tokens.issue({ userId: "owner", dni: "12345678" }).accessToken;
   });
 
   beforeEach(() => jest.clearAllMocks());

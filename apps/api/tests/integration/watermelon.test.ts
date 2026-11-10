@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { Client } from "pg";
 import type { Server } from "node:http";
 import App from "../../src/server";
-import { generateAccessToken } from "../../src/shared/utils/jwt";
+import { JwtTokenService } from "../../src/modules/auth/infrastructure/security/JwtTokenService";
+import { config } from "../../src/shared/constants/config";
 import { prisma } from "../../src/infrastructure/database/prisma/client";
 import { WatermelonRepository } from "../../src/modules/sync/infrastructure/repositories/WatermelonRepository";
 import { WatermelonService } from "../../src/modules/sync/application/services/WatermelonService";
@@ -36,6 +37,7 @@ jest.mock("../../src/infrastructure/logging/logger", () => {
 });
 
 const enabled = Boolean(process.env.SYNC_TEST_DATABASE_URL);
+const tokens = new JwtTokenService(config);
 const suite = enabled ? describe : describe.skip;
 suite("Native Watermelon sync / real PostgreSQL", () => {
   const repository = new WatermelonRepository();
@@ -161,7 +163,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
   it("Species REST uses the shared commands and round-trips their origin dates through sync", async () => {
     const headers = {
       "content-type": "application/json",
-      authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+      authorization: `Bearer ${tokens.issue({ userId, dni: "test" }).accessToken}`,
     };
     const created = await fetch(`${baseUrl}/species`, {
       method: "POST",
@@ -218,7 +220,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
   it("Species deletion shares the rule for REST and final-state sync batches", async () => {
     const { s, a, h, checkpoint } = await seed();
     const headers = {
-      authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+      authorization: `Bearer ${tokens.issue({ userId, dni: "test" }).accessToken}`,
     };
     const denied = await fetch(`${baseUrl}/species/${s.id}`, {
       method: "DELETE",
@@ -758,7 +760,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
     expect(result.changes.animals.deleted).toEqual([a.id]);
   });
   it("HTTP authenticates, validates, pushes and returns an unwrapped Watermelon response", async () => {
-    const token = generateAccessToken({ userId, dni: "test" });
+    const token = tokens.issue({ userId, dni: "test" }).accessToken;
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
@@ -817,7 +819,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+          authorization: `Bearer ${tokens.issue({ userId, dni: "test" }).accessToken}`,
         },
         body: JSON.stringify({}),
       });
@@ -830,7 +832,7 @@ suite("Native Watermelon sync / real PostgreSQL", () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${generateAccessToken({ userId, dni: "test" })}`,
+        authorization: `Bearer ${tokens.issue({ userId, dni: "test" }).accessToken}`,
       },
       body: JSON.stringify({
         lastPulledAt: 1,
