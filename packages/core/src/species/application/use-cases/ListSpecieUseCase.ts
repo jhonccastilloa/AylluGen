@@ -1,4 +1,4 @@
-import { SpecieEntity } from "../../domain/entities/SpecieEntity";
+import type { SpecieEntity } from "../../domain/entities/SpecieEntity";
 import type { ISpecieRepository } from "../../domain/ports/SpecieRepository";
 
 export class ListSpecieUseCase {

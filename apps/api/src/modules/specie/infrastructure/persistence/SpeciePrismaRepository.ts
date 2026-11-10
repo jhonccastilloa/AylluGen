@@ -1,16 +1,13 @@
 import { SpecieEntity } from "@ayllugen/core/species/domain/entities/SpecieEntity";
 import type { ISpecieRepository } from "@ayllugen/core/species/domain/ports/SpecieRepository";
-import {
-  prisma,
-  type PrismaTransaction,
-} from "@infrastructure/database/prisma/client";
+import type { PrismaTransaction } from "@infrastructure/database/prisma/client";
 
 type ISpecieRow = NonNullable<
   Awaited<ReturnType<PrismaTransaction["species"]["findFirst"]>>
 >;
 
 export class SpeciePrismaRepository implements ISpecieRepository {
-  constructor(private readonly db: PrismaTransaction = prisma) {}
+  constructor(private readonly db: PrismaTransaction) {}
 
   async list(userId: string): Promise<SpecieEntity[]> {
     const rows = await this.db.species.findMany({

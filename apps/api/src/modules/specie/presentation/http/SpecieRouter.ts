@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../../../../presentation/middlewares/auth.middleware";
 import validateUserId from "../../../../shared/utils/validateUserId";
-import { SpecieController } from "./SpecieController";
+import type { SpecieController } from "./SpecieController";
 
 export const createSpecieRouter = (controller: SpecieController): Router => {
   const router = Router();

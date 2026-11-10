@@ -1,7 +1,7 @@
-import { IIdGeneratorPort } from "../../../shared/ports/IdGeneratorPort";
+import type { IIdGeneratorPort } from "../../../shared/ports/IdGeneratorPort";
 import { SpecieEntity } from "../../domain/entities/SpecieEntity";
 import { SpecieError } from "../../domain/errors/SpecieError";
-import { ISpecieRepository } from "../../domain/ports/SpecieRepository";
+import type { ISpecieRepository } from "../../domain/ports/SpecieRepository";
 export interface ICreateSpecieInput {
   userId: string;
   name: string;

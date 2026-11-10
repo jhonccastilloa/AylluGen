@@ -1,4 +1,4 @@
-import { SpecieEntity } from "../entities/SpecieEntity";
+import type { SpecieEntity } from "../entities/SpecieEntity";
 
 export interface ISpecieRepository {
   list(userId: string): Promise<SpecieEntity[]>;

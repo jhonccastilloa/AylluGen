@@ -15,7 +15,16 @@ interface ISpecieProps {
 }
 
 export class SpecieEntity {
-  private constructor(private props: ISpecieProps) {}
+  private readonly props: Readonly<ISpecieProps>;
+
+  private constructor(props: ISpecieProps) {
+    this.props = {
+      id: props.id,
+      userId: props.userId,
+      name: props.name,
+      description: props.description,
+    };
+  }
 
   private static assertIdentity(
     props: Pick<ICreateSpecieProps, "id" | "userId">,
@@ -62,6 +71,7 @@ export class SpecieEntity {
     });
   }
 
+  /** Rehydrates trusted persistence data without creation validation or normalization. */
   static restore(props: ISpecieProps): SpecieEntity {
     return new SpecieEntity(props);
   }
