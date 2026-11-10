@@ -11,13 +11,14 @@ Species es la referencia implementada del flujo nuevo. Consultar
 - HTTP del módulo en `presentation/http`; repositorio Prisma en `infrastructure/persistence`. El contrato común `HttpResult` está en `src/presentation/http`.
 - Composición explícita: `src/composition/infrastructure.ts` y `container.ts`.
 - `src/modules/species` (plural) y los demás módulos antiguos son código pendiente de migración, no plantillas para módulos nuevos.
-- El agregador de rutas monta únicamente Species; la desactivación de las demás rutas es intencional durante la migración.
+- El agregador monta Species, Auth y `/users/me`; las demás rutas permanecen desactivadas. User/Auth comparten entidad y puerto de usuarios del core. DNI fijo, sesiones múltiples, cambio de contraseña con invalidación de todos los refresh; no montar edición genérica ni borrado de cuentas.
 - Respetar el alcance acordado. No migrar otros módulos, reactivar rutas ni modificar mobile/sync como efecto secundario.
 
 ## Reglas del flujo nuevo
 
 - Dominio, casos de uso y puertos pertenecen al core. El core no importa apps, Express, Prisma ni Inversify.
 - Inyectar dependencias por constructor y construirlas en la composición. No añadir decoradores ni bindings Inversify al flujo nuevo.
+- JWT se implementa en `JwtTokenService`; recibe configuración por constructor. `modules/auth/infrastructure/security/tokenService.ts` exporta una instancia configurada compartida por `buildInfrastructure` y `authMiddleware`. Los routers importan el middleware directamente; los casos de uso reciben `ITokenService` por constructor. El helper `shared/utils/jwt.ts` fue retirado.
 - El router adapta Express; el controlador valida entradas `unknown` con Zod, llama casos de uso y devuelve `HttpResult` con DTOs explícitos.
 - Obtener `userId` de la autenticación y pasarlo por operación; no tomarlo del body ni guardar un propietario mutable en el repositorio.
 - Importar entradas públicas que existan en los exports de los paquetes; usar `import type` para tipos. No importar `dist` directamente ni reutilizar antiguos imports cortos como `/species/create` o `/species/deletion-policy`.
@@ -54,5 +55,6 @@ Elegir verificaciones según el cambio. Los comandos directos `pnpm exec` requie
 - Usar el cliente Prisma de `src/infrastructure/database/prisma/client` e implementar los puertos del core.
 - Preservar ownership, migraciones SQL, constraints y triggers existentes. `prisma db push` no sustituye el historial SQL.
 - No copiar clientes transaccionales mutables de repositorios singleton antiguos.
+- Auth expone operaciones atómicas específicas mediante `IAuthRepository`; su adaptador usa escrituras anidadas y transacciones con bloqueo del usuario y verificación del hash. Las pruebas PostgreSQL de Auth requieren `AUTH_TEST_DATABASE_URL` aislada.
 - Las pruebas de integración requieren una base aislada; las de sync usan `SYNC_TEST_DATABASE_URL`. Una suite con pruebas omitidas no acredita integración.
 - El mapper HTTP traduce globalmente P2002/P2003 a 409 y P2025 a 404 con mensajes genéricos. La integración con PostgreSQL real y las garantías de concurrencia de Species siguen pendientes; no atribuirlas al mapper HTTP.

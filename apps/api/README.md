@@ -4,7 +4,7 @@ API Node.js/TypeScript con Express, Prisma/PostgreSQL, Zod y JWT dentro de un mo
 
 ## Estado del refactor
 
-Migración incremental hacia arquitectura hexagonal. **Species es el primer flujo integrado**: dominio y casos de uso en `packages/core`, adaptadores en `src/modules/specie` y ensamblaje explícito en `src/composition`.
+Migración incremental hacia arquitectura hexagonal. **Species, User y Auth están integrados**: dominio y casos de uso en `packages/core`, adaptadores en `src/modules` y ensamblaje explícito en `src/composition`.
 
 Los módulos anteriores permanecen como código pendiente de migración. Su presencia en el repositorio no implica que sus rutas estén montadas ni que sean el patrón para desarrollos nuevos.
 
@@ -43,14 +43,26 @@ Docker utiliza el contexto del monorepo: `docker build -f apps/api/Dockerfile .`
 
 ## Rutas montadas actualmente
 
-| Método             | Ruta               | Uso                                           |
-| ------------------ | ------------------ | --------------------------------------------- |
-| GET                | `/`                | Mensaje del servidor                          |
-| GET                | `/api-docs`        | Swagger UI                                    |
-| GET / POST         | `/api/species`     | Listar / crear especies                       |
-| GET / PUT / DELETE | `/api/species/:id` | Consultar / actualizar / eliminar una especie |
+| Método             | Ruta                        | Uso                                                    |
+| ------------------ | --------------------------- | ------------------------------------------------------ |
+| GET                | `/`                         | Mensaje del servidor                                   |
+| GET                | `/api-docs`                 | Swagger UI                                             |
+| GET / POST         | `/api/species`              | Listar / crear especies                                |
+| GET / PUT / DELETE | `/api/species/:id`          | Consultar / actualizar / eliminar una especie          |
+| POST               | `/api/auth/register`        | Crear cuenta y sesión (201)                            |
+| POST               | `/api/auth/login`           | Crear sesión independiente (200)                       |
+| POST               | `/api/auth/refresh`         | Rotar refresh y devolver nuevos tokens y usuario (200) |
+| POST               | `/api/auth/logout`          | Eliminar el refresh indicado, idempotente (204)        |
+| POST               | `/api/auth/change-password` | Verificar contraseña actual y cambiarla (204, Bearer)  |
+| GET                | `/api/users/me`             | Consultar únicamente mi cuenta (Bearer)                |
 
-Todas las rutas de Species requieren `Authorization: Bearer <token>` y operan sobre el usuario autenticado. Los endpoints de login/refresh, los demás módulos de negocio, sync y health checks están desactivados en el agregador durante esta etapa.
+Todas las rutas de Species requieren `Authorization: Bearer <token>` y operan sobre el usuario autenticado. Los demás módulos de negocio, sync y health checks están desactivados en el agregador durante esta etapa.
+
+User y Auth comparten la entidad y el puerto de usuarios del core. El DNI es fijo (8 dígitos). No se habilitan listado de usuarios, consulta por ID, edición genérica ni eliminación de cuenta. Registro y login reciben `{ dni, password }`; refresh y logout reciben `{ refreshToken }`. Registro/login/refresh devuelven `{ accessToken, refreshToken, user }`, con usuario `{ id, dni, createdAt, updatedAt }` y fechas ISO. Nunca se devuelve el hash.
+
+Se permiten varias sesiones por usuario. Cada refresh incluye un `jti` único; al renovarlo, el anterior se consume una sola vez y el plazo configurado empieza de nuevo. Logout afecta al refresh enviado. Cambiar contraseña recibe `{ currentPassword, newPassword }`, requiere Bearer e invalida todos los refresh tokens de la cuenta; debe iniciarse sesión de nuevo. Los access tokens emitidos siguen vigentes hasta vencer. Las contraseñas nuevas requieren al menos 8 caracteres, mayúscula, minúscula, número y carácter especial; su máximo es 72 bytes UTF-8 por el límite de bcrypt, sin truncar ni normalizar.
+
+La creación de cuenta y sesión usa una escritura anidada atómica. Login, rotación y cambio de contraseña usan transacciones con bloqueo de la fila del usuario y comparación del hash previamente verificado, sin mutar clientes compartidos. El trabajo de bcrypt se realiza antes de abrir la transacción.
 
 La fuente ejecutable de rutas es [createRoutes](src/presentation/routes/index.ts). Swagger conserva registros anteriores y no representa necesariamente lo que está montado; Species todavía no tiene registro OpenAPI dedicado.
 
@@ -68,11 +80,13 @@ pnpm lint
 
 La suite focalizada cubre errores de dominio, respuestas HTTP y Bearer con repositorio simulado. No verifica restricciones reales de PostgreSQL ni concurrencia.
 
+User/Auth: `pnpm exec jest tests/unit/presentation/auth-account.test.ts tests/unit/infrastructure/auth-persistence.test.ts tests/unit/validation/schemas.test.ts --runInBand`. Para verificar atomicidad y concurrencia con PostgreSQL real, configurar `AUTH_TEST_DATABASE_URL` con una base aislada y ejecutar `pnpm exec jest tests/integration/auth-persistence.test.ts --runInBand`. Esta suite aplica las migraciones en un schema único y lo elimina al terminar; se omite si falta la variable. No utiliza `DATABASE_URL` como alternativa.
+
 El typecheck general conserva fallos en código anterior, incluidos imports de `modules/species` y `AnimalService`. También hay pruebas antiguas pendientes de adaptar a los contratos del core. Los resultados históricos no representan el estado actual de toda la migración.
 
 ## Limitación de solicitudes
 
-La limitación de solicitudes se activa únicamente con `NODE_ENV=production`: límite general de 100 solicitudes por IP cada 15 minutos y límite de autenticación de 5 en los endpoints que lo utilicen. En desarrollo y pruebas se omite. Los contadores son locales a cada proceso; el límite de autenticación tendrá efecto cuando se reactiven sus rutas.
+La limitación de solicitudes se activa únicamente con `NODE_ENV=production`: límite general de 100 solicitudes por IP cada 15 minutos y límite de autenticación de 5 compartido entre registro, login y cambio de contraseña. En desarrollo y pruebas se omite. Los contadores son locales a cada proceso.
 
 ## Logging
 
