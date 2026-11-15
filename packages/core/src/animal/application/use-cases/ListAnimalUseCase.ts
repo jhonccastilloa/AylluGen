@@ -17,7 +17,7 @@ export interface IListAnimalInput {
 }
 
 export class ListAnimalUseCase {
-  constructor(private readonly repository: IAnimalRepository) {}
+  constructor(private readonly animalRepository: IAnimalRepository) {}
 
   async execute(input: IListAnimalInput): Promise<IAnimalPageResult> {
     const limit = input.limit ?? 50;
@@ -31,7 +31,7 @@ export class ListAnimalUseCase {
     ) {
       throw new AnimalError("ANIMAL_INVALID", "La paginación es inválida.");
     }
-    return this.repository.list(input.userId, {
+    return this.animalRepository.list(input.userId, {
       speciesId: input.speciesId,
       sex: input.sex,
       status: input.status === "ALL" ? undefined : (input.status ?? "ACTIVE"),

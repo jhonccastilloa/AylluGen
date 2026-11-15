@@ -11,12 +11,12 @@ export interface IChangePasswordInput {
 
 export class ChangePasswordUseCase {
   constructor(
-    private readonly users: IUserRepository,
-    private readonly auth: IAuthRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly authRepository: IAuthRepository,
     private readonly passwords: IPasswordHasher,
   ) {}
   async execute(userId: string, input: IChangePasswordInput): Promise<void> {
-    const user = await this.users.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (
       !user ||
       !(await this.passwords.verify(input.currentPassword, user.passwordHash))
@@ -24,7 +24,7 @@ export class ChangePasswordUseCase {
       throw new AuthError("INVALID_CREDENTIALS", "Credenciales inválidas.");
     const password = PlainPassword.create(input.newPassword);
     const hash = await this.passwords.hash(password);
-    if (!(await this.auth.changePassword(user, hash)))
+    if (!(await this.authRepository.changePassword(user, hash)))
       throw new AuthError("INVALID_CREDENTIALS", "Credenciales inválidas.");
   }
 }

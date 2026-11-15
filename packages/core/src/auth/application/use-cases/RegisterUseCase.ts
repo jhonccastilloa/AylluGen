@@ -16,8 +16,8 @@ export interface IRegisterInput {
 
 export class RegisterUseCase {
   constructor(
-    private readonly users: IUserRepository,
-    private readonly auth: IAuthRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly authRepository: IAuthRepository,
     private readonly passwords: IPasswordHasher,
     private readonly tokens: ITokenService,
     private readonly idGenerator: IIdGeneratorPort,
@@ -25,7 +25,7 @@ export class RegisterUseCase {
 
   async execute(input: IRegisterInput): Promise<IAuthResult> {
     const password = PlainPassword.create(input.password);
-    if (await this.users.findByDni(input.dni))
+    if (await this.userRepository.findByDni(input.dni))
       throw new UserError("USER_DUPLICATE", "El DNI ya está registrado.");
     const now = new Date();
     const user = UserEntity.create({
@@ -41,7 +41,7 @@ export class RegisterUseCase {
       token: issued.refreshToken,
       expiresAt: issued.refreshExpiresAt,
     });
-    const saved = await this.auth.register(user, session);
+    const saved = await this.authRepository.register(user, session);
     return {
       accessToken: issued.accessToken,
       refreshToken: issued.refreshToken,

@@ -7,13 +7,13 @@ import type { IAuthResult } from "../results/AuthResult";
 
 export class RefreshTokenUseCase {
   constructor(
-    private readonly users: IUserRepository,
-    private readonly auth: IAuthRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly authRepository: IAuthRepository,
     private readonly tokens: ITokenService,
   ) {}
   async execute(token: string): Promise<IAuthResult> {
     const identity = this.tokens.verifyRefresh(token);
-    const user = await this.users.findById(identity.userId);
+    const user = await this.userRepository.findById(identity.userId);
     if (!user)
       throw new AuthError(
         "INVALID_REFRESH_TOKEN",
@@ -25,7 +25,7 @@ export class RefreshTokenUseCase {
       token: issued.refreshToken,
       expiresAt: issued.refreshExpiresAt,
     });
-    if (!(await this.auth.rotateSession(user, token, session))) {
+    if (!(await this.authRepository.rotateSession(user, token, session))) {
       throw new AuthError(
         "INVALID_REFRESH_TOKEN",
         "Token de renovación inválido o expirado.",

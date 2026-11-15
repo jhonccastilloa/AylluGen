@@ -2,10 +2,10 @@ import { AnimalError } from "../../domain/errors/AnimalError";
 import type { IAnimalRepository } from "../../domain/ports/AnimalRepository";
 
 export class DeleteAnimalUseCase {
-  constructor(private readonly repository: IAnimalRepository) {}
+  constructor(private readonly animalRepository: IAnimalRepository) {}
 
   async execute(userId: string, id: string): Promise<void> {
-    await this.repository.withOwnerTransaction(userId, async (store) => {
+    await this.animalRepository.withOwnerTransaction(userId, async (store) => {
       if (!(await store.findById(userId, id)))
         throw new AnimalError("ANIMAL_NOT_FOUND", "Animal no encontrado.");
       if (await store.hasReferences(userId, id))

@@ -13,13 +13,13 @@ export interface ILoginInput {
 
 export class LoginUseCase {
   constructor(
-    private readonly users: IUserRepository,
-    private readonly auth: IAuthRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly authRepository: IAuthRepository,
     private readonly passwords: IPasswordHasher,
     private readonly tokens: ITokenService,
   ) {}
   async execute(input: ILoginInput): Promise<IAuthResult> {
-    const user = await this.users.findByDni(input.dni);
+    const user = await this.userRepository.findByDni(input.dni);
     if (
       !user ||
       !(await this.passwords.verify(input.password, user.passwordHash))
@@ -31,7 +31,7 @@ export class LoginUseCase {
       token: issued.refreshToken,
       expiresAt: issued.refreshExpiresAt,
     });
-    if (!(await this.auth.openSession(user, session))) {
+    if (!(await this.authRepository.openSession(user, session))) {
       throw new AuthError("INVALID_CREDENTIALS", "Credenciales inválidas.");
     }
     return {

@@ -1,8 +1,8 @@
 import type { IAuthRepository } from "../../domain/ports/AuthRepository";
 
 export class LogoutUseCase {
-  constructor(private readonly auth: IAuthRepository) {}
+  constructor(private readonly authRepository: IAuthRepository) {}
   execute(token: string): Promise<void> {
-    return this.auth.closeSession(token);
+    return this.authRepository.closeSession(token);
   }
 }

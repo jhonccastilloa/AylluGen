@@ -9,18 +9,18 @@ export interface IGetAnimalResult {
 }
 
 export class GetAnimalUseCase {
-  constructor(private readonly repository: IAnimalRepository) {}
+  constructor(private readonly animalRepository: IAnimalRepository) {}
 
   async execute(userId: string, id: string): Promise<IGetAnimalResult> {
-    const animal = await this.repository.findById(userId, id);
+    const animal = await this.animalRepository.findById(userId, id);
     if (!animal)
       throw new AnimalError("ANIMAL_NOT_FOUND", "Animal no encontrado.");
     const [father, mother] = await Promise.all([
       animal.fatherId
-        ? this.repository.findById(userId, animal.fatherId)
+        ? this.animalRepository.findById(userId, animal.fatherId)
         : null,
       animal.motherId
-        ? this.repository.findById(userId, animal.motherId)
+        ? this.animalRepository.findById(userId, animal.motherId)
         : null,
     ]);
     return { animal, father, mother };

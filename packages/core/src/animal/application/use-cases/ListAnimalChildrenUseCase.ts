@@ -10,7 +10,7 @@ export interface IListAnimalChildrenInput {
 }
 
 export class ListAnimalChildrenUseCase {
-  constructor(private readonly repository: IAnimalRepository) {}
+  constructor(private readonly animalRepository: IAnimalRepository) {}
 
   async execute(input: IListAnimalChildrenInput): Promise<IAnimalPageResult> {
     const limit = input.limit ?? 50;
@@ -24,9 +24,9 @@ export class ListAnimalChildrenUseCase {
     ) {
       throw new AnimalError("ANIMAL_INVALID", "La paginación es inválida.");
     }
-    if (!(await this.repository.findById(input.userId, input.id)))
+    if (!(await this.animalRepository.findById(input.userId, input.id)))
       throw new AnimalError("ANIMAL_NOT_FOUND", "Animal no encontrado.");
-    return this.repository.list(input.userId, {
+    return this.animalRepository.list(input.userId, {
       parentId: input.id,
       limit,
       offset,

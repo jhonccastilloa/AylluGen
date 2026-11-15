@@ -9,7 +9,7 @@ export interface ICreateSpecieInput {
 }
 export class CreateSpecieUseCase {
   constructor(
-    private readonly repository: ISpecieRepository,
+    private readonly specieRepository: ISpecieRepository,
     private readonly idGenerator: IIdGeneratorPort,
   ) {}
   async execute(input: ICreateSpecieInput): Promise<SpecieEntity> {
@@ -19,7 +19,7 @@ export class CreateSpecieUseCase {
       name: input.name,
       description: input.description ?? null,
     });
-    const existing = await this.repository.findByName(
+    const existing = await this.specieRepository.findByName(
       input.userId,
       specie.name,
     );
@@ -29,6 +29,6 @@ export class CreateSpecieUseCase {
         "Ya existe una especie con ese nombre.",
       );
     }
-    return this.repository.insert(specie);
+    return this.specieRepository.insert(specie);
   }
 }

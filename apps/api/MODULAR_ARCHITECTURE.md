@@ -145,6 +145,7 @@ Seguir nombres concretos como `SpecieEntity`, `CreateSpecieUseCase`, `SpeciePris
 - Las interfaces propias de los módulos migrados llevan el prefijo `I`: `IUserProps`, `IRefreshTokenProps`, `ITokenIdentity`, `IIssuedTokens`, puertos, entradas, resultados y DTOs. Los aliases de tipos, como `AuthErrorCode`, conservan nombres sin ese prefijo.
 - Usar `import type` para símbolos utilizados únicamente en anotaciones de tipos. Mantener imports de valor cuando se construyen instancias, se invocan métodos estáticos o se utiliza `instanceof`.
 - Preferir nombres descriptivos para dependencias, como `idGenerator`. En los controladores, guardar la entrada validada en una variable local (`input` o un nombre específico para identificadores) antes de llamar al caso de uso, separando validación, ejecución y mapeo de respuesta.
+- En los casos de uso, nombrar las dependencias de repositorio por módulo: `animalRepository`, `specieRepository`, `userRepository` y `authRepository`. Evitar nombres genéricos como `repository` o abreviados como `users` y `auth`, incluso cuando solo se inyecta un repositorio.
 - Cada error de dominio declara `public readonly code` con la unión de códigos de su módulo. El mapa `kindByCode` utiliza `satisfies Record<ErrorCode, DomainErrorKind>` para comprobar que cubre todos los códigos con categorías válidas.
 - Esta convención de tipos conserva los códigos y mensajes públicos existentes.
 

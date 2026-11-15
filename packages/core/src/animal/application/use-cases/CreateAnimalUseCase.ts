@@ -22,7 +22,7 @@ export interface ICreateAnimalInput {
 
 export class CreateAnimalUseCase {
   constructor(
-    private readonly repository: IAnimalRepository,
+    private readonly animalRepository: IAnimalRepository,
     private readonly idGenerator: IIdGeneratorPort,
   ) {}
 
@@ -43,9 +43,12 @@ export class CreateAnimalUseCase {
       createdAt: now,
       updatedAt: now,
     });
-    return this.repository.withOwnerTransaction(input.userId, async (store) => {
-      await AnimalValidator.validateCreation(store, animal);
-      return store.create(animal);
-    });
+    return this.animalRepository.withOwnerTransaction(
+      input.userId,
+      async (store) => {
+        await AnimalValidator.validateCreation(store, animal);
+        return store.create(animal);
+      },
+    );
   }
 }

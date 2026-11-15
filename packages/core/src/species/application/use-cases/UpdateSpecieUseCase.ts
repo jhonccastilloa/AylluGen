@@ -9,9 +9,9 @@ export interface IUpdateSpecieInput {
   description?: string | null;
 }
 export class UpdateSpecieUseCase {
-  constructor(private readonly repository: ISpecieRepository) {}
+  constructor(private readonly specieRepository: ISpecieRepository) {}
   async execute(input: IUpdateSpecieInput): Promise<SpecieEntity> {
-    const previousSpecie = await this.repository.findById(
+    const previousSpecie = await this.specieRepository.findById(
       input.userId,
       input.id,
     );
@@ -26,7 +26,7 @@ export class UpdateSpecieUseCase {
           ? previousSpecie.description
           : input.description,
     });
-    const existing = await this.repository.findByName(
+    const existing = await this.specieRepository.findByName(
       input.userId,
       specie.name,
     );
@@ -36,6 +36,6 @@ export class UpdateSpecieUseCase {
         "Ya existe una especie con ese nombre.",
       );
     }
-    return this.repository.update(specie);
+    return this.specieRepository.update(specie);
   }
 }
