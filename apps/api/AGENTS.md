@@ -11,7 +11,9 @@ Species es la referencia implementada del flujo nuevo. Consultar
 - HTTP del módulo en `presentation/http`; repositorio Prisma en `infrastructure/persistence`. El contrato común `HttpResult` está en `src/presentation/http`.
 - Composición explícita: `src/composition/infrastructure.ts` y `container.ts`.
 - `src/modules/species` (plural) y los demás módulos antiguos son código pendiente de migración, no plantillas para módulos nuevos.
-- El agregador monta Species, Auth y `/users/me`; las demás rutas permanecen desactivadas. User/Auth comparten entidad y puerto de usuarios del core. DNI fijo, sesiones múltiples, cambio de contraseña con invalidación de todos los refresh; no montar edición genérica ni borrado de cuentas.
+- El agregador monta Species, Animal, Auth y `/users/me`; las demás rutas permanecen desactivadas. User/Auth comparten entidad y puerto de usuarios del core. DNI fijo, sesiones múltiples, cambio de contraseña con invalidación de todos los refresh; no montar edición genérica ni borrado de cuentas.
+- Animal usa `packages/core/src/animal` y `modules/animal/{infrastructure/persistence,presentation/http}`. Consultar [sus reglas](docs/ANIMAL_MODULE.md). Los tipos, esquemas y reglas antiguos retenidos dentro del módulo son dependencias de consumidores pendientes, no contratos del flujo activo.
+- Cada migración debe retirar sus imports legacy de Animal en fuentes y pruebas, eliminar las declaraciones o archivos que pierdan su último consumidor y actualizar la [lista de retirada](docs/ANIMAL_MODULE.md#retirada-del-legacy). No añadir consumidores nuevos de esos contratos.
 - Respetar el alcance acordado. No migrar otros módulos, reactivar rutas ni modificar mobile/sync como efecto secundario.
 
 ## Reglas del flujo nuevo
@@ -56,5 +58,6 @@ Elegir verificaciones según el cambio. Los comandos directos `pnpm exec` requie
 - Preservar ownership, migraciones SQL, constraints y triggers existentes. `prisma db push` no sustituye el historial SQL.
 - No copiar clientes transaccionales mutables de repositorios singleton antiguos.
 - Auth expone operaciones atómicas específicas mediante `IAuthRepository`; su adaptador usa escrituras anidadas y transacciones con bloqueo del usuario y verificación del hash. Las pruebas PostgreSQL de Auth requieren `AUTH_TEST_DATABASE_URL` aislada.
+- Animal valida y escribe con `IAnimalRepository.withOwnerTransaction`: el adaptador bloquea la fila de `sync_clocks` antes de leer y utiliza un store transaccional nuevo, sin mutar el cliente compartido. Las pruebas PostgreSQL requieren `ANIMAL_TEST_DATABASE_URL` aislada. Borrado físico restringido por hijos y cualquier referencia de Salud, Producción o Reproducción; no reintroducir cascadas ni desvinculación automática.
 - Las pruebas de integración requieren una base aislada; las de sync usan `SYNC_TEST_DATABASE_URL`. Una suite con pruebas omitidas no acredita integración.
 - El mapper HTTP traduce globalmente P2002/P2003 a 409 y P2025 a 404 con mensajes genéricos. La integración con PostgreSQL real y las garantías de concurrencia de Species siguen pendientes; no atribuirlas al mapper HTTP.

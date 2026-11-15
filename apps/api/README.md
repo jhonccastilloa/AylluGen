@@ -4,7 +4,7 @@ API Node.js/TypeScript con Express, Prisma/PostgreSQL, Zod y JWT dentro de un mo
 
 ## Estado del refactor
 
-Migración incremental hacia arquitectura hexagonal. **Species, User y Auth están integrados**: dominio y casos de uso en `packages/core`, adaptadores en `src/modules` y ensamblaje explícito en `src/composition`.
+Migración incremental hacia arquitectura hexagonal. **Species, Animal, User y Auth están integrados**: dominio y casos de uso en `packages/core`, adaptadores en `src/modules` y ensamblaje explícito en `src/composition`.
 
 Los módulos anteriores permanecen como código pendiente de migración. Su presencia en el repositorio no implica que sus rutas estén montadas ni que sean el patrón para desarrollos nuevos.
 
@@ -43,20 +43,25 @@ Docker utiliza el contexto del monorepo: `docker build -f apps/api/Dockerfile .`
 
 ## Rutas montadas actualmente
 
-| Método             | Ruta                        | Uso                                                    |
-| ------------------ | --------------------------- | ------------------------------------------------------ |
-| GET                | `/`                         | Mensaje del servidor                                   |
-| GET                | `/api-docs`                 | Swagger UI                                             |
-| GET / POST         | `/api/species`              | Listar / crear especies                                |
-| GET / PUT / DELETE | `/api/species/:id`          | Consultar / actualizar / eliminar una especie          |
-| POST               | `/api/auth/register`        | Crear cuenta y sesión (201)                            |
-| POST               | `/api/auth/login`           | Crear sesión independiente (200)                       |
-| POST               | `/api/auth/refresh`         | Rotar refresh y devolver nuevos tokens y usuario (200) |
-| POST               | `/api/auth/logout`          | Eliminar el refresh indicado, idempotente (204)        |
-| POST               | `/api/auth/change-password` | Verificar contraseña actual y cambiarla (204, Bearer)  |
-| GET                | `/api/users/me`             | Consultar únicamente mi cuenta (Bearer)                |
+| Método             | Ruta                        | Uso                                                     |
+| ------------------ | --------------------------- | ------------------------------------------------------- |
+| GET                | `/`                         | Mensaje del servidor                                    |
+| GET                | `/api-docs`                 | Swagger UI                                              |
+| GET / POST         | `/api/species`              | Listar / crear especies                                 |
+| GET / PUT / DELETE | `/api/species/:id`          | Consultar / actualizar / eliminar una especie           |
+| POST               | `/api/auth/register`        | Crear cuenta y sesión (201)                             |
+| POST               | `/api/auth/login`           | Crear sesión independiente (200)                        |
+| POST               | `/api/auth/refresh`         | Rotar refresh y devolver nuevos tokens y usuario (200)  |
+| POST               | `/api/auth/logout`          | Eliminar el refresh indicado, idempotente (204)         |
+| POST               | `/api/auth/change-password` | Verificar contraseña actual y cambiarla (204, Bearer)   |
+| GET                | `/api/users/me`             | Consultar únicamente mi cuenta (Bearer)                 |
+| GET / POST         | `/api/animals`              | Listar con filtros y paginación / registrar animal      |
+| GET / PUT / DELETE | `/api/animals/:id`          | Consultar con padres / actualizar / borrado restringido |
+| GET                | `/api/animals/:id/children` | Listar hijos directos paginados, de todos los estados   |
 
-Todas las rutas de Species requieren `Authorization: Bearer <token>` y operan sobre el usuario autenticado. Los demás módulos de negocio, sync y health checks están desactivados en el agregador durante esta etapa.
+Todas las rutas de Species y Animal requieren `Authorization: Bearer <token>` y operan sobre el usuario autenticado. Los demás módulos de negocio, sync y health checks están desactivados en el agregador durante esta etapa.
+
+Animal: código manual obligatorio, crotal opcional, ambos normalizados a mayúsculas y únicos por cuenta. Nacimiento y baja usan `YYYY-MM-DD`; `isFounder` se calcula a partir de los padres. Venta/fallecimiento conservan genealogía e historial. El borrado es físico y solo se permite sin referencias. El listado muestra activos por defecto (`status=ALL` incluye todos), acepta `speciesId`, `sex`, `search`, `limit` (50 por defecto, máximo 100) y `offset`. Ver [contrato y migración de Animal](docs/ANIMAL_MODULE.md).
 
 User y Auth comparten la entidad y el puerto de usuarios del core. El DNI es fijo (8 dígitos). No se habilitan listado de usuarios, consulta por ID, edición genérica ni eliminación de cuenta. Registro y login reciben `{ dni, password }`; refresh y logout reciben `{ refreshToken }`. Registro/login/refresh devuelven `{ accessToken, refreshToken, user }`, con usuario `{ id, dni, createdAt, updatedAt }` y fechas ISO. Nunca se devuelve el hash.
 
@@ -82,7 +87,9 @@ La suite focalizada cubre errores de dominio, respuestas HTTP y Bearer con repos
 
 User/Auth: `pnpm exec jest tests/unit/presentation/auth-account.test.ts tests/unit/infrastructure/auth-persistence.test.ts tests/unit/validation/schemas.test.ts --runInBand`. Para verificar atomicidad y concurrencia con PostgreSQL real, configurar `AUTH_TEST_DATABASE_URL` con una base aislada y ejecutar `pnpm exec jest tests/integration/auth-persistence.test.ts --runInBand`. Esta suite aplica las migraciones en un schema único y lo elimina al terminar; se omite si falta la variable. No utiliza `DATABASE_URL` como alternativa.
 
-El typecheck general conserva fallos en código anterior, incluidos imports de `modules/species` y `AnimalService`. También hay pruebas antiguas pendientes de adaptar a los contratos del core. Los resultados históricos no representan el estado actual de toda la migración.
+Animal: `pnpm exec jest tests/unit/validation/animal-entity.test.ts tests/unit/presentation/animal.test.ts tests/unit/infrastructure/animal-persistence.test.ts --runInBand`. La suite `tests/integration/animal-persistence.test.ts` requiere `ANIMAL_TEST_DATABASE_URL` aislada, aplica todo el historial SQL en un schema único y lo elimina al terminar. Comprueba migración de filas antiguas, restricciones, rollback y concurrencia. Si se omite, no acredita esas garantías con PostgreSQL real.
+
+El typecheck general conserva fallos en código anterior, incluidos `modules/species`, módulos pendientes y las reglas antiguas de Animal todavía importadas por sync. También hay pruebas antiguas pendientes de adaptar a los contratos del core. Los resultados históricos no representan el estado actual de toda la migración.
 
 ## Limitación de solicitudes
 

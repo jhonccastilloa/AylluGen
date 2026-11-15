@@ -86,6 +86,7 @@ Por ejemplo, registro, login y refresh usan `AuthDtoMapper.toResponse(...)` para
 - Las entidades seleccionan y copian las propiedades recibidas para que modificar el objeto de entrada no altere su estado. Los valores mutables, como `Date`, se copian tanto al construir como al devolverlos mediante getters.
 - `restore()` se reserva para entidades reconstruidas por adaptadores de persistencia. En User y Species confía en los datos persistidos: omite las validaciones de `create()` (incluidas las fechas de User) y la normalización, conservando los valores almacenados. Mantiene las mismas copias defensivas que la creación y espera los tipos declarados, incluidas instancias `Date`; no es una entrada para datos HTTP.
 - RefreshToken utiliza únicamente `create()`, ya que actualmente no necesita reconstrucción desde persistencia. Se añade `restore()` cuando existe ese uso concreto.
+- Animal utiliza strings `YYYY-MM-DD` para fechas de calendario y `Date` con copias defensivas para timestamps. `create()` valida y normaliza código/crotal; `restore()` confía en persistencia. `isFounder` es derivado, no persistido.
 
 ## Errores
 
@@ -101,11 +102,25 @@ Los casos de uso conservan sus errores de negocio específicos. Como respaldo gl
 
 ## Borrado de Species
 
-El borrado es físico y solo se permite si ningún animal del usuario referencia la especie, incluidos animales eliminados lógicamente. La clave foránea `Animal.speciesId` conserva `onDelete: Restrict` como garantía de base de datos. El nombre queda disponible al eliminar la fila; una creación posterior recibe un ID nuevo. No existe restauración de especies. El trigger existente mantiene el registro técnico del borrado en `sync_records`.
+El borrado es físico y solo se permite si ningún animal del usuario referencia la especie, incluidos vendidos y fallecidos. La clave foránea `Animal.speciesId` conserva `onDelete: Restrict` como garantía de base de datos. El nombre queda disponible al eliminar la fila; una creación posterior recibe un ID nuevo. No existe restauración de especies. El trigger existente mantiene el registro técnico del borrado en `sync_records`.
 
 La migración `20261101010000_species_physical_deletion` termina los borrados lógicos anteriores y retira `Species.deletedAt`. Si una especie previamente eliminada todavía tiene animales asociados, la clave foránea impide aplicar esa limpieza; no se eliminan animales en cascada.
 
 ## Añadir el siguiente módulo
+
+### Referencia Animal
+
+Animal está migrado con creación, actualización parcial, consulta con padres directos, listado filtrado/paginado, hijos directos paginados y eliminación física restringida. Sus contratos y decisiones se detallan en [Animal](docs/ANIMAL_MODULE.md). Las rutas y su registro OpenAPI reflejan este alcance.
+
+Las mutaciones usan `IAnimalRepository.withOwnerTransaction`, que entrega un `IAnimalStore` para ejecutar lecturas, reglas y escritura dentro de la misma operación atómica. Esta separación responde a la validación real de genealogía, unicidad y fechas: no introduce un gestor transaccional compartido entre módulos. Prisma implementa el store con un cliente transaccional nuevo y bloquea la fila del propietario en `sync_clocks` antes de leer, con aislamiento Read Committed. Así reutiliza el mutex que ya emplean los triggers técnicos, sin clientes mutables ni una cadena de servicios legacy.
+
+Las reglas entre animales están en el dominio; la aplicación consulta especie, padres, referencias y ascendencia a través del puerto. La existencia de una especie propia es una consulta de relación del store, ejecutada en la misma transacción. El adaptador realiza filtros, paginación, conteos y recorrido de ascendencia en PostgreSQL. La consulta de hijos incluye todos los estados, mientras que el listado general usa activos por defecto.
+
+`application/services/AnimalValidator.ts` agrupa los métodos estáticos `validateCreation(store, animal)` y `validateUpdate(store, previousAnimal, nextAnimal)`, con comprobaciones comunes en un método privado estático. Actualización recibe el estado anterior y el propuesto para comprobar ciclos, fechas de hijos y restricciones de especie/sexo cuando corresponde. El caso de uso pasa el `IAnimalStore` de `withOwnerTransaction` en cada llamada. El validador no almacena estado ni dependencias compartidas y no requiere instancias en composición.
+
+`20261110000000_animal_lifecycle` retira el trigger destructivo `sync_animal_deleted`, reemplaza cascadas/desvinculaciones por restricciones y añade claves foráneas para reproductores macho/hembra. Conserva el seguimiento técnico y las comprobaciones de ownership, actualizadas al nuevo modelo, con comprobación adicional de ciclos y cronología parental. Mantiene timestamps de dispositivo como infraestructura. Las pruebas PostgreSQL son opt-in; su omisión no acredita integración ni aplicación de la migración.
+
+### Pasos
 
 1. Acordar reglas, ownership y alcance funcional de la migración.
 2. Definir entidad, errores, puertos y casos de uso en el core siguiendo Species, sin añadir abstracciones para necesidades hipotéticas.
@@ -140,7 +155,8 @@ Los casos de uso de Auth construyen `RefreshTokenEntity.create(...)` con usuario
 En Auth, registro y cambio de contraseña construyen `PlainPassword.create(...)`, un objeto de valor que valida la política antes del hashing. `IPasswordHasher.hash` recibe `PlainPassword`; `verify` recibe un `string` para no aplicar nuevas reglas a credenciales existentes. `UserEntity` conserva únicamente el hash. La representación de texto/JSON de `PlainPassword` está redactada; el adaptador de hashing accede explícitamente a `value`.
 
 - Los módulos anteriores pendientes conservan servicios, Inversify y otras convenciones. User/Auth ya migraron: sus entidades, puertos y casos de uso están en `packages/core/src/user` y `auth`; los adaptadores de la API usan `presentation/http` e `infrastructure`. `AuthRepository` define operaciones atómicas de cuenta/sesiones sin exponer Prisma al core. El antiguo archivo `auth/application/schemas/auth.schema.ts` conserva únicamente la inicialización OpenAPI que todavía importa sync.
-- Species, Auth y `/users/me` están montados. La reactivación de los demás módulos forma parte de migraciones posteriores.
+- Species, Animal, Auth y `/users/me` están montados. La reactivación de los demás módulos forma parte de migraciones posteriores.
+- Animal conserva únicamente contratos legacy que aún importan módulos pendientes: `domain/entities/Animal.ts`, `domain/repositories/IAnimalRepository.ts`, `domain/services/AnimalRules.ts` y `application/schemas/animal.schema.ts`. Sus antiguos servicio, repositorio concreto, controlador y router se retiraron. Sync/mobile requieren una migración posterior al nuevo contrato Animal antes de reactivarse.
 - Conservar las migraciones SQL y sus constraints/triggers. Una reorganización de código no justifica cambiar garantías de persistencia.
 - Los documentos especializados de sync y OpenAPI describen sus propios subsistemas y necesitan revisión cuando se trabaje en ellos.
 
