@@ -47,7 +47,7 @@ export interface ProductionRecordUpdateInput {
 
 export interface ProductionSummary {
   animalId: string;
-  animalCrotal: string;
+  animalCrotal: string | null;
   type: ProductionType;
   totalRecords: number;
   averageValue: number;

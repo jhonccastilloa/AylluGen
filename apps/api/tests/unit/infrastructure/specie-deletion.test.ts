@@ -11,18 +11,15 @@ describe("Species physical deletion", () => {
     description: null,
   };
 
-  test("blocks deletion when only a soft-deleted animal still references the species", async () => {
-    const animals = [
-      { userId: "owner", speciesId: "specie", deletedAt: new Date() },
-    ];
+  test("blocks deletion when only a sold animal still references the species", async () => {
+    const animals = [{ userId: "owner", speciesId: "specie", status: "SOLD" }];
     const count = jest.fn(
       async ({ where }) =>
         animals.filter(
           (animal) =>
             animal.userId === where.userId &&
             animal.speciesId === where.speciesId &&
-            (where.deletedAt === undefined ||
-              animal.deletedAt === where.deletedAt),
+            (where.status === undefined || animal.status === where.status),
         ).length,
     );
     const remove = jest.fn();

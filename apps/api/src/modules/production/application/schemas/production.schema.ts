@@ -94,7 +94,7 @@ export const productionRecordResponseSchema = z
 export const productionSummaryResponseSchema = z
   .object({
     animalId: z.uuid(),
-    animalCrotal: z.string(),
+    animalCrotal: z.string().nullable(),
     type: z.enum(ProductionType),
     totalRecords: z.number(),
     averageValue: z.number(),

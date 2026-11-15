@@ -39,19 +39,23 @@ model RefreshToken {
 
 model Animal {
   id                String             @id @default(uuid())
-  crotal            String
+  code              String
+  crotal            String?
   sex               Sex
   speciesId         String
   speciesCatalog    Species            @relation(fields: [speciesId], references: [id], onDelete: Restrict)
-  birthDate         DateTime?
-  isFounder         Boolean            @default(false)
+  birthDate         DateTime?          @db.Date
+  status            AnimalStatus       @default(ACTIVE)
+  exitDate          DateTime?          @db.Date
   fatherId          String?
   motherId          String?
-  father            Animal?            @relation("FatherChildren", fields: [fatherId], references: [id], onDelete: SetNull)
-  mother            Animal?            @relation("MotherChildren", fields: [motherId], references: [id], onDelete: SetNull)
+  father            Animal?            @relation("FatherChildren", fields: [fatherId], references: [id], onDelete: Restrict)
+  mother            Animal?            @relation("MotherChildren", fields: [motherId], references: [id], onDelete: Restrict)
   fatherOf          Animal[]           @relation("FatherChildren")
   motherOf          Animal[]           @relation("MotherChildren")
-  breedings         Breeding[]
+  breedings         Breeding[]         @relation("BreedingOffspring")
+  maleBreedings     Breeding[]         @relation("BreedingMale")
+  femaleBreedings   Breeding[]         @relation("BreedingFemale")
   healthRecords     HealthRecord[]
   productionRecords ProductionRecord[]
   userId            String
@@ -60,9 +64,10 @@ model Animal {
   clientUpdatedAt   DateTime           @default(now())
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  deletedAt         DateTime?
 
+  @@unique([userId, code])
   @@unique([userId, crotal])
+  @@index([userId, status, code, id])
   @@index([userId])
   @@index([speciesId])
   @@index([fatherId])
@@ -91,10 +96,12 @@ model Breeding {
   id              String    @id @default(uuid())
   maleId          String
   femaleId        String
+  male            Animal    @relation("BreedingMale", fields: [maleId], references: [id], onDelete: Restrict)
+  female          Animal    @relation("BreedingFemale", fields: [femaleId], references: [id], onDelete: Restrict)
   projectedCOI    Float
   riskLevel       RiskLevel
   offspringId     String?
-  offspring       Animal?   @relation(fields: [offspringId], references: [id], onDelete: SetNull)
+  offspring       Animal?   @relation("BreedingOffspring", fields: [offspringId], references: [id], onDelete: Restrict)
   breedingDate    DateTime?
   notes           String?
   userId          String
@@ -114,7 +121,7 @@ model Breeding {
 model HealthRecord {
   id              String     @id @default(uuid())
   animalId        String
-  animal          Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  animal          Animal     @relation(fields: [animalId], references: [id], onDelete: Restrict)
   type            HealthType
   date            DateTime
   notes           String?
@@ -137,7 +144,7 @@ model HealthRecord {
 model ProductionRecord {
   id              String         @id @default(uuid())
   animalId        String
-  animal          Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  animal          Animal         @relation(fields: [animalId], references: [id], onDelete: Restrict)
   type            ProductionType
   date            DateTime
   value           Float
@@ -198,6 +205,12 @@ model SyncReceipt {
 enum Sex {
   MALE
   FEMALE
+}
+
+enum AnimalStatus {
+  ACTIVE
+  SOLD
+  DECEASED
 }
 
 enum RiskLevel {
