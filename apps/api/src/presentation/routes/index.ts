@@ -3,6 +3,7 @@ import { createSpecieRouter } from "../../modules/specie/presentation/http/Speci
 import type { IContainerControllers } from "../../composition/container";
 import { createAuthRouter } from "../../modules/auth/presentation/http/AuthRouter";
 import { createUserRouter } from "../../modules/user/presentation/http/UserRouter";
+import { createAnimalRouter } from "../../modules/animal/presentation/http/AnimalRouter";
 
 export const createRoutes = (controllers: IContainerControllers): Router => {
   const router = Router();
@@ -12,7 +13,7 @@ export const createRoutes = (controllers: IContainerControllers): Router => {
   // router.get("/live", liveCheck);
   router.use("/auth", createAuthRouter(controllers.auth));
   router.use("/users", createUserRouter(controllers.user));
-  // router.use("/animals", animalRoutes);
+  router.use("/animals", createAnimalRouter(controllers.animal));
   // router.use("/breedings", breedingRoutes);
   // router.use("/sanity", healthRoutes);
   // router.use("/production", productionRoutes);

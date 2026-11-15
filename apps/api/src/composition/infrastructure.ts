@@ -1,3 +1,4 @@
+import type { IAnimalRepository } from "@ayllugen/core/animal/domain/ports/AnimalRepository";
 import type { IAuthRepository } from "@ayllugen/core/auth/domain/ports/AuthRepository";
 import type { IPasswordHasher } from "@ayllugen/core/auth/domain/ports/PasswordHasher";
 import type { ITokenService } from "@ayllugen/core/auth/domain/ports/TokenService";
@@ -8,6 +9,7 @@ import { UuidIdGenerator } from "@ayllugen/shared/ids/uuid";
 import { prisma } from "@infrastructure/database/prisma/client";
 import type { PrismaClient } from "@infrastructure/database/prisma/generated/client";
 import { logger } from "../infrastructure/logging/logger";
+import { AnimalPrismaRepository } from "../modules/animal/infrastructure/persistence/AnimalPrismaRepository";
 import { AuthPrismaRepository } from "../modules/auth/infrastructure/persistence/AuthPrismaRepository";
 import { BcryptPasswordHasher } from "../modules/auth/infrastructure/security/BcryptPasswordHasher";
 import { tokenService } from "../modules/auth/infrastructure/security/tokenService";
@@ -16,6 +18,7 @@ import { UserPrismaRepository } from "../modules/user/infrastructure/persistence
 import type { ILogger } from "../shared/logging/Logger";
 
 export interface IRepositories {
+  animals: IAnimalRepository;
   species: ISpecieRepository;
   users: IUserRepository;
   auth: IAuthRepository;
@@ -40,6 +43,7 @@ export const buildInfrastructure = (): IInfrastructure => {
     tokens: tokenService,
     shutdown: () => prisma.$disconnect(),
     repositories: {
+      animals: new AnimalPrismaRepository(prisma),
       species: new SpeciePrismaRepository(prisma),
       users: new UserPrismaRepository(prisma),
       auth: new AuthPrismaRepository(prisma),

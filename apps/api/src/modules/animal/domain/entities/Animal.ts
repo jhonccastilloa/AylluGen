@@ -1,8 +1,8 @@
+// Legacy types for unmigrated modules. The active entity lives in @ayllugen/core/animal.
 export enum Sex {
   MALE = "MALE",
   FEMALE = "FEMALE",
 }
-
 
 export interface Animal {
   id: string;

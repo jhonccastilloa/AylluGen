@@ -1,3 +1,4 @@
+// Legacy contract for unmigrated modules; not wired into the active application.
 import {
   Animal,
   AnimalCreateDTO,

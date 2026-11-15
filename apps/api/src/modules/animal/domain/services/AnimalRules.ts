@@ -1,3 +1,4 @@
+// Legacy sync validation; the active Animal rules live in @ayllugen/core/animal.
 import {
   ValidationError,
   NotFoundError,
