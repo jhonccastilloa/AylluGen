@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
+    "./animal/*": {
+      "types": "./dist/animal/*.d.ts",
+      "default": "./dist/animal/*.js"
+    },
     "./shared/ports/IdGeneratorPort": {
       "types": "./dist/shared/ports/IdGeneratorPort.d.ts",
       "default": "./dist/shared/ports/IdGeneratorPort.js"
@@ -26,6 +30,9 @@
   },
   "typesVersions": {
     "*": {
+      "animal/*": [
+        "dist/animal/*"
+      ],
       "shared/ports/IdGeneratorPort": [
         "dist/shared/ports/IdGeneratorPort"
       ],
